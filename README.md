@@ -35,3 +35,4 @@ Cada item pode ter:
 
 O servidor valida os adicionais e remoções contra o cardápio, em vez de confiar cegamente no valor enviado pelo navegador.
 # lanchonete-qr
+# lanchonete-qr
