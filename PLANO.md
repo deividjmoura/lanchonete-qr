@@ -23,8 +23,10 @@ Objetivo: evoluir o MVP atual (Node.js + arquivos JSON) para um sistema completo
   - Consome `GET /api/cardapio`, `POST /api/mesas/:token/pedidos`, `GET /api/mesas/:token/sessao`
   - Barra fixa **"Total da mesa até agora"** sempre visível
   - Após enviar pedido permanece na mesa (conta acumulativa) e atualiza o total
-  - **Adicionar direto** ou **Personalizar** (modal overlay fixo)
+  - **Adicionar** (toast + pill) ou **Personalizar** (modal overlay)
+  - **Carrinho em modal** (não ocupa a tela; abre pelo ícone 🛒)
   - Ponto da carne **não é mais escolha fechada** — vai na observação do item (texto livre)
+  - Hambúrguer extra garantido nos lanches/combos (`0003_hamburguer_extra.sql` + seed)
 - **Cozinha (`cozinha.html`)** — fila Postgres, avanço até `concluido`
 - **Garçom (`garcom.html`)** — fila `concluido` → `entregue`
 - **Caixa (`caixa.html`)** — sessões abertas, fechar conta + pagamento

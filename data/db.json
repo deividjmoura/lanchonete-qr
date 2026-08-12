@@ -76,6 +76,11 @@
             "id": "salada-extra",
             "name": "Salada extra",
             "price": 2
+          },
+          {
+            "id": "hamb-extra",
+            "name": "Hambúrguer extra 150g",
+            "price": 9
           }
         ],
         "removals": [
@@ -179,6 +184,11 @@
             "id": "extra-bacon",
             "name": "Bacon extra no lanche",
             "price": 5
+          },
+          {
+            "id": "hamb-extra",
+            "name": "Hambúrguer extra 150g",
+            "price": 9
           }
         ],
         "removals": [
@@ -213,6 +223,11 @@
             "id": "troca-batata-m",
             "name": "Trocar para batata M",
             "price": 4
+          },
+          {
+            "id": "hamb-extra",
+            "name": "Hambúrguer extra 150g",
+            "price": 9
           }
         ],
         "removals": [
@@ -246,6 +261,11 @@
             "id": "troca-bebida",
             "name": "Trocar bebida por suco",
             "price": 2
+          },
+          {
+            "id": "hamb-extra",
+            "name": "Hambúrguer extra 120g",
+            "price": 8
           }
         ],
         "removals": [

@@ -22,18 +22,18 @@
     .toast-ok{
       position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
       background:#1b5e20;color:#fff;padding:14px 20px;border-radius:14px;
-      font-weight:700;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.25);
+      font-weight:700;z-index:110;box-shadow:0 8px 24px rgba(0,0,0,.25);
       max-width:min(92vw,360px);text-align:center;
     }
     .product-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
     .product-actions .btn{min-height:40px;padding:0 14px;font-size:.88rem}
     .btn.ghost{background:#fff;border-color:var(--line)}
+    .btn.full{width:100%;margin-top:12px}
 
-    /* Modal de personalização — overlay fixo (não empurra o cardápio) */
+    /* Overlay compartilhado (personalizar + carrinho) */
     .modal-root{
       position:fixed;inset:0;z-index:80;
       display:flex;align-items:flex-end;justify-content:center;
-      padding:0;
     }
     .modal-backdrop{
       position:absolute;inset:0;
@@ -61,7 +61,7 @@
       border:1px solid var(--line);background:#fff;
       font-size:1.4rem;line-height:1;font-weight:700;color:var(--muted);
     }
-    .modal-sheet h2{margin:0 36px 6px 0;font-size:1.25rem}
+    .modal-sheet h2{margin:0 40px 6px 0;font-size:1.25rem}
     .option-block{margin-top:18px}
     .option-block h3{margin:0 0 8px;font-size:.95rem}
     .option-block .small{font-size:.82rem;margin:0 0 10px}
@@ -75,22 +75,37 @@
     .check input{width:auto;margin:0;accent-color:var(--primary)}
     .check span{flex:1}
     .check b{color:var(--muted);font-size:.88rem}
-    .btn.full{width:100%;margin-top:16px}
     body.modal-open{overflow:hidden}
+
+    /* Carrinho só no modal — não ocupa a página */
+    #cart{display:none}
+    .cart-line{
+      display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+      padding:12px 0;border-bottom:1px solid var(--line);
+    }
+    .cart-line:last-of-type{border-bottom:0}
+    .cart-line small{display:block;color:var(--muted);font-size:.8rem;margin-top:3px}
+    .cart-line .qty{
+      display:inline-flex;align-items:center;gap:8px;
+      border:1px solid var(--line);border-radius:999px;padding:4px 8px;
+      flex-shrink:0;
+    }
+    .cart-line .qty button{
+      width:28px;height:28px;border:0;border-radius:50%;
+      background:#f3f4f6;font-weight:800;cursor:pointer;
+    }
+    .cart-total-row{
+      display:flex;justify-content:space-between;align-items:center;
+      margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+      font-weight:800;font-size:1.05rem;
+    }
+    .cart-empty{text-align:center;padding:28px 12px;color:var(--muted)}
 
     @media(min-width:901px){
       .sessao-bar{border-radius:0 0 14px 14px;margin:0 auto;width:min(100% - 32px,920px)}
       body.has-sessao .mobile-header{top:0}
       .modal-root{align-items:center;padding:24px}
-      .modal-sheet{
-        border-radius:20px;
-        max-height:min(88vh,680px);
-        animation:sheetFade .2s ease;
-      }
-      @keyframes sheetFade{
-        from{transform:scale(.97);opacity:0}
-        to{transform:scale(1);opacity:1}
-      }
+      .modal-sheet{border-radius:20px;max-height:min(88vh,680px)}
     }
   </style>
 </head>
@@ -108,7 +123,9 @@
     <strong>🍔 Lanchonete QR</strong>
     <small id="mesa"></small>
   </div>
-  <a href="#cart" class="cart-pill" id="cartPill">🛒 <span id="cartCount">0</span></a>
+  <button type="button" class="cart-pill" id="cartPill" onclick="openCart()">
+    🛒 <span id="cartCount">0</span>
+  </button>
 </header>
 
 <main class="wrap client">
@@ -137,8 +154,9 @@ if (!UUID_RE.test(token)) {
 let categorias = [];
 let produtos = [];
 let cart = [];
-let mesaNumero = null;
 let totalDevido = 0;
+let orderNoteDraft = '';
+let cartOpen = false;
 
 const br = n => 'R$ ' + Number(n).toFixed(2).replace('.', ',');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({
@@ -149,12 +167,33 @@ function temPersonalizacao(p) {
   return (p.adicionais && p.adicionais.length) || (p.removiveis && p.removiveis.length);
 }
 
+function cartCount() {
+  return cart.reduce((s, i) => s + i.qty, 0);
+}
+
+function cartTotal() {
+  return cart.reduce((s, i) => s + itemTotal(i), 0);
+}
+
+function updateCartPill() {
+  const n = cartCount();
+  document.getElementById('cartCount').textContent = n;
+  document.getElementById('cartPill').classList.toggle('has-items', n > 0);
+}
+
+function showToast(html, ms = 1800) {
+  const toast = document.createElement('div');
+  toast.className = 'toast-ok';
+  toast.innerHTML = html;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), ms);
+}
+
 async function loadSessao() {
   try {
     const r = await fetch('/api/mesas/' + token + '/sessao');
     if (!r.ok) return;
     const s = await r.json();
-    mesaNumero = s.mesa;
     totalDevido = s.totalDevido || 0;
     document.getElementById('mesa').textContent = 'Mesa ' + s.mesa;
     document.getElementById('mesaDesk').textContent = 'Mesa ' + s.mesa + ' · Cardápio';
@@ -164,7 +203,7 @@ async function loadSessao() {
       : 'Nenhum pedido ainda';
     document.getElementById('sessaoBar').hidden = false;
     document.body.classList.add('has-sessao');
-  } catch (_) { /* silencioso */ }
+  } catch (_) {}
 }
 
 async function loadCardapio() {
@@ -220,12 +259,8 @@ function quickAdd(id) {
     removals: [],
     note: '',
   });
-  renderCart();
-  const toast = document.createElement('div');
-  toast.className = 'toast-ok';
-  toast.textContent = p.nome + ' adicionado';
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 1600);
+  updateCartPill();
+  showToast(`${esc(p.nome)} adicionado`);
 }
 
 function openProduct(id) {
@@ -237,8 +272,9 @@ function openProduct(id) {
     ? 'Ex.: ao ponto, bem passado, pouco molho…'
     : 'Ex.: pouco molho, sem picles…';
 
+  cartOpen = false;
   document.getElementById('modal').innerHTML = `
-    <div class="modal-root" role="dialog" aria-modal="true" aria-label="Personalizar ${esc(p.nome)}">
+    <div class="modal-root" role="dialog" aria-modal="true">
       <div class="modal-backdrop" onclick="closeModal()"></div>
       <div class="modal-sheet">
         <button class="close" type="button" onclick="closeModal()" aria-label="Fechar">×</button>
@@ -291,8 +327,11 @@ function updateModalTotal(id) {
 }
 
 function closeModal() {
+  const noteEl = document.getElementById('orderNote');
+  if (noteEl) orderNoteDraft = noteEl.value;
   document.getElementById('modal').innerHTML = '';
   document.body.classList.remove('modal-open');
+  cartOpen = false;
 }
 
 function confirmProduct(id) {
@@ -314,7 +353,8 @@ function confirmProduct(id) {
     note,
   });
   closeModal();
-  renderCart();
+  updateCartPill();
+  showToast(`${esc(p.nome)} adicionado`);
 }
 
 function itemTotal(i) {
@@ -323,28 +363,19 @@ function itemTotal(i) {
   return (p.preco + i.additions.reduce((s, a) => s + a.preco, 0)) * i.qty;
 }
 
-function renderCart() {
-  const count = cart.reduce((s, i) => s + i.qty, 0);
-  const total = cart.reduce((s, i) => s + itemTotal(i), 0);
-  document.getElementById('cartCount').textContent = count;
-  document.getElementById('cartPill').classList.toggle('has-items', count > 0);
-
-  if (!cart.length) {
-    document.getElementById('cart').innerHTML = '';
-    return;
-  }
-
-  document.getElementById('cart').innerHTML = `
-    <div class="cart">
-      <div class="cart-head"><b>Seu pedido</b><b>${br(total)}</b></div>
-      ${cart.map(i => {
+function openCart() {
+  cartOpen = true;
+  const total = cartTotal();
+  const lines = cart.length
+    ? cart.map(i => {
         const p = produtos.find(x => x.id === i.productId);
-        return `<div class="cart-item">
+        return `<div class="cart-line">
           <div>
             <b>${i.qty}× ${esc(p?.nome || 'Item')}</b>
             ${i.additions.length ? `<small>+ ${i.additions.map(a => esc(a.nome)).join(', ')}</small>` : ''}
             ${i.removals.length ? `<small>sem ${i.removals.map(esc).join(', ')}</small>` : ''}
             ${i.note ? `<small>📝 ${esc(i.note)}</small>` : ''}
+            <small>${br(itemTotal(i))}</small>
           </div>
           <div class="qty">
             <button type="button" onclick="changeQty('${i.key}',-1)">−</button>
@@ -352,13 +383,28 @@ function renderCart() {
             <button type="button" onclick="changeQty('${i.key}',1)">+</button>
           </div>
         </div>`;
-      }).join('')}
-      <textarea class="input textarea" id="orderNote" maxlength="500"
-        placeholder="Observação geral do pedido (opcional)"></textarea>
-      <button class="btn primary full" type="button" id="btnSend" onclick="send()">
-        Enviar pedido · ${br(total)}
-      </button>
+      }).join('')
+    : '<div class="cart-empty">Carrinho vazio. Adicione itens do cardápio.</div>';
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-root" role="dialog" aria-modal="true" aria-label="Carrinho">
+      <div class="modal-backdrop" onclick="closeModal()"></div>
+      <div class="modal-sheet">
+        <button class="close" type="button" onclick="closeModal()" aria-label="Fechar">×</button>
+        <h2>Seu pedido</h2>
+        <p class="muted" style="margin:0 0 8px">Revise e envie para a cozinha</p>
+        ${lines}
+        ${cart.length ? `
+          <div class="cart-total-row"><span>Total</span><span>${br(total)}</span></div>
+          <textarea class="input textarea" id="orderNote" maxlength="500"
+            placeholder="Observação geral do pedido (opcional)">${esc(orderNoteDraft)}</textarea>
+          <button class="btn primary full" type="button" id="btnSend" onclick="send()">
+            Enviar pedido · ${br(total)}
+          </button>
+        ` : ''}
+      </div>
     </div>`;
+  document.body.classList.add('modal-open');
 }
 
 function changeQty(key, d) {
@@ -366,7 +412,8 @@ function changeQty(key, d) {
   if (!i) return;
   i.qty += d;
   if (i.qty <= 0) cart = cart.filter(x => x.key !== key);
-  renderCart();
+  updateCartPill();
+  if (cartOpen) openCart();
 }
 
 async function send() {
@@ -375,6 +422,7 @@ async function send() {
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
 
   const orderNote = document.getElementById('orderNote')?.value || '';
+  orderNoteDraft = orderNote;
   const items = cart.map(i => ({
     productId: i.productId,
     qty: i.qty,
@@ -397,17 +445,14 @@ async function send() {
     }
 
     cart = [];
-    renderCart();
+    orderNoteDraft = '';
+    updateCartPill();
+    closeModal();
     await loadSessao();
-
-    const toast = document.createElement('div');
-    toast.className = 'toast-ok';
-    toast.innerHTML = `Pedido #${o.id} enviado · ${br(o.total)}<br><small>O total da mesa foi atualizado</small>`;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3200);
+    showToast(`Pedido #${o.id} enviado · ${br(o.total)}<br><small>O total da mesa foi atualizado</small>`, 3200);
   } catch (e) {
     alert('Falha de rede ao enviar o pedido');
-    if (btn) { btn.disabled = false; renderCart(); }
+    if (btn) { btn.disabled = false; if (cartOpen) openCart(); }
   }
 }
 
