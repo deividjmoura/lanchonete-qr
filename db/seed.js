@@ -50,12 +50,15 @@ async function run() {
     let totalProdutos = 0;
     let totalAdicionais = 0;
 
+    let totalRemoviveis = 0;
+
     for (const p of raw.menu) {
       const categoriaId = categoriaIdPorNome[p.category];
+      const pedePontoCarne = Boolean(p.customization?.meatPoint);
       const { rows } = await client.query(
-        `INSERT INTO produtos (categoria_id, nome, descricao, preco, disponivel)
-         VALUES ($1, $2, $3, $4, TRUE) RETURNING id`,
-        [categoriaId, p.name, p.description || null, p.price]
+        `INSERT INTO produtos (categoria_id, nome, descricao, preco, disponivel, pede_ponto_carne)
+         VALUES ($1, $2, $3, $4, TRUE, $5) RETURNING id`,
+        [categoriaId, p.name, p.description || null, p.price, pedePontoCarne]
       );
       const produtoId = rows[0].id;
       totalProdutos++;
@@ -69,14 +72,18 @@ async function run() {
         totalAdicionais++;
       }
 
-      // Observação: `removals` e `meatPoint` do customization são regras de
-      // exibição (quais remoções/ponto da carne o produto aceita), não dados
-      // transacionais — no schema novo isso fica hardcoded no backend/admin
-      // por enquanto (ver seção 8, passo 2 do plano para migrar o admin).
+      const removals = p.customization?.removals || [];
+      for (const ingrediente of removals) {
+        await client.query(
+          'INSERT INTO produtos_ingredientes_removiveis (produto_id, ingrediente) VALUES ($1, $2)',
+          [produtoId, ingrediente]
+        );
+        totalRemoviveis++;
+      }
     }
 
     await client.query('COMMIT');
-    console.log(`✅ ${totalProdutos} produtos e ${totalAdicionais} adicionais inseridos.`);
+    console.log(`✅ ${totalProdutos} produtos, ${totalAdicionais} adicionais e ${totalRemoviveis} ingredientes removíveis inseridos.`);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
