@@ -241,46 +241,69 @@ async function getSessao(token) {
   }
 }
 
-// Fila da cozinha: pedidos recebido/em_producao, mais antigo primeiro.
-// Inclui adicionais e remoções para a cozinha ver a personalização completa.
-async function getFilaCozinha() {
+// Carrega itens do pedido com adicionais e remoções (usado pelas filas
+// de cozinha e garçom).
+async function carregarItensPedido(pedidoId) {
+  const { rows: itens } = await pool.query(
+    `SELECT ip.id, pr.nome, ip.quantidade, ip.ponto_carne, ip.observacao
+     FROM itens_pedido ip JOIN produtos pr ON pr.id = ip.produto_id
+     WHERE ip.pedido_id = $1`,
+    [pedidoId]
+  );
+
+  for (const item of itens) {
+    const { rows: adicionais } = await pool.query(
+      `SELECT a.nome
+       FROM itens_pedido_adicionais ipa
+       JOIN adicionais a ON a.id = ipa.adicional_id
+       WHERE ipa.item_pedido_id = $1`,
+      [item.id]
+    );
+    const { rows: remocoes } = await pool.query(
+      `SELECT ingrediente FROM itens_pedido_remocoes WHERE item_pedido_id = $1`,
+      [item.id]
+    );
+    item.adicionais = adicionais;
+    item.remocoes = remocoes.map((r) => r.ingrediente);
+  }
+  return itens;
+}
+
+async function listarPedidosPorStatus(statuses) {
   const { rows: pedidos } = await pool.query(
     `SELECT p.id, p.status, p.criado_em, p.observacao_geral, m.numero AS mesa
      FROM pedidos p
      JOIN mesa_sessoes s ON s.id = p.sessao_id
      JOIN mesas m ON m.id = s.mesa_id
-     WHERE p.status IN ('recebido', 'em_producao')
-     ORDER BY p.criado_em`
+     WHERE p.status = ANY($1::text[])
+     ORDER BY p.criado_em`,
+    [statuses]
   );
 
   const resultado = [];
   for (const p of pedidos) {
-    const { rows: itens } = await pool.query(
-      `SELECT ip.id, pr.nome, ip.quantidade, ip.ponto_carne, ip.observacao
-       FROM itens_pedido ip JOIN produtos pr ON pr.id = ip.produto_id
-       WHERE ip.pedido_id = $1`,
-      [p.id]
-    );
-
-    for (const item of itens) {
-      const { rows: adicionais } = await pool.query(
-        `SELECT a.nome
-         FROM itens_pedido_adicionais ipa
-         JOIN adicionais a ON a.id = ipa.adicional_id
-         WHERE ipa.item_pedido_id = $1`,
-        [item.id]
-      );
-      const { rows: remocoes } = await pool.query(
-        `SELECT ingrediente FROM itens_pedido_remocoes WHERE item_pedido_id = $1`,
-        [item.id]
-      );
-      item.adicionais = adicionais;
-      item.remocoes = remocoes.map((r) => r.ingrediente);
-    }
-
+    const itens = await carregarItensPedido(p.id);
     resultado.push({ ...p, itens });
   }
   return resultado;
 }
 
-module.exports = { criarPedido, avancarStatus, getSessao, getFilaCozinha, ErroPedido };
+// Fila da cozinha: pedidos recebido/em_producao, mais antigo primeiro.
+async function getFilaCozinha() {
+  return listarPedidosPorStatus(['recebido', 'em_producao']);
+}
+
+// Fila do garçom: pedidos concluídos pela cozinha, prontos para entregar.
+// Ao marcar entregue via avancarStatus, o valor soma em mesa_sessoes.valor_total.
+async function getFilaGarcom() {
+  return listarPedidosPorStatus(['concluido']);
+}
+
+module.exports = {
+  criarPedido,
+  avancarStatus,
+  getSessao,
+  getFilaCozinha,
+  getFilaGarcom,
+  ErroPedido,
+};

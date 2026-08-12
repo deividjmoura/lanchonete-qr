@@ -16,15 +16,16 @@ Cliente escaneia o QR da mesa → monta o pedido com adicionais, remoções e po
 | `POST /api/mesas/:token/pedidos` + sessão da mesa | ✅ |
 | `GET /api/mesas/:token/sessao` (total devido) | ✅ |
 | `GET /api/cozinha/pedidos` + `PATCH /api/pedidos/:id/status` | ✅ |
+| `GET /api/garcom/pedidos` + entrega (`entregue`) | ✅ |
 | **Admin** — CRUD cardápio + QR por token | ✅ |
 | UI cliente (`mesa.html`) migrada para token + Postgres | ✅ |
 | UI cozinha migrada | ✅ |
-| Tela garçom | ⏳ |
+| Tela garçom | ✅ |
 | Tela caixa + fechar sessão | ⏳ |
 | SSE no lugar de polling | ⏳ |
 | Auth admin/caixa + rate limit | ⏳ |
 
-As rotas antigas (`/api/menu`, `/api/orders*`) ainda existem e alimentam telas legadas até a migração completa da UI (cozinha e mesa já usam Postgres).
+As rotas antigas (`/api/menu`, `/api/orders*`) ainda existem até a migração completa da UI. Mesa, cozinha e garçom já usam Postgres.
 
 ---
 
@@ -107,6 +108,7 @@ npm start
 | `POST` | `/api/mesas/:token/pedidos` | Cria pedido, abre/reaproveita sessão, valida preço e regras no servidor |
 | `GET` | `/api/mesas/:token/sessao` | Pedidos da sessão aberta + total devido |
 | `GET` | `/api/cozinha/pedidos` | Fila `recebido` / `em_producao` |
+| `GET` | `/api/garcom/pedidos` | Fila `concluido` (pronto para entregar) |
 | `PATCH` | `/api/pedidos/:id/status` | Avança um passo: `recebido → em_producao → concluido → entregue` |
 
 ### Admin (Postgres)
@@ -130,7 +132,7 @@ npm start
 | `/mesa/:token` | Cliente (hoje ainda aceita número legado via JSON) |
 | `/cozinha` | Cozinha |
 | `/admin` | Cardápio + QR por token |
-| `/garcom` | *(em breve)* |
+| `/garcom` | Garçom — pedidos prontos → entregue |
 | `/caixa` | *(em breve)* |
 
 ---
@@ -162,6 +164,7 @@ Pendente: autenticação no admin/caixa e rate limit no endpoint de pedido.
 │   ├── admin.html      # painel admin (Postgres)
 │   ├── mesa.html       # cliente (ainda JSON legado)
 │   ├── cozinha.html    # fila Postgres (recebido/em_producao)
+│   ├── garcom.html     # fila Postgres (concluido → entregue)
 │   ├── pedido.html
 │   └── style.css
 ├── data/db.json        # legado — será aposentado
@@ -175,7 +178,7 @@ Pendente: autenticação no admin/caixa e rate limit no endpoint de pedido.
 
 1. ~~Migrar `mesa.html`~~ ✅
 2. ~~Migrar `cozinha.html`~~ ✅ — `GET /api/cozinha/pedidos` + `PATCH /api/pedidos/:id/status`
-3. Tela `/garcom` (pedidos `concluido` → `entregue`)
+3. ~~Tela `/garcom`~~ ✅ — `GET /api/garcom/pedidos` + marcar `entregue`
 4. Tela `/caixa` + `POST /api/caixa/sessoes/:id/fechar`
 5. SSE, auth e desligar rotas/`db.json` antigos
 

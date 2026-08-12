@@ -10,6 +10,7 @@ const {
   avancarStatus,
   getSessao,
   getFilaCozinha,
+  getFilaGarcom,
   ErroPedido,
 } = require('./db/pedidos');
 const {
@@ -187,6 +188,9 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/cozinha/pedidos' && req.method === 'GET') {
       return json(res, 200, await getFilaCozinha());
     }
+    if (p === '/api/garcom/pedidos' && req.method === 'GET') {
+      return json(res, 200, await getFilaGarcom());
+    }
     if ((m = p.match(/^\/api\/pedidos\/(\d+)\/status$/)) && req.method === 'PATCH') {
       try {
         const b = await body(req);
@@ -271,6 +275,7 @@ const server = http.createServer(async (req, res) => {
     if (file.startsWith('/mesa/')) file = '/mesa.html';
     if (file.startsWith('/pedido/')) file = '/pedido.html';
     if (file === '/cozinha') file = '/cozinha.html';
+    if (file === '/garcom') file = '/garcom.html';
     if (file === '/admin') file = '/admin.html';
     const fp = path.join(ROOT, 'public', file);
     if (fs.existsSync(fp)) {

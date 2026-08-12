@@ -4,11 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111">
-  <title>Cozinha · Lanchonete QR</title>
+  <title>Garçom · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
   <style>
-    .badge.recebido{background:#fff3e0;color:#e65100}
-    .badge.em_producao{background:#e3f2fd;color:#1565c0}
+    .badge.concluido{background:#e8f5e9;color:#1b5e20}
     .item-extra{display:block;color:var(--muted);font-size:.82rem;margin-top:2px}
     .item-extra .sem{color:#c62828}
     .item-extra .com{color:#16834a}
@@ -27,17 +26,19 @@
     }
     .toast.show{opacity:1}
     .toast.err{background:#b71c1c}
+    .toast.ok{background:#1b5e20}
+    .mesa-hint{font-size:.9rem;color:var(--muted);margin-top:4px}
   </style>
 </head>
 <body>
 <main class="wrap">
   <div class="top">
     <div>
-      <div class="brand">👨‍🍳 Cozinha</div>
-      <div class="muted">Fila <code>recebido</code> → <code>em_producao</code> → <code>concluido</code> · atualiza a cada 2s</div>
+      <div class="brand">🛎️ Garçom</div>
+      <div class="muted">Pedidos <code>concluido</code> → marcar <code>entregue</code> (valor entra na conta da mesa)</div>
     </div>
     <div class="nav">
-      <a class="btn" href="/garcom">Garçom</a>
+      <a class="btn" href="/cozinha">Cozinha</a>
       <a class="btn" href="/admin">Admin</a>
       <a class="btn dark" href="/">Início</a>
     </div>
@@ -49,27 +50,10 @@
 <div id="toast" class="toast"></div>
 
 <script>
-const LABELS = {
-  recebido: 'Novo',
-  em_producao: 'Preparando',
-  concluido: 'Concluído',
-  entregue: 'Entregue',
-};
-
 const PONTO = {
   MAL_PASSADO: 'Mal passado',
   AO_PONTO: 'Ao ponto',
   BEM_PASSADO: 'Bem passado',
-};
-
-const PROXIMO = {
-  recebido: 'em_producao',
-  em_producao: 'concluido',
-};
-
-const ACAO = {
-  recebido: 'Começar preparo',
-  em_producao: 'Marcar concluído',
 };
 
 function fmtHora(iso) {
@@ -86,9 +70,17 @@ function idadeMinutos(iso) {
 }
 
 function ageClass(min) {
-  if (min >= 15) return 'hot';
-  if (min >= 8) return 'warn';
+  if (min >= 10) return 'hot';
+  if (min >= 5) return 'warn';
   return '';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function extrasHtml(item) {
@@ -110,18 +102,8 @@ function extrasHtml(item) {
   return parts.length ? `<small class="item-extra">${parts.join(' · ')}</small>` : '';
 }
 
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 function card(p) {
   const min = idadeMinutos(p.criado_em);
-  const proximo = PROXIMO[p.status];
-  const acao = ACAO[p.status];
   const itens = (p.itens || [])
     .map(
       (i) =>
@@ -131,35 +113,32 @@ function card(p) {
     )
     .join('');
 
-  return `<article class="order ${p.status === 'recebido' ? 'new' : ''}" data-id="${p.id}">
+  return `<article class="order" data-id="${p.id}">
     <div class="row">
       <div>
         <div class="big">Mesa ${p.mesa}</div>
         <div class="meta-row">
-          <span class="badge ${p.status}">${LABELS[p.status] || p.status}</span>
-          <span class="age ${ageClass(min)}">${min === 0 ? 'agora' : min + ' min'}</span>
+          <span class="badge concluido">Pronto</span>
+          <span class="age ${ageClass(min)}">${min === 0 ? 'agora' : min + ' min na fila'}</span>
         </div>
+        <div class="mesa-hint">Levar à mesa e confirmar entrega</div>
       </div>
       <b>#${p.id}</b>
     </div>
     <hr>
     ${itens || '<p class="muted">Sem itens</p>'}
     ${p.observacao_geral ? `<p><b>Obs. geral:</b> ${esc(p.observacao_geral)}</p>` : ''}
-    <p class="muted">${fmtHora(p.criado_em)}</p>
+    <p class="muted">Pedido às ${fmtHora(p.criado_em)}</p>
     <div class="nav">
-      ${
-        proximo
-          ? `<button class="btn primary" data-advance="${p.id}" data-status="${proximo}">${acao}</button>`
-          : ''
-      }
+      <button class="btn primary" data-deliver="${p.id}">Marcar entregue</button>
     </div>
   </article>`;
 }
 
-function toast(msg, isErr) {
+function toast(msg, kind) {
   const el = document.getElementById('toast');
   el.textContent = msg;
-  el.className = 'toast show' + (isErr ? ' err' : '');
+  el.className = 'toast show' + (kind === 'err' ? ' err' : kind === 'ok' ? ' ok' : '');
   clearTimeout(toast._t);
   toast._t = setTimeout(() => {
     el.className = 'toast';
@@ -173,20 +152,18 @@ async function load() {
   if (loading || advancing) return;
   loading = true;
   try {
-    const res = await fetch('/api/cozinha/pedidos');
+    const res = await fetch('/api/garcom/pedidos');
     if (!res.ok) throw new Error('Falha ao carregar fila');
     const pedidos = await res.json();
 
-    const novos = pedidos.filter((p) => p.status === 'recebido').length;
-    const prep = pedidos.filter((p) => p.status === 'em_producao').length;
     document.getElementById('stats').textContent = pedidos.length
-      ? `${pedidos.length} na fila · ${novos} novo(s) · ${prep} em produção`
-      : 'Fila vazia';
+      ? `${pedidos.length} pedido(s) pronto(s) para entregar`
+      : 'Nada aguardando entrega';
 
     const root = document.getElementById('orders');
     if (!pedidos.length) {
       root.innerHTML =
-        '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
+        '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido pronto no momento.</div></div>';
     } else {
       root.innerHTML = pedidos.map(card).join('');
     }
@@ -198,34 +175,34 @@ async function load() {
   }
 }
 
-async function avancar(id, status) {
+async function entregar(id) {
   if (advancing) return;
   advancing = true;
   try {
     const res = await fetch(`/api/pedidos/${id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status: 'entregue' }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      toast(data.error || 'Não foi possível avançar o status', true);
+      toast(data.error || 'Não foi possível marcar como entregue', 'err');
       return;
     }
-    toast(status === 'em_producao' ? 'Pedido em preparo' : 'Pedido concluído — aguardando garçom');
+    toast('Entregue — valor somado na conta da mesa', 'ok');
     await load();
   } catch (e) {
     console.error(e);
-    toast('Erro de rede', true);
+    toast('Erro de rede', 'err');
   } finally {
     advancing = false;
   }
 }
 
 document.getElementById('orders').addEventListener('click', (ev) => {
-  const btn = ev.target.closest('[data-advance]');
+  const btn = ev.target.closest('[data-deliver]');
   if (!btn) return;
-  avancar(Number(btn.dataset.advance), btn.dataset.status);
+  entregar(Number(btn.dataset.deliver));
 });
 
 load();
