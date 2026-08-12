@@ -1,1 +1,16 @@
-{"name":"lanchonete-qr","version":"1.0.0","private":true,"scripts":{"dev":"node server.js","start":"node server.js","qr":"python3 generate_qr.py"}}
+{
+  "name": "lanchonete-qr",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "qr": "python3 generate_qr.py",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1"
+  }
+}
