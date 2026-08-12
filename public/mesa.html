@@ -25,9 +25,72 @@
       font-weight:700;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.25);
       max-width:min(92vw,360px);text-align:center;
     }
+    .product-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .product-actions .btn{min-height:40px;padding:0 14px;font-size:.88rem}
+    .btn.ghost{background:#fff;border-color:var(--line)}
+
+    /* Modal de personalização — overlay fixo (não empurra o cardápio) */
+    .modal-root{
+      position:fixed;inset:0;z-index:80;
+      display:flex;align-items:flex-end;justify-content:center;
+      padding:0;
+    }
+    .modal-backdrop{
+      position:absolute;inset:0;
+      background:rgba(15,18,22,.55);
+      backdrop-filter:blur(4px);
+    }
+    .modal-sheet{
+      position:relative;z-index:1;
+      width:min(100%,480px);
+      max-height:min(92vh,720px);
+      overflow:auto;
+      background:#fff;
+      border-radius:20px 20px 0 0;
+      box-shadow:0 -12px 40px rgba(0,0,0,.2);
+      padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));
+      animation:sheetUp .22s ease;
+    }
+    @keyframes sheetUp{
+      from{transform:translateY(24px);opacity:.6}
+      to{transform:translateY(0);opacity:1}
+    }
+    .modal-sheet .close{
+      position:absolute;top:12px;right:12px;
+      width:40px;height:40px;border-radius:50%;
+      border:1px solid var(--line);background:#fff;
+      font-size:1.4rem;line-height:1;font-weight:700;color:var(--muted);
+    }
+    .modal-sheet h2{margin:0 36px 6px 0;font-size:1.25rem}
+    .option-block{margin-top:18px}
+    .option-block h3{margin:0 0 8px;font-size:.95rem}
+    .option-block .small{font-size:.82rem;margin:0 0 10px}
+    .check{
+      display:flex;align-items:center;gap:10px;
+      padding:10px 12px;margin:0 0 8px;
+      border:1px solid var(--line);border-radius:12px;
+      cursor:pointer;font-weight:600;
+    }
+    .check:has(input:checked){border-color:#111;background:#f8f9fb}
+    .check input{width:auto;margin:0;accent-color:var(--primary)}
+    .check span{flex:1}
+    .check b{color:var(--muted);font-size:.88rem}
+    .btn.full{width:100%;margin-top:16px}
+    body.modal-open{overflow:hidden}
+
     @media(min-width:901px){
       .sessao-bar{border-radius:0 0 14px 14px;margin:0 auto;width:min(100% - 32px,920px)}
       body.has-sessao .mobile-header{top:0}
+      .modal-root{align-items:center;padding:24px}
+      .modal-sheet{
+        border-radius:20px;
+        max-height:min(88vh,680px);
+        animation:sheetFade .2s ease;
+      }
+      @keyframes sheetFade{
+        from{transform:scale(.97);opacity:0}
+        to{transform:scale(1);opacity:1}
+      }
     }
   </style>
 </head>
@@ -63,7 +126,6 @@
 <div id="modal"></div>
 
 <script>
-// Token opaco na URL (/mesa/<uuid>). Número sequencial legado não é mais usado.
 const token = location.pathname.split('/').filter(Boolean).pop() || '';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -72,8 +134,8 @@ if (!UUID_RE.test(token)) {
   throw new Error('token inválido');
 }
 
-let categorias = [];   // resposta de GET /api/cardapio
-let produtos = [];     // flat para lookup por id
+let categorias = [];
+let produtos = [];
 let cart = [];
 let mesaNumero = null;
 let totalDevido = 0;
@@ -83,13 +145,10 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 }[m]));
 
-const meatLabel = {
-  MAL_PASSADO: 'Mal passado',
-  AO_PONTO: 'Ao ponto',
-  BEM_PASSADO: 'Bem passado',
-};
+function temPersonalizacao(p) {
+  return (p.adicionais && p.adicionais.length) || (p.removiveis && p.removiveis.length);
+}
 
-// ---------- Sessão (total da mesa) ----------
 async function loadSessao() {
   try {
     const r = await fetch('/api/mesas/' + token + '/sessao');
@@ -105,10 +164,9 @@ async function loadSessao() {
       : 'Nenhum pedido ainda';
     document.getElementById('sessaoBar').hidden = false;
     document.body.classList.add('has-sessao');
-  } catch (_) { /* silencioso no carregamento inicial */ }
+  } catch (_) { /* silencioso */ }
 }
 
-// ---------- Cardápio ----------
 async function loadCardapio() {
   const r = await fetch('/api/cardapio');
   if (!r.ok) {
@@ -129,21 +187,45 @@ function renderMenu() {
     <section id="cat-${c.id}">
       <h2 class="cat">${esc(c.nome)}</h2>
       <div class="grid">
-        ${c.produtos.map(p => `
+        ${c.produtos.map(p => {
+          const custom = temPersonalizacao(p);
+          return `
           <article class="card product-card">
             <div>
               <h3>${esc(p.nome)}</h3>
               <p class="muted">${esc(p.descricao || '')}</p>
             </div>
-            <div class="row">
+            <div class="row" style="align-items:flex-end">
               <span class="price">${br(p.preco)}</span>
-              <button class="btn primary" type="button" onclick="openProduct(${p.id})">Personalizar</button>
+              <div class="product-actions">
+                ${custom ? `<button class="btn ghost" type="button" onclick="openProduct(${p.id})">Personalizar</button>` : ''}
+                <button class="btn primary" type="button" onclick="quickAdd(${p.id})">Adicionar</button>
+              </div>
             </div>
-          </article>
-        `).join('')}
+          </article>`;
+        }).join('')}
       </div>
     </section>
   `).join('');
+}
+
+function quickAdd(id) {
+  const p = produtos.find(x => x.id === id);
+  if (!p) return;
+  cart.push({
+    key: crypto.randomUUID(),
+    productId: id,
+    qty: 1,
+    additions: [],
+    removals: [],
+    note: '',
+  });
+  renderCart();
+  const toast = document.createElement('div');
+  toast.className = 'toast-ok';
+  toast.textContent = p.nome + ' adicionado';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 1600);
 }
 
 function openProduct(id) {
@@ -151,54 +233,66 @@ function openProduct(id) {
   if (!p) return;
   const adds = p.adicionais || [];
   const rem = p.removiveis || [];
+  const notePh = p.pedePontoCarne
+    ? 'Ex.: ao ponto, bem passado, pouco molho…'
+    : 'Ex.: pouco molho, sem picles…';
 
   document.getElementById('modal').innerHTML = `
-    <div class="modal"><div class="sheet product-sheet">
-      <button class="close" type="button" onclick="closeModal()">×</button>
-      <h2>${esc(p.nome)}</h2>
-      <p class="muted">${esc(p.descricao || '')}</p>
-      ${p.pedePontoCarne ? `
+    <div class="modal-root" role="dialog" aria-modal="true" aria-label="Personalizar ${esc(p.nome)}">
+      <div class="modal-backdrop" onclick="closeModal()"></div>
+      <div class="modal-sheet">
+        <button class="close" type="button" onclick="closeModal()" aria-label="Fechar">×</button>
+        <h2>${esc(p.nome)}</h2>
+        <p class="muted">${esc(p.descricao || '')}</p>
+        <p class="price" style="margin:8px 0 0">${br(p.preco)}</p>
+        ${adds.length ? `
+          <div class="option-block">
+            <h3>Adicionar ao lanche</h3>
+            ${adds.map(a => `
+              <label class="check">
+                <input type="checkbox" data-add="${a.id}" onchange="updateModalTotal(${p.id})">
+                <span>${esc(a.nome)}</span>
+                <b>+ ${br(a.preco)}</b>
+              </label>`).join('')}
+          </div>` : ''}
+        ${rem.length ? `
+          <div class="option-block">
+            <h3>Remover ingredientes</h3>
+            <p class="muted small">Marque o que você não quer.</p>
+            ${rem.map(x => `
+              <label class="check">
+                <input type="checkbox" data-rem="${esc(x)}">
+                <span>Sem ${esc(x)}</span>
+              </label>`).join('')}
+          </div>` : ''}
         <div class="option-block">
-          <h3>Ponto da carne</h3>
-          <div class="choices">
-            ${[['MAL_PASSADO','Mal passado'],['AO_PONTO','Ao ponto'],['BEM_PASSADO','Bem passado']].map((x, i) =>
-              `<label><input type="radio" name="meat" value="${x[0]}" ${i === 1 ? 'checked' : ''}> ${x[1]}</label>`
-            ).join('')}
-          </div>
-        </div>` : ''}
-      ${adds.length ? `
-        <div class="option-block">
-          <h3>Adicionar ao lanche</h3>
-          ${adds.map(a => `
-            <label class="check">
-              <input type="checkbox" data-add="${a.id}">
-              <span>${esc(a.nome)}</span>
-              <b>+ ${br(a.preco)}</b>
-            </label>`).join('')}
-        </div>` : ''}
-      ${rem.length ? `
-        <div class="option-block">
-          <h3>Remover ingredientes</h3>
-          <p class="muted small">Marque o que você não quer.</p>
-          ${rem.map(x => `
-            <label class="check">
-              <input type="checkbox" data-rem="${esc(x)}">
-              <span>Sem ${esc(x)}</span>
-            </label>`).join('')}
-        </div>` : ''}
-      <div class="option-block">
-        <h3>Observação do lanche</h3>
-        <textarea id="itemNote" class="input textarea" maxlength="300"
-          placeholder="Ex.: pouco molho, sem picles..."></textarea>
+          <h3>Observação do lanche</h3>
+          <p class="muted small">Inclua ponto da carne, preferências etc.</p>
+          <textarea id="itemNote" class="input textarea" maxlength="300"
+            placeholder="${esc(notePh)}"></textarea>
+        </div>
+        <button class="btn primary full" type="button" id="modalAddBtn" onclick="confirmProduct(${p.id})">
+          Adicionar ao carrinho · ${br(p.preco)}
+        </button>
       </div>
-      <button class="btn primary full" type="button" onclick="confirmProduct(${p.id})">
-        Adicionar ao carrinho · ${br(p.preco)}
-      </button>
-    </div></div>`;
+    </div>`;
+  document.body.classList.add('modal-open');
+}
+
+function updateModalTotal(id) {
+  const p = produtos.find(x => x.id === id);
+  if (!p) return;
+  const adds = [...document.querySelectorAll('[data-add]:checked')]
+    .map(e => (p.adicionais || []).find(a => String(a.id) === e.dataset.add))
+    .filter(Boolean);
+  const total = p.preco + adds.reduce((s, a) => s + Number(a.preco), 0);
+  const btn = document.getElementById('modalAddBtn');
+  if (btn) btn.textContent = 'Adicionar ao carrinho · ' + br(total);
 }
 
 function closeModal() {
   document.getElementById('modal').innerHTML = '';
+  document.body.classList.remove('modal-open');
 }
 
 function confirmProduct(id) {
@@ -209,7 +303,6 @@ function confirmProduct(id) {
     .filter(Boolean)
     .map(a => ({ id: a.id, nome: a.nome, preco: a.preco }));
   const rem = [...document.querySelectorAll('[data-rem]:checked')].map(e => e.dataset.rem);
-  const meat = document.querySelector('input[name=meat]:checked')?.value || null;
   const note = document.getElementById('itemNote')?.value.trim() || '';
 
   cart.push({
@@ -218,7 +311,6 @@ function confirmProduct(id) {
     qty: 1,
     additions: adds,
     removals: rem,
-    meatPoint: meat,
     note,
   });
   closeModal();
@@ -249,10 +341,9 @@ function renderCart() {
         const p = produtos.find(x => x.id === i.productId);
         return `<div class="cart-item">
           <div>
-            <b>${i.qty}× ${esc(p?.nome || '?')}</b>
-            ${i.meatPoint ? `<small>🥩 ${meatLabel[i.meatPoint] || i.meatPoint}</small>` : ''}
+            <b>${i.qty}× ${esc(p?.nome || 'Item')}</b>
             ${i.additions.length ? `<small>+ ${i.additions.map(a => esc(a.nome)).join(', ')}</small>` : ''}
-            ${i.removals.length ? `<small>Sem: ${i.removals.map(esc).join(', ')}</small>` : ''}
+            ${i.removals.length ? `<small>sem ${i.removals.map(esc).join(', ')}</small>` : ''}
             ${i.note ? `<small>📝 ${esc(i.note)}</small>` : ''}
           </div>
           <div class="qty">
@@ -284,13 +375,11 @@ async function send() {
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
 
   const orderNote = document.getElementById('orderNote')?.value || '';
-  // Payload no formato esperado por db/pedidos.js (productId, additions[{id}], removals, meatPoint, note, qty)
   const items = cart.map(i => ({
     productId: i.productId,
     qty: i.qty,
     additions: i.additions.map(a => ({ id: a.id })),
     removals: i.removals,
-    meatPoint: i.meatPoint,
     note: i.note,
   }));
 
@@ -322,7 +411,10 @@ async function send() {
   }
 }
 
-// bootstrap
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
 document.getElementById('mesa').textContent = 'Carregando…';
 document.getElementById('mesaDesk').textContent = 'Cardápio';
 loadSessao();
