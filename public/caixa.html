@@ -7,12 +7,12 @@
   <title>Caixa · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
   <style>
-    .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+    .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;transition:background-color .2s ease,border-color .2s ease}
     .sessao-card.blocked{opacity:.92}
     .sessao-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
-    .valor-big{font-size:1.6rem;font-weight:800;letter-spacing:-.02em}
-    .badge.warn{background:#fff3e0;color:#e65100}
-    .badge.ok{background:#e8f5e9;color:#1b5e20}
+    .valor-big{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;font-family:var(--font-mono)}
+    .badge.warn{background:var(--warning-soft);color:var(--warning)}
+    .badge.ok{background:var(--success-soft);color:var(--success)}
     .itens-list{margin:14px 0 0;padding:0;list-style:none}
     .itens-list li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.92rem}
     .itens-list li:last-child{border-bottom:0}
@@ -21,26 +21,20 @@
     .pay-row label{
       display:inline-flex;align-items:center;gap:6px;
       border:1px solid var(--line);border-radius:999px;padding:8px 14px;
-      cursor:pointer;font-weight:600;font-size:.88rem;background:#fff;
+      cursor:pointer;font-weight:600;font-size:.88rem;background:var(--surface);color:var(--text);
+      transition:background-color .2s ease,border-color .2s ease,color .2s ease;
     }
     .pay-row input{accent-color:var(--primary)}
-    .pay-row label:has(input:checked){border-color:var(--dark);background:#111;color:#fff}
+    .pay-row label:has(input:checked){border-color:var(--dark);background:var(--dark);color:var(--bg)}
     .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
-    .empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
-    .empty-state .big{font-size:2.4rem;margin-bottom:8px}
-    .toast{
-      position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-      background:#111;color:#fff;padding:12px 18px;border-radius:12px;
-      font-weight:600;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none;
-      max-width:min(92vw,400px);text-align:center;
-    }
-    .toast.show{opacity:1}
-    .toast.err{background:#b71c1c}
-    .toast.ok{background:#1b5e20}
     .grid-caixa{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
     details.pedido{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;background:var(--surface-2)}
     details.pedido summary{cursor:pointer;font-weight:700}
   </style>
+  <script>
+  (function(){try{var t=localStorage.getItem('lq-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();
+  function toggleTheme(){var h=document.documentElement,c=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',c);try{localStorage.setItem('lq-theme',c)}catch(e){}}
+  </script>
 </head>
 <body>
 <main class="wrap">
@@ -50,6 +44,7 @@
       <div class="muted">Sessões abertas · fecha conta e libera a mesa</div>
     </div>
     <div class="nav">
+      <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema" title="Tema claro/escuro">🌓</button>
       <a class="btn" href="/garcom">Garçom</a>
       <a class="btn" href="/cozinha">Cozinha</a>
       <a class="btn" href="/admin">Admin</a>
