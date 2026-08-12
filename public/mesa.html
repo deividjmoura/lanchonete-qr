@@ -29,9 +29,232 @@
       background:rgba(255,255,255,.12);font-size:.78rem;font-weight:700;
       white-space:nowrap;
     }
-    .mobile-header{top:auto}
-    body.has-sessao .mobile-header{top:48px}
-    body.has-sessao #categories,body.has-sessao .categories{top:114px}
+    /* Sem header sticky duplicado — título só no corpo */
+    .mobile-header{display:none!important}
+    #categories,.categories{display:none!important}
+    .desktop-top{margin-bottom:8px}
+    .desktop-top .brand{margin-bottom:2px}
+
+    /* Offset: só barra da sessão */
+    #menu section[id^="cat-"],
+    .cat-section{
+      scroll-margin-top:24px;
+    }
+    body.has-sessao #menu section[id^="cat-"],
+    body.has-sessao .cat-section{
+      scroll-margin-top:72px;
+    }
+    /* Espaço pro sanduíche flutuante embaixo */
+    main.wrap.client{padding-bottom:120px}
+
+    /* ===== Sanduíche SEMPRE fixo na base da viewport ===== */
+    .burger-dock{
+      --bun:#e4a667;
+      --bun-dark:#d1985e;
+      --tomato:#e53935;
+      --lettuce:#8bc34a;
+      --cheese:#ffc107;
+      --patty:#4e342e;
+      position:fixed !important;
+      left:0;right:0;
+      bottom:0;
+      padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));
+      z-index:50;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+      pointer-events:none;
+      /* sem transform no dock — evita bug de containing block */
+      transform:none !important;
+    }
+    .burger-dock .burger-btn,
+    .burger-dock .burger-hint{pointer-events:auto}
+    .burger-btn{
+      position:relative;
+      width:56px;height:48px;
+      border:0;border-radius:8px;
+      background:transparent;
+      box-shadow:none;
+      cursor:pointer;
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:0;
+      transition:transform .15s ease,filter .15s ease;
+      filter:drop-shadow(0 4px 10px rgba(15,23,42,.28));
+    }
+    .burger-btn:active{transform:scale(.96)}
+    .burger-btn:focus-visible{outline:2px solid var(--primary);outline-offset:4px}
+    .burger-btn .badge-count{
+      position:absolute;top:-4px;right:-4px;
+      min-width:22px;height:22px;padding:0 6px;
+      border-radius:999px;background:var(--primary);color:#fff;
+      font-size:.72rem;font-weight:800;
+      display:none;align-items:center;justify-content:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);
+    }
+    .burger-btn .badge-count.show{display:inline-flex}
+    .burger-stack{
+      width:40px;height:34px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.5px;
+      pointer-events:none;
+      transition:gap .35s ease;
+    }
+    .burger-stack .bun-top{
+      width:38px;height:11px;border-radius:16px 16px 4px 4px;
+      background:linear-gradient(180deg,var(--bun) 0%,var(--bun-dark) 100%);
+      position:relative;box-shadow:inset 0 -1px 0 rgba(0,0,0,.1);
+      transition:transform .4s cubic-bezier(.2,.9,.2,1);
+    }
+    .burger-stack .bun-top::before,
+    .burger-stack .bun-top::after{
+      content:"";position:absolute;width:4px;height:3px;background:rgba(255,255,255,.5);
+      border-radius:50%;top:3px;
+    }
+    .burger-stack .bun-top::before{left:9px;transform:rotate(25deg)}
+    .burger-stack .bun-top::after{right:10px;transform:rotate(-20deg)}
+    .burger-stack .ing{border-radius:3px;transition:transform .45s cubic-bezier(.15,.85,.25,1),opacity .3s}
+    .burger-stack .ing.tomato{width:32px;height:5px;background:var(--tomato)}
+    .burger-stack .ing.lettuce{width:40px;height:4px;background:var(--lettuce);border-radius:4px}
+    .burger-stack .ing.cheese{width:36px;height:3px;background:var(--cheese)}
+    .burger-stack .ing.patty{width:34px;height:7px;background:var(--patty);border-radius:5px}
+    .burger-stack .bun-bot{
+      width:38px;height:8px;border-radius:4px 4px 12px 12px;
+      background:linear-gradient(180deg,var(--bun) 0%,var(--bun-dark) 100%);
+      transition:transform .4s cubic-bezier(.2,.9,.2,1);
+    }
+    body.menu-open .burger-dock{z-index:96}
+    body.menu-open .burger-btn{background:transparent;box-shadow:none;filter:drop-shadow(0 4px 14px rgba(0,0,0,.45))}
+    body.menu-open .burger-stack{gap:10px}
+    body.menu-open .burger-stack .bun-top{transform:translateY(-6px)}
+    body.menu-open .burger-stack .bun-bot{transform:translateY(6px)}
+    body.menu-open .burger-stack .ing{opacity:0;transform:scale(.5)}
+
+    .burger-hint{
+      font-size:.68rem;font-weight:700;color:var(--muted);
+      letter-spacing:.04em;text-transform:uppercase;
+      text-shadow:0 1px 2px rgba(0,0,0,.15);
+    }
+    body.menu-open .burger-hint{color:#fff;opacity:.9}
+
+    /* Cards do cardápio — mobile-first */
+    .client .grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:12px;
+    }
+    .client .product-card{
+      display:flex;flex-direction:column;gap:12px;
+    }
+    .client .product-card .row{
+      display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;
+    }
+    .client .product-actions{
+      display:flex;flex-wrap:wrap;gap:8px;
+      flex:1 1 auto;justify-content:flex-end;min-width:0;
+    }
+    .client .product-actions .btn{
+      min-height:40px;padding:0 12px;font-size:.85rem;
+      white-space:nowrap;
+    }
+    @media(min-width:560px){
+      .client .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media(min-width:900px){
+      .client .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    }
+
+    /* Overlay do menu */
+    .cat-menu{
+      position:fixed;inset:0;z-index:90;
+      pointer-events:none;opacity:0;
+      transition:opacity .28s ease;
+    }
+    body.menu-open .cat-menu{pointer-events:auto;opacity:1}
+    .cat-menu__backdrop{
+      position:absolute;inset:0;
+      background:rgba(10,14,22,.72);
+      backdrop-filter:blur(10px);
+      -webkit-backdrop-filter:blur(10px);
+    }
+    .cat-menu__panel{
+      position:absolute;inset:0;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:24px 20px 120px;gap:10px;
+      transform:translateY(12px);opacity:0;
+      transition:transform .35s cubic-bezier(.2,.9,.2,1),opacity .3s ease;
+      z-index:1;
+    }
+    body.menu-open .cat-menu__panel{transform:translateY(0);opacity:1}
+    .cat-menu__title{
+      font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+      color:rgba(255,255,255,.65);margin-bottom:4px;
+    }
+    .cat-menu__list{
+      list-style:none;margin:0;padding:0;
+      display:flex;flex-direction:column;align-items:center;gap:8px;
+      width:min(100%,300px);
+    }
+    .cat-menu__list a{
+      display:block;width:100%;text-align:center;
+      padding:14px 18px;border-radius:14px;
+      background:rgba(255,255,255,.1);color:#fff;
+      font-weight:700;font-size:1.12rem;letter-spacing:-.02em;
+      border:1px solid rgba(255,255,255,.14);
+      transition:background .2s ease,transform .2s ease,border-color .2s ease;
+    }
+    .cat-menu__list a:hover,
+    .cat-menu__list a:focus-visible{
+      background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35);
+      transform:scale(1.03);outline:none;
+    }
+    .cat-menu__list a.active{background:var(--primary);border-color:var(--primary)}
+    .cat-menu__actions{
+      display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
+      width:min(100%,300px);margin-top:14px;
+    }
+    .cat-menu__actions .btn{
+      flex:1;min-width:120px;
+      background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#fff;
+    }
+    .cat-menu__actions .btn:hover{background:rgba(255,255,255,.22)}
+    .cat-menu__actions .btn.primary{
+      background:var(--primary);border-color:var(--primary);color:#fff;
+    }
+    /* Fechar = só o sanduíche + toque no fundo (sem botão extra) */
+
+    /* Camada de marcas (permanecem enquanto menu aberto) */
+    .sauce-layer{
+      position:fixed;inset:0;z-index:91;pointer-events:none;overflow:hidden;
+    }
+    .fly-ing{
+      position:absolute;border-radius:4px;
+      transition:transform .55s cubic-bezier(.15,.85,.25,1),opacity .4s ease;
+      opacity:0;will-change:transform;
+    }
+    .fly-ing.tomato{width:48px;height:10px;background:#e53935;border-radius:3px}
+    .fly-ing.lettuce{width:56px;height:8px;background:#8bc34a;border-radius:6px}
+    .fly-ing.cheese{width:50px;height:6px;background:#ffc107;border-radius:2px}
+    .fly-ing.patty{width:46px;height:14px;background:#4e342e;border-radius:6px}
+    .fly-ing.bun{width:52px;height:16px;background:#e4a667;border-radius:12px 12px 4px 4px}
+    .fly-ing.settled{opacity:.55!important}
+    .splash{
+      position:absolute;border-radius:50% 40% 55% 45%;
+      opacity:0;pointer-events:none;
+      animation:splashLand .55s ease-out forwards;
+    }
+    .splash.ketchup{background:#c62828}
+    .splash.mustard{background:#f9a825}
+    .splash.mayo{background:#fff8e1}
+    .splash.settled{
+      animation:none;
+      opacity:.35;
+      filter:blur(.3px);
+    }
+    @keyframes splashLand{
+      0%{transform:scale(.15) rotate(0deg);opacity:0}
+      40%{opacity:.85}
+      100%{transform:scale(1) rotate(28deg);opacity:.4}
+    }
+    @media (prefers-reduced-motion:reduce){
+      .fly-ing,.splash,.cat-menu__panel,.burger-stack *{transition:none!important;animation:none!important}
+    }
     .status-pill{
       display:inline-flex;align-items:center;gap:4px;
       padding:3px 9px;border-radius:999px;font-size:.7rem;font-weight:700;
@@ -66,7 +289,7 @@
       background:var(--chip-bg);color:var(--muted);
     }
     .toast-ok{
-      position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+      position:fixed;left:50%;bottom:110px;transform:translateX(-50%);
       background:var(--success);color:#fff;padding:14px 20px;border-radius:14px;
       font-weight:700;z-index:110;box-shadow:var(--shadow-lg);
       max-width:min(92vw,360px);text-align:center;
@@ -76,7 +299,7 @@
 
     /* Overlay compartilhado (personalizar + carrinho) */
     .modal-root{
-      position:fixed;inset:0;z-index:80;
+      position:fixed;inset:0;z-index:100;
       display:flex;align-items:flex-end;justify-content:center;
     }
     .modal-backdrop{
@@ -155,7 +378,9 @@
 
     @media(min-width:901px){
       .sessao-bar{border-radius:0 0 14px 14px;margin:0 auto;width:min(100% - 32px,920px)}
-      body.has-sessao .mobile-header{top:0}
+      #menu section[id^="cat-"],.cat-section{scroll-margin-top:24px}
+      body.has-sessao #menu section[id^="cat-"],
+      body.has-sessao .cat-section{scroll-margin-top:72px}
       .modal-root{align-items:center;padding:24px}
       .modal-sheet{border-radius:20px;max-height:min(88vh,680px);border-bottom:1px solid var(--line)}
     }
@@ -177,29 +402,50 @@
   </div>
 </button>
 
-<header class="mobile-header">
-  <div>
-    <strong>🍔 Lanchonete QR</strong>
-    <small id="mesa"></small>
-  </div>
-  <div style="display:flex;align-items:center;gap:8px">
-    <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema" title="Tema claro/escuro">🌓</button>
-    <button type="button" class="cart-pill" id="cartPill" onclick="openCart()">
-      🛒 <span id="cartCount">0</span>
-    </button>
-  </div>
-</header>
-
 <main class="wrap client">
   <div class="desktop-top">
     <div>
       <div class="brand">🍔 Lanchonete QR</div>
-      <div class="muted" id="mesaDesk"></div>
+      <div class="muted" id="mesaDesk">Cardápio</div>
     </div>
   </div>
-  <div id="categories" class="categories"></div>
+  <div id="categories" class="categories" hidden></div>
   <div id="menu"></div>
 </main>
+
+<!-- Sanduíche flutuante (base da tela) -->
+<div class="burger-dock">
+  <button type="button" class="burger-btn" id="burgerBtn" onclick="toggleCatMenu()" aria-label="Abrir menu" aria-expanded="false" aria-controls="catMenu">
+    <span class="badge-count" id="cartBadge">0</span>
+    <span class="burger-stack" aria-hidden="true">
+      <span class="bun-top"></span>
+      <span class="ing tomato"></span>
+      <span class="ing lettuce"></span>
+      <span class="ing cheese"></span>
+      <span class="ing patty"></span>
+      <span class="bun-bot"></span>
+    </span>
+  </button>
+  <span class="burger-hint" id="burgerHint">menu</span>
+</div>
+
+<!-- Overlay: categorias + carrinho + tema -->
+<nav class="cat-menu" id="catMenu" hidden aria-label="Menu do cardápio">
+  <div class="cat-menu__backdrop" onclick="closeCatMenu()"></div>
+  <div class="sauce-layer" id="sauceLayer" aria-hidden="true"></div>
+  <div class="cat-menu__panel">
+    <div class="cat-menu__title">Categorias</div>
+    <ul class="cat-menu__list" id="catMenuList"></ul>
+    <div class="cat-menu__actions">
+      <button type="button" class="btn primary" id="menuCartBtn" onclick="closeCatMenu();openCart()">
+        🛒 Carrinho <span id="cartCount">0</span>
+      </button>
+      <button type="button" class="btn" onclick="toggleTheme()" aria-label="Alternar tema">
+        🌓 Tema
+      </button>
+    </div>
+  </div>
+</nav>
 
 <div id="cart"></div>
 <div id="modal"></div>
@@ -252,8 +498,15 @@ function cartTotal() {
 
 function updateCartPill() {
   const n = cartCount();
-  document.getElementById('cartCount').textContent = n;
-  document.getElementById('cartPill').classList.toggle('has-items', n > 0);
+  const countEl = document.getElementById('cartCount');
+  if (countEl) countEl.textContent = n;
+  const badge = document.getElementById('cartBadge');
+  if (badge) {
+    badge.textContent = n;
+    badge.classList.toggle('show', n > 0);
+  }
+  const hint = document.getElementById('burgerHint');
+  if (hint) hint.textContent = document.body.classList.contains('menu-open') ? 'fechar' : 'menu';
 }
 
 function showToast(html, ms = 1800) {
@@ -271,7 +524,6 @@ async function loadSessao() {
     const s = await r.json();
     sessaoData = s;
     totalDevido = s.totalDevido || 0;
-    document.getElementById('mesa').textContent = 'Mesa ' + s.mesa;
     document.getElementById('mesaDesk').textContent = 'Mesa ' + s.mesa + ' · Cardápio';
     document.getElementById('sessaoTotal').textContent = br(totalDevido);
 
@@ -377,12 +629,12 @@ async function loadCardapio() {
 }
 
 function renderMenu() {
-  document.getElementById('categories').innerHTML = categorias.map((c, i) =>
-    `<a class="${i ? '' : 'active'}" href="#cat-${c.id}">${esc(c.nome)}</a>`
+  document.getElementById('catMenuList').innerHTML = categorias.map((c, i) =>
+    `<li><a href="#cat-${c.id}" data-cat="${c.id}" class="${i ? '' : 'active'}">${esc(c.nome)}</a></li>`
   ).join('');
 
   document.getElementById('menu').innerHTML = categorias.map(c => `
-    <section id="cat-${c.id}">
+    <section id="cat-${c.id}" class="cat-section">
       <h2 class="cat">${esc(c.nome)}</h2>
       <div class="grid">
         ${c.produtos.map(p => {
@@ -405,6 +657,116 @@ function renderMenu() {
       </div>
     </section>
   `).join('');
+
+  document.querySelectorAll('a[data-cat]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = a.getAttribute('data-cat');
+      closeCatMenu();
+      // espera o overlay fechar para medir o header real
+      setTimeout(() => goToCategory(id), 50);
+    });
+  });
+}
+
+function stickyOffset() {
+  const sessao = document.getElementById('sessaoBar');
+  let h = 16;
+  if (sessao && !sessao.hidden) h += sessao.getBoundingClientRect().height;
+  return Math.ceil(h);
+}
+
+function goToCategory(id) {
+  const el = document.getElementById('cat-' + id);
+  if (!el) return;
+  const top = el.getBoundingClientRect().top + window.pageYOffset - stickyOffset();
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  document.querySelectorAll('a[data-cat]').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('data-cat') === String(id));
+  });
+}
+
+function toggleCatMenu() {
+  if (document.body.classList.contains('menu-open')) closeCatMenu();
+  else openCatMenu();
+}
+
+function openCatMenu() {
+  const menu = document.getElementById('catMenu');
+  const btn = document.getElementById('burgerBtn');
+  menu.hidden = false;
+  void menu.offsetWidth;
+  document.body.classList.add('menu-open');
+  document.body.classList.add('modal-open');
+  btn.setAttribute('aria-expanded', 'true');
+  btn.setAttribute('aria-label', 'Fechar menu');
+  updateCartPill();
+  spawnBurgerExplosion();
+}
+
+function closeCatMenu() {
+  document.body.classList.remove('menu-open');
+  if (!document.getElementById('modal').innerHTML) {
+    document.body.classList.remove('modal-open');
+  }
+  const btn = document.getElementById('burgerBtn');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-label', 'Abrir menu');
+  updateCartPill();
+  setTimeout(() => {
+    if (!document.body.classList.contains('menu-open')) {
+      document.getElementById('catMenu').hidden = true;
+      document.getElementById('sauceLayer').innerHTML = '';
+    }
+  }, 320);
+}
+
+function spawnBurgerExplosion() {
+  const layer = document.getElementById('sauceLayer');
+  layer.innerHTML = '';
+  const btn = document.getElementById('burgerBtn');
+  const r = btn.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  const types = ['tomato', 'lettuce', 'cheese', 'patty', 'bun', 'tomato', 'lettuce', 'cheese', 'patty'];
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Pedacinhos do lanche — voam e FICAM como marcas
+  types.forEach((t, i) => {
+    const el = document.createElement('div');
+    el.className = 'fly-ing ' + t;
+    el.style.left = (cx - 20) + 'px';
+    el.style.top = (cy - 8) + 'px';
+    layer.appendChild(el);
+    const angle = (Math.PI * 2 * i) / types.length + (Math.random() * 0.5 - 0.25);
+    const dist = 100 + Math.random() * 160;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist - 30;
+    const rot = (Math.random() * 140 - 70);
+    requestAnimationFrame(() => {
+      el.style.opacity = '0.9';
+      el.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+      setTimeout(() => el.classList.add('settled'), reduce ? 0 : 520);
+    });
+  });
+
+  // Espirros de molho — pousam e permanecem
+  const splashCount = reduce ? 6 : 18;
+  for (let i = 0; i < splashCount; i++) {
+    const s = document.createElement('div');
+    const kind = i % 3 === 0 ? 'mustard' : (i % 3 === 1 ? 'mayo' : 'ketchup');
+    s.className = 'splash ' + kind;
+    const size = 14 + Math.random() * 36;
+    s.style.width = size + 'px';
+    s.style.height = size * (0.65 + Math.random() * 0.55) + 'px';
+    const ang = Math.random() * Math.PI * 2;
+    const d = 50 + Math.random() * 220;
+    s.style.left = (cx + Math.cos(ang) * d - size / 2) + 'px';
+    s.style.top = (cy + Math.sin(ang) * d * 0.85 - size / 2 - 40) + 'px';
+    s.style.animationDelay = (Math.random() * 0.2) + 's';
+    layer.appendChild(s);
+    setTimeout(() => s.classList.add('settled'), reduce ? 0 : 600 + Math.random() * 200);
+  }
 }
 
 function quickAdd(id) {
@@ -617,10 +979,12 @@ async function send() {
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') {
+    if (document.body.classList.contains('menu-open')) closeCatMenu();
+    else closeModal();
+  }
 });
 
-document.getElementById('mesa').textContent = 'Carregando…';
 document.getElementById('mesaDesk').textContent = 'Cardápio';
 loadSessao();
 loadCardapio();
