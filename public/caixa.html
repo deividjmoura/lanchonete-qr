@@ -54,6 +54,7 @@
       <a class="btn" href="/cozinha">Cozinha</a>
       <a class="btn" href="/admin">Admin</a>
       <a class="btn dark" href="/">Início</a>
+      <button class="btn" id="btnSair" type="button">Sair</button>
     </div>
   </div>
 
@@ -63,6 +64,21 @@
 <div id="toast" class="toast"></div>
 
 <script>
+(function () {
+  // Sessão expirou no meio do turno? Manda pro login em vez de mostrar erro genérico.
+  const _fetch = window.fetch;
+  window.fetch = async function (...args) {
+    const res = await _fetch(...args);
+    if (res.status === 401) location.href = '/login?next=' + encodeURIComponent(location.pathname);
+    return res;
+  };
+})();
+
+document.getElementById('btnSair').addEventListener('click', async () => {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
+  location.href = '/login';
+});
+
 const FORMAS = [
   { id: 'dinheiro', label: 'Dinheiro' },
   { id: 'pix', label: 'PIX' },

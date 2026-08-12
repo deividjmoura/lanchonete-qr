@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar · Lanchonete QR</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  body{ background:radial-gradient(circle at 50% -10%, #ffffff 0%, var(--bg) 55%); }
+  .login-shell{ max-width:400px; margin:14vh auto 0; padding:0 16px; }
+  .login-card{ text-align:center; padding:clamp(28px,6vw,44px) clamp(24px,5vw,36px); }
+  .login-lock{
+    display:grid; place-items:center;
+    width:56px; height:56px; margin:0 auto 18px;
+    border-radius:16px; background:var(--dark); color:#fff; font-size:1.5rem;
+  }
+  .login-card h1{ font-size:1.5rem; margin-bottom:6px; }
+  .login-card p.muted{ margin-bottom:26px; }
+  .login-card form{ text-align:left; }
+  .login-card .btn.primary{ width:100%; margin-top:18px; }
+  .login-card .btn.primary[disabled]{ opacity:.7; cursor:default; transform:none; }
+  .login-error{
+    display:none; margin-top:14px; padding:10px 14px; border-radius:10px;
+    background:#fce8e6; color:#b71c1c; font-size:.86rem; font-weight:700; text-align:center;
+  }
+  .login-error.show{ display:block; }
+  .login-back{ display:block; text-align:center; margin-top:18px; color:var(--muted); font-size:.86rem; }
+  .login-back:hover{ color:var(--text); }
+</style>
+</head>
+<body>
+<div class="login-shell">
+  <section class="panel login-card">
+    <div class="login-lock">🔒</div>
+    <h1>Área restrita</h1>
+    <p class="muted">Acesso da equipe — admin e caixa</p>
+    <form id="loginForm" autocomplete="on">
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" name="senha" autocomplete="current-password" autofocus required>
+      <button class="btn primary" type="submit">Entrar</button>
+    </form>
+    <div id="erro" class="login-error"></div>
+  </section>
+  <a class="login-back" href="/">← Voltar ao início</a>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const next = params.get('next') || '/admin';
+const form = document.getElementById('loginForm');
+const erroEl = document.getElementById('erro');
+const btn = form.querySelector('button');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  erroEl.className = 'login-error';
+  btn.disabled = true;
+  btn.textContent = 'Entrando…';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senha: document.getElementById('senha').value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      erroEl.textContent = data.error || 'Não foi possível entrar';
+      erroEl.className = 'login-error show';
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
+      return;
+    }
+    location.href = next;
+  } catch (err) {
+    erroEl.textContent = 'Erro de rede. Tente novamente.';
+    erroEl.className = 'login-error show';
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+});
+</script>
+</body>
+</html>

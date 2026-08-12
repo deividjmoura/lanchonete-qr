@@ -30,6 +30,18 @@ const {
   fecharSessao,
   ErroCaixa,
 } = require('./db/caixa');
+const {
+  SESSION_COOKIE,
+  senhaConfigurada,
+  senhaValida,
+  criarSessao,
+  destruirSessao,
+  estaAutenticado,
+  parseCookies,
+  cookieDeSessao,
+  cookieDeLogout,
+} = require('./db/auth');
+const { golpePermitido } = require('./db/rateLimit');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -90,6 +102,10 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/orders' && req.method === 'GET')
       return json(res, 200, db().orders.slice().reverse());
     if (p === '/api/orders' && req.method === 'POST') {
+      const ip = req.socket.remoteAddress || 'unknown';
+      if (!golpePermitido(`pedido-legado:${ip}`, { janelaMs: 5 * 60 * 1000, max: 10 })) {
+        return json(res, 429, { error: 'Muitos pedidos em pouco tempo. Aguarde um instante.' });
+      }
       const b = await body(req);
       const d = db();
       const input = Array.isArray(b.items) ? b.items : [];
@@ -175,6 +191,10 @@ const server = http.createServer(async (req, res) => {
 
     let m;
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pedidos$/)) && req.method === 'POST') {
+      const ip = req.socket.remoteAddress || 'unknown';
+      if (!golpePermitido(`pedido:${ip}:${m[1]}`, { janelaMs: 5 * 60 * 1000, max: 10 })) {
+        return json(res, 429, { error: 'Muitos pedidos em pouco tempo. Aguarde um instante.' });
+      }
       try {
         return json(res, 201, await criarPedido(m[1], await body(req)));
       } catch (e) {
@@ -195,6 +215,33 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/garcom/pedidos' && req.method === 'GET') {
       return json(res, 200, await getFilaGarcom());
+    }
+
+    // -----------------------------------------------------------------------
+    // Autenticação (staff — admin/caixa)
+    // -----------------------------------------------------------------------
+    if (p === '/api/login' && req.method === 'POST') {
+      if (!senhaConfigurada()) {
+        return json(res, 500, { error: 'ADMIN_PASSWORD não configurada no servidor' });
+      }
+      const ip = req.socket.remoteAddress || 'unknown';
+      if (!golpePermitido(`login:${ip}`, { janelaMs: 5 * 60 * 1000, max: 8 })) {
+        return json(res, 429, { error: 'Muitas tentativas. Aguarde alguns minutos.' });
+      }
+      const b = await body(req);
+      if (!senhaValida(b.senha)) return json(res, 401, { error: 'Senha incorreta' });
+      res.setHeader('Set-Cookie', cookieDeSessao(criarSessao()));
+      return json(res, 200, { ok: true });
+    }
+    if (p === '/api/logout' && req.method === 'POST') {
+      destruirSessao(parseCookies(req)[SESSION_COOKIE]);
+      res.setHeader('Set-Cookie', cookieDeLogout());
+      return json(res, 200, { ok: true });
+    }
+
+    // Admin e caixa exigem sessão válida — checa antes de rotear pra eles
+    if ((p.startsWith('/api/admin') || p.startsWith('/api/caixa')) && !estaAutenticado(req)) {
+      return json(res, 401, { error: 'Não autenticado' });
     }
 
     // -----------------------------------------------------------------------
@@ -291,6 +338,10 @@ const server = http.createServer(async (req, res) => {
     // -----------------------------------------------------------------------
     // Arquivos estáticos
     // -----------------------------------------------------------------------
+    if ((p === '/admin' || p === '/caixa') && !estaAutenticado(req)) {
+      res.writeHead(302, { Location: `/login?next=${encodeURIComponent(p)}` });
+      return res.end();
+    }
     let file = p === '/' ? '/index.html' : p;
     if (file.startsWith('/mesa/')) file = '/mesa.html';
     if (file.startsWith('/pedido/')) file = '/pedido.html';
@@ -298,6 +349,7 @@ const server = http.createServer(async (req, res) => {
     if (file === '/garcom') file = '/garcom.html';
     if (file === '/caixa') file = '/caixa.html';
     if (file === '/admin') file = '/admin.html';
+    if (file === '/login') file = '/login.html';
     const fp = path.join(ROOT, 'public', file);
     if (fs.existsSync(fp)) {
       return send(res, 200, mime[path.extname(fp)] || 'text/plain', fs.readFileSync(fp));

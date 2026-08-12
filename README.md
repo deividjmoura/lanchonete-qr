@@ -24,7 +24,8 @@ Cliente escaneia o QR da mesa → monta o pedido com adicionais, remoções e po
 | Tela garçom | ✅ |
 | Tela caixa + fechar sessão | ✅ |
 | SSE no lugar de polling | ⏳ |
-| Auth admin/caixa + rate limit | ⏳ |
+| Auth admin/caixa (login por senha + sessão) | ✅ |
+| Rate limit na criação de pedido e no login | ✅ |
 
 As rotas antigas (`/api/menu`, `/api/orders*`) ainda existem até a migração completa da UI. Mesa, cozinha, garçom e caixa já usam Postgres.
 
@@ -78,6 +79,7 @@ npm install
 cp .env.example .env
 # Edite DATABASE_URL (string do Neon ou Postgres local)
 # DATABASE_SSL=true se o provedor exigir SSL
+# ADMIN_PASSWORD=defina a senha de acesso do staff (admin/caixa)
 
 # 3. Schema + dados iniciais
 npm run db:migrate
@@ -134,9 +136,27 @@ npm start
 |-----|--------|
 | `/mesa/:token` | Cliente (hoje ainda aceita número legado via JSON) |
 | `/cozinha` | Cozinha |
-| `/admin` | Cardápio + QR por token |
 | `/garcom` | Garçom — pedidos prontos → entregue |
-| `/caixa` | Caixa — fecha sessão + pagamento |
+| `/admin` | Cardápio + QR por token — **exige login** |
+| `/caixa` | Caixa — fecha sessão + pagamento — **exige login** |
+| `/login` | Login do staff (senha única, `ADMIN_PASSWORD`) |
+
+### Autenticação (staff — admin/caixa)
+
+Login por senha única (`ADMIN_PASSWORD` no `.env`), sessão em memória via cookie
+`HttpOnly`, válida por 12h. Sem tabela de usuários — todo o time compartilha a
+mesma senha, o que é suficiente pro tamanho da operação hoje.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/api/login` | `{ senha }` → cria sessão e seta cookie |
+| `POST` | `/api/logout` | Encerra a sessão atual |
+
+- Acessar `/admin` ou `/caixa` sem sessão válida redireciona para `/login?next=...`.
+- Qualquer chamada a `/api/admin/*` ou `/api/caixa/*` sem sessão válida retorna `401`.
+- `/api/mesas/:token/pedidos` (e a rota legada `/api/orders`) têm rate limit de
+  10 pedidos a cada 5 minutos por IP+mesa. `/api/login` limita a 8 tentativas a
+  cada 5 minutos por IP.
 
 ---
 
