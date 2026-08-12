@@ -1,0 +1,57 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111"><title>Cardápio</title><link rel="stylesheet" href="/style.css"></head><body>
+<header class="mobile-header"><div><strong>🍔 Lanchonete QR</strong><small id="mesa"></small></div><a href="#cart" class="cart-pill" id="cartPill">🛒 <span id="cartCount">0</span></a></header>
+<main class="wrap client"><div class="desktop-top"><div><div class="brand">🍔 Lanchonete QR</div><div class="muted" id="mesaDesk"></div></div></div><div id="categories" class="categories"></div><div id="menu"></div></main>
+<div id="cart"></div><div id="modal"></div><script>
+const table=Number(location.pathname.split('/').pop())||1; document.getElementById('mesa').textContent='Mesa '+table;document.getElementById('mesaDesk').textContent='Mesa '+table+' · Cardápio';
+let menu=[],cart=[];
+const br=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+fetch('/api/menu').then(r=>r.json()).then(x=>{menu=x;renderMenu();});
+
+function renderMenu(){
+ const cats=[...new Set(menu.map(x=>x.category))];
+ document.getElementById('categories').innerHTML=cats.map((c,i)=>`<a class="${i?'':'active'}" href="#cat-${i}">${c}</a>`).join('');
+ document.getElementById('menu').innerHTML=cats.map((c,i)=>`<section id="cat-${i}"><h2 class="cat">${c}</h2><div class="grid">${menu.filter(x=>x.category===c).map(x=>`
+ <article class="card product-card"><div><h3>${esc(x.name)}</h3><p class="muted">${esc(x.description)}</p></div>
+ <div class="row"><div>${x.oldPrice?`<span class="old">${br(x.oldPrice)}</span><span class="discount">ECONOMIZE</span><br>`:''}<span class="price">${br(x.price)}</span></div>
+ <button class="btn primary" onclick="openProduct(${x.id})">Personalizar</button></div></article>`).join('')}</div></section>`).join('');
+}
+function openProduct(id){
+ const m=menu.find(x=>x.id===id),c=m.customization||{}, adds=c.additions||[], rem=c.removals||[];
+ document.getElementById('modal').innerHTML=`<div class="modal"><div class="sheet product-sheet">
+ <button class="close" onclick="closeModal()">×</button><h2>${esc(m.name)}</h2><p class="muted">${esc(m.description)}</p>
+ <div class="option-block">${c.meatPoint?`<h3>Ponto da carne</h3><div class="choices">${[['MAL_PASSADO','Mal passado'],['AO_PONTO','Ao ponto'],['BEM_PASSADO','Bem passado']].map((x,i)=>`<label><input type="radio" name="meat" value="${x[0]}" ${i===1?'checked':''}> ${x[1]}</label>`).join('')}</div>`:''}</div>
+ ${adds.length?`<div class="option-block"><h3>Adicionar ao lanche</h3>${adds.map(a=>`<label class="check"><input type="checkbox" data-add="${esc(a.id)}"> <span>${esc(a.name)}</span><b>+ ${br(a.price)}</b></label>`).join('')}</div>`:''}
+ ${rem.length?`<div class="option-block"><h3>Remover ingredientes</h3><p class="muted small">Marque o que você não quer.</p>${rem.map(x=>`<label class="check"><input type="checkbox" data-rem="${esc(x)}"> <span>Sem ${esc(x)}</span></label>`).join('')}</div>`:''}
+ <div class="option-block"><h3>Observação do lanche</h3><textarea id="itemNote" class="input textarea" maxlength="300" placeholder="Ex.: quero o hambúrguer mal passado, pouco molho, sem picles..."></textarea></div>
+ <button class="btn primary full" onclick="confirmProduct(${m.id})">Adicionar ao carrinho · ${br(m.price)}</button>
+ </div></div>`;
+}
+function closeModal(){document.getElementById('modal').innerHTML=''}
+function confirmProduct(id){
+ const m=menu.find(x=>x.id===id),adds=[...document.querySelectorAll('[data-add]:checked')].map(e=>(m.customization.additions||[]).find(a=>a.id===e.dataset.add)).filter(Boolean);
+ const rem=[...document.querySelectorAll('[data-rem]:checked')].map(e=>e.dataset.rem);
+ const meat=document.querySelector('input[name=meat]:checked')?.value||null,note=document.getElementById('itemNote')?.value.trim()||'';
+ cart.push({key:crypto.randomUUID(),productId:id,qty:1,additions:adds,removals:rem,meatPoint:meat,note});
+ closeModal();renderCart();
+}
+function itemTotal(i){const m=menu.find(x=>x.id===i.productId);return (m.price+i.additions.reduce((s,a)=>s+a.price,0))*i.qty}
+function renderCart(){
+ const count=cart.reduce((s,i)=>s+i.qty,0),total=cart.reduce((s,i)=>s+itemTotal(i),0);
+ document.getElementById('cartCount').textContent=count;
+ document.getElementById('cartPill').classList.toggle('has-items',count>0);
+ if(!cart.length){document.getElementById('cart').innerHTML='';return}
+ document.getElementById('cart').innerHTML=`<div class="cart"><div class="cart-head"><b>Seu pedido</b><b>${br(total)}</b></div>
+ ${cart.map(i=>{let m=menu.find(x=>x.id===i.productId);return `<div class="cart-item"><div><b>${i.qty}× ${esc(m.name)}</b>${i.meatPoint?`<small>🥩 ${i.meatPoint==='MAL_PASSADO'?'Mal passado':i.meatPoint==='BEM_PASSADO'?'Bem passado':'Ao ponto'}</small>`:''}${i.additions.length?`<small>+ ${i.additions.map(a=>esc(a.name)).join(', ')}</small>`:''}${i.removals.length?`<small>Sem: ${i.removals.map(esc).join(', ')}</small>`:''}${i.note?`<small>📝 ${esc(i.note)}</small>`:''}</div><div class="qty"><button onclick="changeQty('${i.key}',-1)">−</button><b>${i.qty}</b><button onclick="changeQty('${i.key}',1)">+</button></div></div>`}).join('')}
+ <textarea class="input textarea" id="orderNote" maxlength="500" placeholder="Observação geral do pedido (opcional)"></textarea>
+ <button class="btn primary full" onclick="send()">Enviar pedido · ${br(total)}</button></div>`;
+}
+function changeQty(key,d){const i=cart.find(x=>x.key===key);if(!i)return;i.qty+=d;if(i.qty<=0)cart=cart.filter(x=>x.key!==key);renderCart()}
+async function send(){
+ if(!cart.length)return;
+ const orderNote=document.getElementById('orderNote')?.value||'';
+ const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table,items:cart,note:orderNote})});
+ const o=await r.json();if(!r.ok)return alert(o.error||'Não foi possível enviar');
+ localStorage.setItem('lastOrderId',o.id);location.href='/pedido/'+o.id;
+}
+</script></body></html>

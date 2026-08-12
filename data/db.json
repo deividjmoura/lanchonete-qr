@@ -1,0 +1,308 @@
+{
+  "orders": [
+    {
+      "id": 1,
+      "table": 1,
+      "status": "DELIVERED",
+      "statusLabel": "Entregue",
+      "note": "",
+      "items": [
+        {
+          "id": 1,
+          "name": "X-Bacon",
+          "qty": 1,
+          "price": 27.9,
+          "additions": [],
+          "removals": [],
+          "meatPoint": "AO_PONTO",
+          "note": "",
+          "unitTotal": 27.9
+        }
+      ],
+      "total": 27.9,
+      "createdAt": "2026-08-10T17:11:58.216Z",
+      "updatedAt": "2026-08-10T17:12:23.867Z"
+    },
+    {
+      "id": 2,
+      "table": 1,
+      "status": "DELIVERED",
+      "statusLabel": "Entregue",
+      "note": "",
+      "items": [
+        {
+          "id": 2,
+          "name": "X-Salada",
+          "qty": 1,
+          "price": 23.9,
+          "additions": [],
+          "removals": [],
+          "meatPoint": "AO_PONTO",
+          "note": "",
+          "unitTotal": 23.9
+        }
+      ],
+      "total": 23.9,
+      "createdAt": "2026-08-10T17:12:39.890Z",
+      "updatedAt": "2026-08-10T17:12:47.761Z"
+    }
+  ],
+  "nextOrder": 3,
+  "menu": [
+    {
+      "id": 1,
+      "category": "🍔 Hambúrgueres",
+      "name": "X-Bacon",
+      "description": "Pão brioche, hambúrguer 150g, bacon, queijo e molho da casa",
+      "price": 27.9,
+      "customization": {
+        "additions": [
+          {
+            "id": "extra-cheddar",
+            "name": "Cheddar extra",
+            "price": 4
+          },
+          {
+            "id": "extra-bacon",
+            "name": "Bacon extra",
+            "price": 5
+          },
+          {
+            "id": "ovo",
+            "name": "Ovo",
+            "price": 3
+          },
+          {
+            "id": "salada-extra",
+            "name": "Salada extra",
+            "price": 2
+          }
+        ],
+        "removals": [
+          "Bacon",
+          "Queijo",
+          "Molho da casa",
+          "Tomate"
+        ],
+        "meatPoint": true
+      }
+    },
+    {
+      "id": 2,
+      "category": "🍔 Hambúrgueres",
+      "name": "X-Salada",
+      "description": "Hambúrguer 150g, queijo, alface, tomate e maionese",
+      "price": 23.9,
+      "customization": {
+        "additions": [
+          {
+            "id": "extra-queijo",
+            "name": "Queijo extra",
+            "price": 4
+          },
+          {
+            "id": "extra-bacon",
+            "name": "Bacon extra",
+            "price": 5
+          },
+          {
+            "id": "ovo",
+            "name": "Ovo",
+            "price": 3
+          },
+          {
+            "id": "hamb-extra",
+            "name": "Hambúrguer extra 150g",
+            "price": 9
+          }
+        ],
+        "removals": [
+          "Queijo",
+          "Alface",
+          "Tomate",
+          "Maionese"
+        ],
+        "meatPoint": true
+      }
+    },
+    {
+      "id": 3,
+      "category": "🍔 Hambúrgueres",
+      "name": "Duplo Cheddar",
+      "description": "Dois burgers 120g, cheddar cremoso e cebola caramelizada",
+      "price": 32.9,
+      "customization": {
+        "additions": [
+          {
+            "id": "extra-cheddar",
+            "name": "Cheddar extra",
+            "price": 4
+          },
+          {
+            "id": "extra-bacon",
+            "name": "Bacon extra",
+            "price": 5
+          },
+          {
+            "id": "hamb-extra",
+            "name": "Hambúrguer extra 120g",
+            "price": 8
+          }
+        ],
+        "removals": [
+          "Cheddar",
+          "Cebola caramelizada"
+        ],
+        "meatPoint": true
+      }
+    },
+    {
+      "id": 4,
+      "category": "🔥 Combos",
+      "name": "Combo Clássico",
+      "description": "X-Salada + batata P + refrigerante lata",
+      "price": 32.9,
+      "oldPrice": 39.5,
+      "customization": {
+        "additions": [
+          {
+            "id": "troca-batata-m",
+            "name": "Trocar para batata M",
+            "price": 4
+          },
+          {
+            "id": "extra-cheddar",
+            "name": "Cheddar extra no lanche",
+            "price": 4
+          },
+          {
+            "id": "extra-bacon",
+            "name": "Bacon extra no lanche",
+            "price": 5
+          }
+        ],
+        "removals": [
+          "Queijo",
+          "Alface",
+          "Tomate",
+          "Maionese"
+        ],
+        "meatPoint": true
+      }
+    },
+    {
+      "id": 5,
+      "category": "🔥 Combos",
+      "name": "Combo Bacon",
+      "description": "X-Bacon + batata P + refrigerante lata",
+      "price": 38.9,
+      "oldPrice": 44.5,
+      "customization": {
+        "additions": [
+          {
+            "id": "extra-cheddar",
+            "name": "Cheddar extra no lanche",
+            "price": 4
+          },
+          {
+            "id": "extra-bacon",
+            "name": "Bacon extra",
+            "price": 5
+          },
+          {
+            "id": "troca-batata-m",
+            "name": "Trocar para batata M",
+            "price": 4
+          }
+        ],
+        "removals": [
+          "Bacon",
+          "Queijo",
+          "Molho da casa"
+        ],
+        "meatPoint": true
+      }
+    },
+    {
+      "id": 6,
+      "category": "🔥 Combos",
+      "name": "Combo Duplo",
+      "description": "Duplo Cheddar + batata M + refrigerante lata",
+      "price": 45.9,
+      "oldPrice": 51.5,
+      "customization": {
+        "additions": [
+          {
+            "id": "extra-cheddar",
+            "name": "Cheddar extra",
+            "price": 4
+          },
+          {
+            "id": "extra-bacon",
+            "name": "Bacon extra",
+            "price": 5
+          },
+          {
+            "id": "troca-bebida",
+            "name": "Trocar bebida por suco",
+            "price": 2
+          }
+        ],
+        "removals": [
+          "Cheddar",
+          "Cebola caramelizada"
+        ],
+        "meatPoint": true
+      }
+    },
+    {
+      "id": 7,
+      "category": "🍟 Acompanhamentos",
+      "name": "Batata P",
+      "description": "Batata frita crocante",
+      "price": 9.9
+    },
+    {
+      "id": 8,
+      "category": "🍟 Acompanhamentos",
+      "name": "Batata M",
+      "description": "Porção maior de batata frita",
+      "price": 13.9
+    },
+    {
+      "id": 9,
+      "category": "🍟 Acompanhamentos",
+      "name": "Onion Rings",
+      "description": "Anéis de cebola empanados",
+      "price": 12.9
+    },
+    {
+      "id": 10,
+      "category": "🥤 Bebidas",
+      "name": "Coca-Cola Lata",
+      "description": "350ml",
+      "price": 6.9
+    },
+    {
+      "id": 11,
+      "category": "🥤 Bebidas",
+      "name": "Guaraná Lata",
+      "description": "350ml",
+      "price": 6.9
+    },
+    {
+      "id": 12,
+      "category": "🥤 Bebidas",
+      "name": "Água Mineral",
+      "description": "500ml",
+      "price": 4.5
+    },
+    {
+      "id": 13,
+      "category": "🥤 Bebidas",
+      "name": "Suco de Laranja",
+      "description": "300ml, natural",
+      "price": 8.9
+    }
+  ]
+}
