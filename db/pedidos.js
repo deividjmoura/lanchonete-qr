@@ -242,6 +242,7 @@ async function getSessao(token) {
 }
 
 // Fila da cozinha: pedidos recebido/em_producao, mais antigo primeiro.
+// Inclui adicionais e remoções para a cozinha ver a personalização completa.
 async function getFilaCozinha() {
   const { rows: pedidos } = await pool.query(
     `SELECT p.id, p.status, p.criado_em, p.observacao_geral, m.numero AS mesa
@@ -260,6 +261,23 @@ async function getFilaCozinha() {
        WHERE ip.pedido_id = $1`,
       [p.id]
     );
+
+    for (const item of itens) {
+      const { rows: adicionais } = await pool.query(
+        `SELECT a.nome
+         FROM itens_pedido_adicionais ipa
+         JOIN adicionais a ON a.id = ipa.adicional_id
+         WHERE ipa.item_pedido_id = $1`,
+        [item.id]
+      );
+      const { rows: remocoes } = await pool.query(
+        `SELECT ingrediente FROM itens_pedido_remocoes WHERE item_pedido_id = $1`,
+        [item.id]
+      );
+      item.adicionais = adicionais;
+      item.remocoes = remocoes.map((r) => r.ingrediente);
+    }
+
     resultado.push({ ...p, itens });
   }
   return resultado;

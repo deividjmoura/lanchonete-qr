@@ -1,1 +1,234 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cozinha</title><link rel="stylesheet" href="/style.css"></head><body><main class="wrap"><div class="top"><div><div class="brand">👨‍🍳 Cozinha</div><div class="muted">Pedidos atualizados automaticamente</div></div><a class="btn primary" href="/mesa/1">Cardápio</a></div><div id="orders" class="kgrid"></div></main><script>const labels={PENDING:'Novo',PREPARING:'Preparando',READY:'Pronto',DELIVERED:'Entregue',CANCELLED:'Cancelado'};async function load(){let o=await(await fetch('/api/orders')).json();document.getElementById('orders').innerHTML=o.length?o.map(x=>`<article class="order ${x.status==='PENDING'?'new':''}"><div class="row"><div><div class="big">Mesa ${x.table}</div><span class="badge">${labels[x.status]}</span></div><b>#${x.id}</b></div><hr>${x.items.map(i=>`<div class="row"><span><b>${i.qty}×</b> ${i.name}</span><span>R$ ${(i.price*i.qty).toFixed(2).replace('.',',')}</span></div>`).join('')}${x.note?`<p><b>Obs.:</b> ${x.note}</p>`:''}<p class="muted">${new Date(x.createdAt).toLocaleTimeString('pt-BR')}</p><div class="nav">${x.status==='PENDING'?`<button class="btn primary" onclick="setStatus(${x.id},'PREPARING')">Começar</button>`:''}${x.status==='PREPARING'?`<button class="btn primary" onclick="setStatus(${x.id},'READY')">Marcar pronto</button>`:''}${x.status==='READY'?`<button class="btn dark" onclick="setStatus(${x.id},'DELIVERED')">Entregue</button>`:''}${!['DELIVERED','CANCELLED'].includes(x.status)?`<button class="btn" onclick="setStatus(${x.id},'CANCELLED')">Cancelar</button>`:''}</div></article>`).join(''):'<div class="panel">Nenhum pedido ainda.</div>'}async function setStatus(id,status){await fetch('/api/orders/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});load()}load();setInterval(load,2000)</script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111">
+  <title>Cozinha · Lanchonete QR</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .badge.recebido{background:#fff3e0;color:#e65100}
+    .badge.em_producao{background:#e3f2fd;color:#1565c0}
+    .item-extra{display:block;color:var(--muted);font-size:.82rem;margin-top:2px}
+    .item-extra .sem{color:#c62828}
+    .item-extra .com{color:#16834a}
+    .item-extra .ponto{color:#6d4c41;font-weight:700}
+    .empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
+    .empty-state .big{font-size:2.4rem;margin-bottom:8px}
+    .meta-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .age{font-size:.8rem;color:var(--muted)}
+    .age.warn{color:#e65100;font-weight:700}
+    .age.hot{color:#c62828;font-weight:800}
+    .toast{
+      position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+      background:#111;color:#fff;padding:12px 18px;border-radius:12px;
+      font-weight:600;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none;
+      max-width:min(92vw,360px);text-align:center;
+    }
+    .toast.show{opacity:1}
+    .toast.err{background:#b71c1c}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div>
+      <div class="brand">👨‍🍳 Cozinha</div>
+      <div class="muted">Fila <code>recebido</code> → <code>em_producao</code> → <code>concluido</code> · atualiza a cada 2s</div>
+    </div>
+    <div class="nav">
+      <a class="btn" href="/admin">Admin</a>
+      <a class="btn dark" href="/">Início</a>
+    </div>
+  </div>
+
+  <div id="stats" class="muted" style="margin-bottom:14px"></div>
+  <div id="orders" class="kgrid"></div>
+</main>
+<div id="toast" class="toast"></div>
+
+<script>
+const LABELS = {
+  recebido: 'Novo',
+  em_producao: 'Preparando',
+  concluido: 'Concluído',
+  entregue: 'Entregue',
+};
+
+const PONTO = {
+  MAL_PASSADO: 'Mal passado',
+  AO_PONTO: 'Ao ponto',
+  BEM_PASSADO: 'Bem passado',
+};
+
+const PROXIMO = {
+  recebido: 'em_producao',
+  em_producao: 'concluido',
+};
+
+const ACAO = {
+  recebido: 'Começar preparo',
+  em_producao: 'Marcar concluído',
+};
+
+function fmtHora(iso) {
+  try {
+    return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '—';
+  }
+}
+
+function idadeMinutos(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(ms / 60000));
+}
+
+function ageClass(min) {
+  if (min >= 15) return 'hot';
+  if (min >= 8) return 'warn';
+  return '';
+}
+
+function extrasHtml(item) {
+  const parts = [];
+  if (item.ponto_carne && PONTO[item.ponto_carne]) {
+    parts.push(`<span class="ponto">Ponto: ${PONTO[item.ponto_carne]}</span>`);
+  }
+  const adds = Array.isArray(item.adicionais) ? item.adicionais : [];
+  if (adds.length) {
+    parts.push(`<span class="com">+ ${adds.map((a) => a.nome).join(', ')}</span>`);
+  }
+  const rems = Array.isArray(item.remocoes) ? item.remocoes : [];
+  if (rems.length) {
+    parts.push(`<span class="sem">sem ${rems.join(', ')}</span>`);
+  }
+  if (item.observacao) {
+    parts.push(`Obs.: ${esc(item.observacao)}`);
+  }
+  return parts.length ? `<small class="item-extra">${parts.join(' · ')}</small>` : '';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function card(p) {
+  const min = idadeMinutos(p.criado_em);
+  const proximo = PROXIMO[p.status];
+  const acao = ACAO[p.status];
+  const itens = (p.itens || [])
+    .map(
+      (i) =>
+        `<div class="row">
+          <span><b>${i.quantidade}×</b> ${esc(i.nome)}${extrasHtml(i)}</span>
+        </div>`
+    )
+    .join('');
+
+  return `<article class="order ${p.status === 'recebido' ? 'new' : ''}" data-id="${p.id}">
+    <div class="row">
+      <div>
+        <div class="big">Mesa ${p.mesa}</div>
+        <div class="meta-row">
+          <span class="badge ${p.status}">${LABELS[p.status] || p.status}</span>
+          <span class="age ${ageClass(min)}">${min === 0 ? 'agora' : min + ' min'}</span>
+        </div>
+      </div>
+      <b>#${p.id}</b>
+    </div>
+    <hr>
+    ${itens || '<p class="muted">Sem itens</p>'}
+    ${p.observacao_geral ? `<p><b>Obs. geral:</b> ${esc(p.observacao_geral)}</p>` : ''}
+    <p class="muted">${fmtHora(p.criado_em)}</p>
+    <div class="nav">
+      ${
+        proximo
+          ? `<button class="btn primary" data-advance="${p.id}" data-status="${proximo}">${acao}</button>`
+          : ''
+      }
+    </div>
+  </article>`;
+}
+
+function toast(msg, isErr) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => {
+    el.className = 'toast';
+  }, 2200);
+}
+
+let loading = false;
+let advancing = false;
+
+async function load() {
+  if (loading || advancing) return;
+  loading = true;
+  try {
+    const res = await fetch('/api/cozinha/pedidos');
+    if (!res.ok) throw new Error('Falha ao carregar fila');
+    const pedidos = await res.json();
+
+    const novos = pedidos.filter((p) => p.status === 'recebido').length;
+    const prep = pedidos.filter((p) => p.status === 'em_producao').length;
+    document.getElementById('stats').textContent = pedidos.length
+      ? `${pedidos.length} na fila · ${novos} novo(s) · ${prep} em produção`
+      : 'Fila vazia';
+
+    const root = document.getElementById('orders');
+    if (!pedidos.length) {
+      root.innerHTML =
+        '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
+    } else {
+      root.innerHTML = pedidos.map(card).join('');
+    }
+  } catch (e) {
+    console.error(e);
+    document.getElementById('stats').textContent = 'Erro ao atualizar a fila';
+  } finally {
+    loading = false;
+  }
+}
+
+async function avancar(id, status) {
+  if (advancing) return;
+  advancing = true;
+  try {
+    const res = await fetch(`/api/pedidos/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || 'Não foi possível avançar o status', true);
+      return;
+    }
+    toast(status === 'em_producao' ? 'Pedido em preparo' : 'Pedido concluído — aguardando garçom');
+    await load();
+  } catch (e) {
+    console.error(e);
+    toast('Erro de rede', true);
+  } finally {
+    advancing = false;
+  }
+}
+
+document.getElementById('orders').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-advance]');
+  if (!btn) return;
+  avancar(Number(btn.dataset.advance), btn.dataset.status);
+});
+
+load();
+setInterval(load, 2000);
+</script>
+</body>
+</html>

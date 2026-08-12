@@ -17,14 +17,14 @@ Cliente escaneia o QR da mesa → monta o pedido com adicionais, remoções e po
 | `GET /api/mesas/:token/sessao` (total devido) | ✅ |
 | `GET /api/cozinha/pedidos` + `PATCH /api/pedidos/:id/status` | ✅ |
 | **Admin** — CRUD cardápio + QR por token | ✅ |
-| UI cliente (`mesa.html`) migrada para token + Postgres | ⏳ |
-| UI cozinha migrada | ⏳ |
+| UI cliente (`mesa.html`) migrada para token + Postgres | ✅ |
+| UI cozinha migrada | ✅ |
 | Tela garçom | ⏳ |
 | Tela caixa + fechar sessão | ⏳ |
 | SSE no lugar de polling | ⏳ |
 | Auth admin/caixa + rate limit | ⏳ |
 
-As rotas antigas (`/api/menu`, `/api/orders*`) ainda existem e alimentam `mesa.html` / `cozinha.html` até a migração da UI.
+As rotas antigas (`/api/menu`, `/api/orders*`) ainda existem e alimentam telas legadas até a migração completa da UI (cozinha e mesa já usam Postgres).
 
 ---
 
@@ -161,7 +161,7 @@ Pendente: autenticação no admin/caixa e rate limit no endpoint de pedido.
 ├── public/
 │   ├── admin.html      # painel admin (Postgres)
 │   ├── mesa.html       # cliente (ainda JSON legado)
-│   ├── cozinha.html
+│   ├── cozinha.html    # fila Postgres (recebido/em_producao)
 │   ├── pedido.html
 │   └── style.css
 ├── data/db.json        # legado — será aposentado
@@ -173,8 +173,8 @@ Pendente: autenticação no admin/caixa e rate limit no endpoint de pedido.
 
 ## Próximos passos (ordem sugerida)
 
-1. Migrar `mesa.html` → `/mesa/:token` + `GET /api/cardapio` + `POST /api/mesas/:token/pedidos` + total da sessão sempre visível
-2. Migrar `cozinha.html` → rotas novas de fila e status
+1. ~~Migrar `mesa.html`~~ ✅
+2. ~~Migrar `cozinha.html`~~ ✅ — `GET /api/cozinha/pedidos` + `PATCH /api/pedidos/:id/status`
 3. Tela `/garcom` (pedidos `concluido` → `entregue`)
 4. Tela `/caixa` + `POST /api/caixa/sessoes/:id/fechar`
 5. SSE, auth e desligar rotas/`db.json` antigos
