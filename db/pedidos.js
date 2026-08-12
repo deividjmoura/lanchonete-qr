@@ -218,11 +218,22 @@ async function getSessao(token) {
       let totalPedido = 0;
       for (const item of itens) {
         const { rows: adicionais } = await client.query(
-          'SELECT preco_unitario FROM itens_pedido_adicionais WHERE item_pedido_id = $1',
+          `SELECT a.nome, ipa.preco_unitario
+           FROM itens_pedido_adicionais ipa
+           JOIN adicionais a ON a.id = ipa.adicional_id
+           WHERE ipa.item_pedido_id = $1`,
+          [item.id]
+        );
+        const { rows: remocoes } = await client.query(
+          `SELECT ingrediente FROM itens_pedido_remocoes WHERE item_pedido_id = $1`,
           [item.id]
         );
         const totalAdicionais = adicionais.reduce((s, a) => s + Number(a.preco_unitario), 0);
-        totalPedido += (Number(item.preco_unitario) + totalAdicionais) * item.quantidade;
+        const linha = (Number(item.preco_unitario) + totalAdicionais) * item.quantidade;
+        totalPedido += linha;
+        item.adicionais = adicionais.map((a) => ({ nome: a.nome, preco: Number(a.preco_unitario) }));
+        item.remocoes = remocoes.map((r) => r.ingrediente);
+        item.totalLinha = Number(linha.toFixed(2));
       }
       totalDevido += totalPedido;
       pedidosComItens.push({ ...p, itens, totalPedido: Number(totalPedido.toFixed(2)) });

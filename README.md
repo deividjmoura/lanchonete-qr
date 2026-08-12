@@ -14,20 +14,17 @@ Cliente escaneia o QR da mesa → monta o pedido com adicionais, remoções e po
 | Seed (mesas, categorias, produtos, adicionais, removíveis, ponto da carne) | ✅ |
 | `GET /api/cardapio` | ✅ |
 | `POST /api/mesas/:token/pedidos` + sessão da mesa | ✅ |
-| `GET /api/mesas/:token/sessao` (total devido) | ✅ |
+| `GET /api/mesas/:token/sessao` (pedidos, itens, status, total) | ✅ |
 | `GET /api/cozinha/pedidos` + `PATCH /api/pedidos/:id/status` | ✅ |
 | `GET /api/garcom/pedidos` + entrega (`entregue`) | ✅ |
 | `GET /api/caixa/sessoes` + `POST .../fechar` | ✅ |
 | **Admin** — CRUD cardápio + QR por token | ✅ |
-| UI cliente (`mesa.html`) migrada para token + Postgres | ✅ |
-| UI cozinha migrada | ✅ |
-| Tela garçom | ✅ |
-| Tela caixa + fechar sessão | ✅ |
-| SSE no lugar de polling | ⏳ |
+| UI cliente (`mesa.html`) — cardápio + **conta da mesa com status** | ✅ |
+| UI cozinha / garçom / caixa | ✅ |
 | Auth admin/caixa (login por senha + sessão) | ✅ |
 | Rate limit na criação de pedido e no login | ✅ |
-
-As rotas antigas (`/api/menu`, `/api/orders*`) ainda existem até a migração completa da UI. Mesa, cozinha, garçom e caixa já usam Postgres.
+| Tema claro/escuro (Clean Corporate) | ✅ |
+| SSE no lugar de polling | ⏳ |
 
 ---
 
@@ -40,6 +37,7 @@ As rotas antigas (`/api/menu`, `/api/orders*`) ainda existem até a migração c
 | Driver | `pg` |
 | Config | `dotenv` |
 | Front | HTML + CSS + JS vanilla (mobile-first) |
+| UI | Design tokens centralizados, tema claro/escuro, Inter + JetBrains Mono |
 | QR | Geração on-the-fly no admin (API pública) · script Python opcional |
 
 ---
@@ -60,12 +58,23 @@ GARÇOM    concluido → entregue   (valor soma em mesa_sessoes.valor_total)
    │
    ▼
 Cliente pode pedir de novo → conta da mesa acumula
-   │
+   │  (barra "Conta da mesa" → modal com itens + status ao vivo)
    ▼
 CAIXA     fecha sessão + forma de pagamento
 ```
 
 Ponto-chave: **vários pedidos por visita**. O que importa financeiramente é a **sessão/comanda da mesa**, não o pedido isolado.
+
+### Acompanhamento do cliente
+
+Na tela da mesa (`/mesa/:token`):
+
+1. Barra fixa no topo mostra o **total acumulado** e quantos pedidos estão em andamento.
+2. Toque na barra abre o modal **Conta da mesa**:
+   - Lista de todos os pedidos da sessão (mais recentes primeiro)
+   - Status de cada um: **Recebido → Na cozinha → Pronto → Entregue**
+   - Itens, adicionais, remoções, observações e subtotais
+3. A sessão é recarregada a cada ~8s; se o modal estiver aberto, os status atualizam sozinhos.
 
 ---
 
@@ -109,7 +118,7 @@ npm start
 |--------|------|-----------|
 | `GET` | `/api/cardapio` | Cardápio disponível (categorias → produtos → adicionais/removíveis) |
 | `POST` | `/api/mesas/:token/pedidos` | Cria pedido, abre/reaproveita sessão, valida preço e regras no servidor |
-| `GET` | `/api/mesas/:token/sessao` | Pedidos da sessão aberta + total devido |
+| `GET` | `/api/mesas/:token/sessao` | Pedidos da sessão aberta + itens + status + total devido |
 | `GET` | `/api/cozinha/pedidos` | Fila `recebido` / `em_producao` |
 | `GET` | `/api/garcom/pedidos` | Fila `concluido` (pronto para entregar) |
 | `PATCH` | `/api/pedidos/:id/status` | Avança um passo: `recebido → em_producao → concluido → entregue` |
@@ -134,7 +143,7 @@ npm start
 
 | URL | Papel |
 |-----|--------|
-| `/mesa/:token` | Cliente (hoje ainda aceita número legado via JSON) |
+| `/mesa/:token` | Cliente — cardápio, carrinho e **conta da mesa com status** |
 | `/cozinha` | Cozinha |
 | `/garcom` | Garçom — pedidos prontos → entregue |
 | `/admin` | Cardápio + QR por token — **exige login** |
@@ -160,14 +169,22 @@ mesma senha, o que é suficiente pro tamanho da operação hoje.
 
 ---
 
+## UI / tema
+
+- Design system em `public/style.css` com CSS variables (tokens).
+- Temas **claro** e **escuro** (Clean Corporate): primary azul, Inter + JetBrains Mono.
+- Toggle 🌓 em todas as telas; preferência salva em `localStorage` (`lq-theme`).
+- Respeita `prefers-color-scheme` quando o usuário ainda não escolheu.
+
+---
+
 ## Segurança já aplicada
 
 - Token UUID opaco na URL da mesa (não o número sequencial)
 - Preço e regras de personalização **sempre recalculados no servidor**
 - Snapshot de preço em `itens_pedido` / `itens_pedido_adicionais` (pedido antigo não muda se o cardápio mudar)
 - Constraint de sessão única aberta por mesa (`uq_mesa_sessao_aberta`)
-
-Pendente: autenticação no admin/caixa e rate limit no endpoint de pedido.
+- Auth staff + rate limit em pedido e login
 
 ---
 
@@ -175,23 +192,27 @@ Pendente: autenticação no admin/caixa e rate limit no endpoint de pedido.
 
 ```
 ├── db/
-│   ├── migrations/     # 0001_init, 0002_ingredientes_ponto_carne
+│   ├── migrations/     # 0001_init, 0002_ingredientes_ponto_carne, 0003_hamburguer_extra
 │   ├── admin.js        # CRUD cardápio + mesas
+│   ├── auth.js         # login / sessão staff
 │   ├── cardapio.js     # leitura pública
 │   ├── pedidos.js      # criar pedido, status, sessão, fila
 │   ├── caixa.js        # sessões abertas + fechar conta
-│   ├── queries.js      # helpers compartilhados
+│   ├── rateLimit.js
+│   ├── queries.js
 │   ├── pool.js
 │   ├── migrate.js
 │   └── seed.js
 ├── public/
-│   ├── admin.html      # painel admin (Postgres)
-│   ├── mesa.html       # cliente (ainda JSON legado)
-│   ├── cozinha.html    # fila Postgres (recebido/em_producao)
-│   ├── garcom.html     # fila Postgres (concluido → entregue)
-│   ├── caixa.html      # sessões abertas + fechar conta
-│   ├── pedido.html
-│   └── style.css
+│   ├── admin.html      # painel admin (cardápio + QR)
+│   ├── mesa.html       # cliente: cardápio + conta da mesa
+│   ├── cozinha.html
+│   ├── garcom.html
+│   ├── caixa.html
+│   ├── login.html
+│   ├── index.html
+│   ├── pedido.html     # legado (acompanhamento por id)
+│   └── style.css       # design tokens + tema
 ├── data/db.json        # legado — será aposentado
 ├── server.js
 └── package.json
@@ -202,10 +223,12 @@ Pendente: autenticação no admin/caixa e rate limit no endpoint de pedido.
 ## Próximos passos (ordem sugerida)
 
 1. ~~Migrar `mesa.html`~~ ✅
-2. ~~Migrar `cozinha.html`~~ ✅ — `GET /api/cozinha/pedidos` + `PATCH /api/pedidos/:id/status`
-3. ~~Tela `/garcom`~~ ✅ — `GET /api/garcom/pedidos` + marcar `entregue`
-4. ~~Tela `/caixa`~~ ✅ — `GET /api/caixa/sessoes` + `POST /api/caixa/sessoes/:id/fechar`
-5. SSE, auth e desligar rotas/`db.json` antigos
+2. ~~Migrar `cozinha.html`~~ ✅
+3. ~~Tela `/garcom`~~ ✅
+4. ~~Tela `/caixa`~~ ✅
+5. ~~Auth + rate limit~~ ✅
+6. ~~Conta da mesa com status no cliente~~ ✅
+7. SSE (substituir polling) e desligar rotas / `db.json` antigos
 
 ---
 

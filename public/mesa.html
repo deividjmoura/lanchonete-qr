@@ -13,13 +13,58 @@
       padding:10px 14px;
       display:flex;align-items:center;justify-content:space-between;gap:12px;
       font-size:.92rem;
-      transition:background-color .2s ease,color .2s ease;
+      transition:background-color .2s ease,color .2s ease,box-shadow .2s ease;
+      cursor:pointer;border:0;width:100%;text-align:left;
+      font:inherit;color:inherit;
     }
-    .sessao-bar strong{font-size:1.05rem;font-family:var(--font-mono)}
-    .sessao-bar .muted-light{opacity:.75;font-size:.8rem}
+    .sessao-bar:hover,.sessao-bar:focus-visible{
+      box-shadow:0 4px 20px rgba(0,0,0,.25);
+      outline:none;
+    }
+    .sessao-bar strong{font-size:1.1rem;font-family:var(--font-mono);letter-spacing:-.02em}
+    .sessao-bar .muted-light{opacity:.78;font-size:.78rem}
+    .sessao-bar .sessao-cta{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 12px;border-radius:999px;
+      background:rgba(255,255,255,.12);font-size:.78rem;font-weight:700;
+      white-space:nowrap;
+    }
     .mobile-header{top:auto}
-    body.has-sessao .mobile-header{top:42px}
-    body.has-sessao #categories,body.has-sessao .categories{top:108px}
+    body.has-sessao .mobile-header{top:48px}
+    body.has-sessao #categories,body.has-sessao .categories{top:114px}
+    .status-pill{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:3px 9px;border-radius:999px;font-size:.7rem;font-weight:700;
+      letter-spacing:.03em;text-transform:uppercase;
+    }
+    .status-pill.recebido{background:var(--primary-soft);color:var(--primary)}
+    .status-pill.em_producao{background:var(--warning-soft);color:var(--warning)}
+    .status-pill.concluido{background:var(--success-soft);color:var(--success)}
+    .status-pill.entregue{background:var(--chip-bg);color:var(--muted)}
+    .pedido-block{
+      border:1px solid var(--line);border-radius:14px;padding:14px;
+      margin-bottom:12px;background:var(--surface-2);
+    }
+    .pedido-block:last-child{margin-bottom:0}
+    .pedido-head{
+      display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;
+      margin-bottom:8px;
+    }
+    .pedido-head b{font-size:.95rem}
+    .pedido-item{
+      display:flex;justify-content:space-between;gap:10px;
+      padding:6px 0;border-top:1px solid var(--line);font-size:.9rem;
+    }
+    .pedido-item:first-of-type{border-top:0;padding-top:0}
+    .pedido-item small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+    .sessao-empty{text-align:center;padding:28px 12px;color:var(--muted)}
+    .sessao-summary{
+      display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;
+    }
+    .sessao-summary .chip-stat{
+      font-size:.78rem;font-weight:700;padding:5px 10px;border-radius:999px;
+      background:var(--chip-bg);color:var(--muted);
+    }
     .toast-ok{
       position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
       background:var(--success);color:#fff;padding:14px 20px;border-radius:14px;
@@ -121,13 +166,16 @@
   </script>
 </head>
 <body>
-<div class="sessao-bar" id="sessaoBar" hidden>
+<button type="button" class="sessao-bar" id="sessaoBar" hidden onclick="openSessao()" aria-label="Ver conta da mesa">
   <div>
-    <div class="muted-light">Total da mesa até agora</div>
+    <div class="muted-light">Conta da mesa · toque para detalhes</div>
     <strong id="sessaoTotal">R$ 0,00</strong>
   </div>
-  <div class="muted-light" id="sessaoInfo">—</div>
-</div>
+  <div class="sessao-cta">
+    <span id="sessaoInfo">—</span>
+    <span aria-hidden="true">›</span>
+  </div>
+</button>
 
 <header class="mobile-header">
   <div>
@@ -171,6 +219,15 @@ let cart = [];
 let totalDevido = 0;
 let orderNoteDraft = '';
 let cartOpen = false;
+let sessaoData = null;
+let sessaoOpen = false;
+
+const STATUS_LABEL = {
+  recebido: 'Recebido',
+  em_producao: 'Na cozinha',
+  concluido: 'Pronto',
+  entregue: 'Entregue',
+};
 
 const br = n => 'R$ ' + Number(n).toFixed(2).replace('.', ',');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({
@@ -179,6 +236,10 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({
 
 function temPersonalizacao(p) {
   return (p.adicionais && p.adicionais.length) || (p.removiveis && p.removiveis.length);
+}
+
+function statusLabel(s) {
+  return STATUS_LABEL[s] || s || '—';
 }
 
 function cartCount() {
@@ -208,16 +269,100 @@ async function loadSessao() {
     const r = await fetch('/api/mesas/' + token + '/sessao');
     if (!r.ok) return;
     const s = await r.json();
+    sessaoData = s;
     totalDevido = s.totalDevido || 0;
     document.getElementById('mesa').textContent = 'Mesa ' + s.mesa;
     document.getElementById('mesaDesk').textContent = 'Mesa ' + s.mesa + ' · Cardápio';
     document.getElementById('sessaoTotal').textContent = br(totalDevido);
-    document.getElementById('sessaoInfo').textContent = s.sessaoAberta
-      ? (s.pedidos?.length || 0) + ' pedido(s)'
-      : 'Nenhum pedido ainda';
+
+    const pedidos = s.pedidos || [];
+    const ativos = pedidos.filter(p => p.status !== 'entregue').length;
+    let info = 'Nenhum pedido ainda';
+    if (pedidos.length) {
+      info = pedidos.length + ' pedido(s)';
+      if (ativos) info += ' · ' + ativos + ' em andamento';
+    }
+    document.getElementById('sessaoInfo').textContent = info;
     document.getElementById('sessaoBar').hidden = false;
     document.body.classList.add('has-sessao');
+
+    // Se o modal da conta estiver aberto, atualiza o conteúdo com status novo
+    if (sessaoOpen) openSessao();
   } catch (_) {}
+}
+
+function openSessao() {
+  sessaoOpen = true;
+  cartOpen = false;
+  const s = sessaoData || { pedidos: [], totalDevido: 0, mesa: '—' };
+  const pedidos = s.pedidos || [];
+
+  const counts = { recebido: 0, em_producao: 0, concluido: 0, entregue: 0 };
+  pedidos.forEach(p => { if (counts[p.status] != null) counts[p.status]++; });
+
+  const summary = [
+    counts.recebido && `<span class="chip-stat">${counts.recebido} recebido(s)</span>`,
+    counts.em_producao && `<span class="chip-stat">${counts.em_producao} na cozinha</span>`,
+    counts.concluido && `<span class="chip-stat">${counts.concluido} pronto(s)</span>`,
+    counts.entregue && `<span class="chip-stat">${counts.entregue} entregue(s)</span>`,
+  ].filter(Boolean).join('') || '<span class="chip-stat">Nenhum pedido nesta visita</span>';
+
+  const blocks = pedidos.length
+    ? pedidos.slice().reverse().map(p => {
+        const hora = p.criado_em
+          ? new Date(p.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          : '';
+        const itens = (p.itens || []).map(it => {
+          const adds = (it.adicionais || []).map(a => a.nome || a).filter(Boolean);
+          const rems = it.remocoes || [];
+          return `<div class="pedido-item">
+            <div>
+              <b>${it.quantidade}× ${esc(it.nome)}</b>
+              ${adds.length ? `<small>+ ${adds.map(esc).join(', ')}</small>` : ''}
+              ${rems.length ? `<small>Sem: ${rems.map(esc).join(', ')}</small>` : ''}
+              ${it.ponto_carne ? `<small>🥩 ${esc(it.ponto_carne)}</small>` : ''}
+              ${it.observacao ? `<small>📝 ${esc(it.observacao)}</small>` : ''}
+            </div>
+            <b style="font-family:var(--font-mono);white-space:nowrap">${br(it.totalLinha != null ? it.totalLinha : (Number(it.preco_unitario) || 0) * (it.quantidade || 1))}</b>
+          </div>`;
+        }).join('');
+        return `<div class="pedido-block">
+          <div class="pedido-head">
+            <div>
+              <b>Pedido #${p.id}</b>
+              ${hora ? `<small class="muted" style="display:block;margin-top:2px">${hora}</small>` : ''}
+            </div>
+            <span class="status-pill ${esc(p.status)}">${statusLabel(p.status)}</span>
+          </div>
+          ${itens}
+          <div class="pedido-item" style="border-top:1px solid var(--line);margin-top:6px;padding-top:8px">
+            <span class="muted">Subtotal</span>
+            <b style="font-family:var(--font-mono)">${br(p.totalPedido || 0)}</b>
+          </div>
+          ${p.observacao_geral ? `<small class="muted" style="display:block;margin-top:6px">Obs.: ${esc(p.observacao_geral)}</small>` : ''}
+        </div>`;
+      }).join('')
+    : '<div class="sessao-empty">Você ainda não enviou nenhum pedido.<br>Escolha itens no cardápio e toque em 🛒.</div>';
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-root" role="dialog" aria-modal="true" aria-label="Conta da mesa">
+      <div class="modal-backdrop" onclick="closeModal()"></div>
+      <div class="modal-sheet">
+        <button class="close" type="button" onclick="closeModal()" aria-label="Fechar">×</button>
+        <h2>Conta da mesa ${esc(String(s.mesa ?? ''))}</h2>
+        <p class="muted" style="margin:0 0 4px">Acompanhe o que já pediu e o status de cada pedido</p>
+        <div class="cart-total-row" style="margin-top:8px;margin-bottom:12px">
+          <span>Total da mesa</span>
+          <span>${br(s.totalDevido || 0)}</span>
+        </div>
+        <div class="sessao-summary">${summary}</div>
+        ${blocks}
+        <p class="muted" style="font-size:.78rem;margin:16px 0 0;text-align:center">
+          Status atualiza automaticamente a cada poucos segundos
+        </p>
+      </div>
+    </div>`;
+  document.body.classList.add('modal-open');
 }
 
 async function loadCardapio() {
@@ -346,6 +491,7 @@ function closeModal() {
   document.getElementById('modal').innerHTML = '';
   document.body.classList.remove('modal-open');
   cartOpen = false;
+  sessaoOpen = false;
 }
 
 function confirmProduct(id) {

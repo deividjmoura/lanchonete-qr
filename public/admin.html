@@ -153,16 +153,22 @@ async function loadMesas() {
   }
   el.innerHTML = mesas.map(m => {
     const url = host + '/mesa/' + m.token;
-    const qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(url);
+    const qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
     const badge = m.sessaoAberta
       ? '<span class="badge badge-ocupada">ocupada · ' + br(m.valorTotal || 0) + '</span>'
       : '<span class="badge badge-livre">livre</span>';
+    const shortToken = (m.token || '').slice(0, 8) + '…';
     return '<article class="panel qr mesa-card">' +
-      '<h2>Mesa ' + m.numero + '</h2>' + badge +
-      '<img src="' + qrSrc + '" alt="QR Mesa ' + m.numero + '" width="220" height="220" loading="lazy">' +
-      '<p class="url"><a href="' + url + '" target="_blank" rel="noopener">' + esc(url) + '</a></p>' +
-      '<p class="token">' + esc(m.token) + '</p>' +
-      '<button class="btn primary" type="button" onclick="navigator.clipboard.writeText(\'' + url + '\').then(()=>toast(\'Link copiado\'))">Copiar link</button>' +
+      '<div class="row" style="margin-bottom:10px">' +
+        '<h2 style="margin:0">Mesa ' + m.numero + '</h2>' + badge +
+      '</div>' +
+      '<img src="' + qrSrc + '" alt="QR Mesa ' + m.numero + '" width="200" height="200" loading="lazy">' +
+      '<p class="url" style="margin:10px 0 4px"><a href="' + url + '" target="_blank" rel="noopener">Abrir cardápio</a></p>' +
+      '<p class="token" title="' + esc(m.token) + '">' + esc(shortToken) + '</p>' +
+      '<div class="nav" style="margin-top:12px">' +
+        '<button class="btn primary" type="button" style="flex:1" onclick="navigator.clipboard.writeText(\'' + url + '\').then(()=>toast(\'Link copiado\'))">Copiar link</button>' +
+        '<a class="btn" href="' + url + '" target="_blank" rel="noopener" style="flex:1">Testar</a>' +
+      '</div>' +
       '</article>';
   }).join('');
 }
