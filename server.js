@@ -1,4 +1,7 @@
+require('dotenv').config();
 const http=require('http'),fs=require('fs'),path=require('path'),url=require('url');
+const { getCardapio }=require('./db/cardapio');
+const { criarPedido, avancarStatus, getSessao, getFilaCozinha, ErroPedido }=require('./db/pedidos');
 const PORT=process.env.PORT||3000, ROOT=__dirname, DB=path.join(ROOT,'data/db.json');
 function db(){return JSON.parse(fs.readFileSync(DB,'utf8'))} function save(x){fs.writeFileSync(DB,JSON.stringify(x,null,2))}
 function send(res,status,type,body){res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store'});res.end(body)}
@@ -43,6 +46,31 @@ const server=http.createServer(async(req,res)=>{try{
    if(!statuses[b.status])return json(res,400,{error:'Status inválido'});
    o.status=b.status;o.statusLabel=statuses[b.status];o.updatedAt=new Date().toISOString();save(d);return json(res,200,o);
  }
+ // --- Rotas novas (Postgres) — convivem com as rotas antigas acima, que
+ // continuam servindo o front atual (data/db.json) até a migração da UI
+ // (ver plano, seção 7, passos 5-7).
+ if(p==='/api/cardapio'&&req.method==='GET'){
+   return json(res,200,await getCardapio());
+ }
+ let m;
+ if((m=p.match(/^\/api\/mesas\/([^/]+)\/pedidos$/))&&req.method==='POST'){
+   try{ return json(res,201,await criarPedido(m[1],await body(req))) }
+   catch(e){ if(e instanceof ErroPedido)return json(res,e.status,{error:e.message}); throw e }
+ }
+ if((m=p.match(/^\/api\/mesas\/([^/]+)\/sessao$/))&&req.method==='GET'){
+   try{ return json(res,200,await getSessao(m[1])) }
+   catch(e){ if(e instanceof ErroPedido)return json(res,e.status,{error:e.message}); throw e }
+ }
+ if(p==='/api/cozinha/pedidos'&&req.method==='GET'){
+   return json(res,200,await getFilaCozinha());
+ }
+ if((m=p.match(/^\/api\/pedidos\/(\d+)\/status$/))&&req.method==='PATCH'){
+   try{
+     const b=await body(req);
+     return json(res,200,await avancarStatus(Number(m[1]),b.status))
+   }catch(e){ if(e instanceof ErroPedido)return json(res,e.status,{error:e.message}); throw e }
+ }
+
  let file=p==='/'?'/index.html':p;
  if(file.startsWith('/mesa/'))file='/mesa.html';
  if(file.startsWith('/pedido/'))file='/pedido.html';
