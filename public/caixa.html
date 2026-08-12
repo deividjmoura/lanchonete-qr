@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111">
+  <title>Caixa · Lanchonete QR</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+    .sessao-card.blocked{opacity:.92}
+    .sessao-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    .valor-big{font-size:1.6rem;font-weight:800;letter-spacing:-.02em}
+    .badge.warn{background:#fff3e0;color:#e65100}
+    .badge.ok{background:#e8f5e9;color:#1b5e20}
+    .itens-list{margin:14px 0 0;padding:0;list-style:none}
+    .itens-list li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+    .itens-list li:last-child{border-bottom:0}
+    .itens-list small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+    .pay-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+    .pay-row label{
+      display:inline-flex;align-items:center;gap:6px;
+      border:1px solid var(--line);border-radius:999px;padding:8px 14px;
+      cursor:pointer;font-weight:600;font-size:.88rem;background:#fff;
+    }
+    .pay-row input{accent-color:var(--primary)}
+    .pay-row label:has(input:checked){border-color:var(--dark);background:#111;color:#fff}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+    .empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
+    .empty-state .big{font-size:2.4rem;margin-bottom:8px}
+    .toast{
+      position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+      background:#111;color:#fff;padding:12px 18px;border-radius:12px;
+      font-weight:600;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none;
+      max-width:min(92vw,400px);text-align:center;
+    }
+    .toast.show{opacity:1}
+    .toast.err{background:#b71c1c}
+    .toast.ok{background:#1b5e20}
+    .grid-caixa{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+    details.pedido{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;background:var(--surface-2)}
+    details.pedido summary{cursor:pointer;font-weight:700}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div>
+      <div class="brand">💵 Caixa</div>
+      <div class="muted">Sessões abertas · fecha conta e libera a mesa</div>
+    </div>
+    <div class="nav">
+      <a class="btn" href="/garcom">Garçom</a>
+      <a class="btn" href="/cozinha">Cozinha</a>
+      <a class="btn" href="/admin">Admin</a>
+      <a class="btn dark" href="/">Início</a>
+    </div>
+  </div>
+
+  <div id="stats" class="muted" style="margin-bottom:14px"></div>
+  <div id="lista" class="grid-caixa"></div>
+</main>
+<div id="toast" class="toast"></div>
+
+<script>
+const FORMAS = [
+  { id: 'dinheiro', label: 'Dinheiro' },
+  { id: 'pix', label: 'PIX' },
+  { id: 'cartao_debito', label: 'Débito' },
+  { id: 'cartao_credito', label: 'Crédito' },
+];
+
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function money(n) {
+  return 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');
+}
+
+function fmtHora(iso) {
+  try {
+    return new Date(iso).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return '—';
+  }
+}
+
+function itemLine(i) {
+  const extras = [];
+  if (i.adicionais?.length) extras.push('+ ' + i.adicionais.map((a) => a.nome).join(', '));
+  if (i.remocoes?.length) extras.push('sem ' + i.remocoes.join(', '));
+  if (i.ponto_carne) extras.push('ponto: ' + i.ponto_carne.replace(/_/g, ' ').toLowerCase());
+  if (i.observacao) extras.push(i.observacao);
+  return `<li>
+    <span><b>${i.quantidade}×</b> ${esc(i.nome)}
+      ${extras.length ? `<small>${esc(extras.join(' · '))}</small>` : ''}
+    </span>
+    <span>${money(i.subtotal)}</span>
+  </li>`;
+}
+
+function card(s) {
+  const pedidosHtml = (s.pedidosEntregues || [])
+    .map((p) => {
+      const itens = (p.itens || []).map(itemLine).join('');
+      return `<details class="pedido">
+        <summary>Pedido #${p.id} · ${money(p.total)}</summary>
+        <ul class="itens-list">${itens || '<li class="muted">Sem itens</li>'}</ul>
+      </details>`;
+    })
+    .join('');
+
+  const pay = FORMAS.map(
+    (f, idx) =>
+      `<label><input type="radio" name="pay-${s.id}" value="${f.id}" ${idx === 1 ? 'checked' : ''}> ${f.label}</label>`
+  ).join('');
+
+  const bloqueio = s.pedidosPendentes > 0
+    ? `<span class="badge warn">${s.pedidosPendentes} em andamento</span>`
+    : `<span class="badge ok">Pronto para fechar</span>`;
+
+  return `<article class="sessao-card ${s.podeFechar ? '' : 'blocked'}" data-id="${s.id}">
+    <div class="sessao-head">
+      <div>
+        <div class="big">Mesa ${s.mesa}</div>
+        <div class="muted" style="font-size:.85rem">Aberta em ${fmtHora(s.abertaEm)} · sessão #${s.id}</div>
+        <div style="margin-top:8px">${bloqueio}</div>
+      </div>
+      <div class="valor-big">${money(s.valorTotal)}</div>
+    </div>
+    ${pedidosHtml || '<p class="muted" style="margin-top:12px">Nenhum pedido entregue ainda.</p>'}
+    <div class="pay-row" data-pay="${s.id}">${pay}</div>
+    <div class="actions">
+      <button class="btn primary" data-close="${s.id}" ${s.podeFechar ? '' : 'disabled title="Aguarde pedidos em andamento"'}>
+        Fechar conta
+      </button>
+    </div>
+  </article>`;
+}
+
+function toast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (kind === 'err' ? ' err' : kind === 'ok' ? ' ok' : '');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
+}
+
+let loading = false;
+let closing = false;
+
+async function load() {
+  if (loading || closing) return;
+  loading = true;
+  try {
+    const res = await fetch('/api/caixa/sessoes');
+    if (!res.ok) throw new Error('Falha ao carregar');
+    const sessoes = await res.json();
+
+    const totalAberto = sessoes.reduce((s, x) => s + Number(x.valorTotal || 0), 0);
+    document.getElementById('stats').textContent = sessoes.length
+      ? `${sessoes.length} mesa(s) aberta(s) · total em aberto ${money(totalAberto)}`
+      : 'Nenhuma mesa com conta aberta';
+
+    const root = document.getElementById('lista');
+    if (!sessoes.length) {
+      root.innerHTML =
+        '<div class="panel empty-state" style="grid-column:1/-1"><div class="big">✅</div><div>Nenhuma sessão aberta no momento.</div></div>';
+    } else {
+      root.innerHTML = sessoes.map(card).join('');
+    }
+  } catch (e) {
+    console.error(e);
+    document.getElementById('stats').textContent = 'Erro ao atualizar';
+  } finally {
+    loading = false;
+  }
+}
+
+async function fechar(id) {
+  if (closing) return;
+  const radio = document.querySelector(`input[name="pay-${id}"]:checked`);
+  if (!radio) {
+    toast('Escolha a forma de pagamento', 'err');
+    return;
+  }
+  if (!confirm('Confirmar fechamento da conta?')) return;
+
+  closing = true;
+  try {
+    const res = await fetch(`/api/caixa/sessoes/${id}/fechar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ formaPagamento: radio.value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || 'Não foi possível fechar', 'err');
+      return;
+    }
+    toast(`Mesa ${data.mesa} fechada · ${money(data.valorTotal)} · ${data.formaPagamento}`, 'ok');
+    await load();
+  } catch (e) {
+    console.error(e);
+    toast('Erro de rede', 'err');
+  } finally {
+    closing = false;
+  }
+}
+
+document.getElementById('lista').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-close]');
+  if (!btn || btn.disabled) return;
+  fechar(Number(btn.dataset.close));
+});
+
+load();
+setInterval(load, 3000);
+</script>
+</body>
+</html>

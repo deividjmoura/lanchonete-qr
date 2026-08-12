@@ -25,6 +25,11 @@ const {
   removerAdicional,
   setRemoviveis,
 } = require('./db/admin');
+const {
+  listSessoesAbertas,
+  fecharSessao,
+  ErroCaixa,
+} = require('./db/caixa');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -191,6 +196,21 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/garcom/pedidos' && req.method === 'GET') {
       return json(res, 200, await getFilaGarcom());
     }
+
+    // -----------------------------------------------------------------------
+    // Caixa (Postgres) — sessões abertas + fechar conta
+    // -----------------------------------------------------------------------
+    if (p === '/api/caixa/sessoes' && req.method === 'GET') {
+      return json(res, 200, await listSessoesAbertas());
+    }
+    if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/fechar$/)) && req.method === 'POST') {
+      try {
+        return json(res, 200, await fecharSessao(Number(m[1]), await body(req)));
+      } catch (e) {
+        if (e instanceof ErroCaixa) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
     if ((m = p.match(/^\/api\/pedidos\/(\d+)\/status$/)) && req.method === 'PATCH') {
       try {
         const b = await body(req);
@@ -276,6 +296,7 @@ const server = http.createServer(async (req, res) => {
     if (file.startsWith('/pedido/')) file = '/pedido.html';
     if (file === '/cozinha') file = '/cozinha.html';
     if (file === '/garcom') file = '/garcom.html';
+    if (file === '/caixa') file = '/caixa.html';
     if (file === '/admin') file = '/admin.html';
     const fp = path.join(ROOT, 'public', file);
     if (fs.existsSync(fp)) {
