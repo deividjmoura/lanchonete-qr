@@ -29,6 +29,7 @@ async function load(){
  <div class="status-card"><h2>${o.status==='CANCELLED'?'❌ Pedido cancelado':'Acompanhe seu pedido'}</h2>${o.status!=='CANCELLED'?`<div class="timeline">${steps.map((s,i)=>`<div class="step ${i<idx?'done ':''}${i===idx?'current ':''}"><span>${i<idx?'✓':i===idx?'●':'○'}</span><div><b>${s[1]}</b><small>${i===idx?s[2]:''}</small></div></div>`).join('')}</div>`:'<p>Se precisar, procure um atendente.</p>'}</div>
  <div class="panel"><h3>Itens do pedido</h3>${o.items.map(i=>`<div class="order-line"><div><b>${i.qty}× ${esc(i.name)}</b>${i.meatPoint?`<small>🥩 ${i.meatPoint==='MAL_PASSADO'?'Mal passado':i.meatPoint==='BEM_PASSADO'?'Bem passado':'Ao ponto'}</small>`:''}${i.additions?.length?`<small>+ ${i.additions.map(a=>esc(a.name)).join(', ')}</small>`:''}${i.removals?.length?`<small>Sem: ${i.removals.map(esc).join(', ')}</small>`:''}${i.note?`<small>📝 ${esc(i.note)}</small>`:''}</div><b>${br(i.unitTotal*i.qty)}</b></div>`).join('')}${o.note?`<hr><small>Observação do pedido: ${esc(o.note)}</small>`:''}</div>`;
 }
+
 load();setInterval(load,2000);
 </script>
 </body>
