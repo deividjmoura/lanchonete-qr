@@ -103,10 +103,51 @@
     .burger-dock{
       position:fixed !important;left:0;right:0;bottom:0;
       padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px));
-      z-index:50;display:flex;flex-direction:column;align-items:center;gap:4px;
+      z-index:50;display:flex;flex-direction:row;align-items:flex-end;justify-content:center;gap:28px;
       pointer-events:none;transform:none !important;
     }
-    .burger-dock .burger-btn,.burger-dock .burger-hint{pointer-events:auto}
+    .burger-dock .dock-item{display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:auto}
+    .burger-dock .burger-btn,.burger-dock .conta-btn,.burger-dock .burger-hint{pointer-events:auto}
+    .conta-btn{
+      position:relative;width:56px;height:48px;border:0;background:transparent;cursor:pointer;padding:0;
+      display:inline-flex;align-items:center;justify-content:center;
+      filter:drop-shadow(0 4px 10px rgba(0,0,0,.4));
+      transition:transform .15s ease;
+    }
+    .conta-btn:active{transform:scale(.96)}
+    .conta-btn:focus-visible{outline:2px solid #f0d78c;outline-offset:4px}
+    .conta-btn .bag{
+      width:40px;height:44px;position:relative;
+    }
+    .conta-btn .bag-body{
+      position:absolute;left:4px;right:4px;top:12px;bottom:0;
+      background:linear-gradient(180deg,#d4a574 0%,#b8895a 55%,#9a7048 100%);
+      border-radius:4px 4px 6px 6px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 4px rgba(0,0,0,.2);
+    }
+    .conta-btn .bag-body::before{
+      content:"";position:absolute;left:6px;right:6px;top:8px;height:1px;
+      background:rgba(0,0,0,.12);
+    }
+    .conta-btn .bag-handle{
+      position:absolute;left:10px;right:10px;top:2px;height:14px;
+      border:3px solid #c9a06e;border-bottom:0;border-radius:10px 10px 0 0;
+      background:transparent;
+    }
+    .conta-btn .bag-dollar{
+      position:absolute;left:0;right:0;top:18px;text-align:center;
+      font-family:var(--font-mono),monospace;font-weight:800;font-size:1rem;
+      color:#2d5a27;text-shadow:0 1px 0 rgba(255,255,255,.35);line-height:1;
+    }
+    .conta-btn .badge-total{
+      position:absolute;top:-4px;right:-8px;z-index:2;
+      min-width:22px;height:22px;padding:0 5px;border-radius:999px;
+      background:#16a34a;color:#fff;font-size:.65rem;font-weight:800;
+      display:none;align-items:center;justify-content:center;
+      box-shadow:0 2px 6px rgba(0,0,0,.3);
+    }
+    .conta-btn .badge-total.show{display:inline-flex}
+    body.conta-open .conta-btn{filter:drop-shadow(0 4px 14px rgba(0,0,0,.5))}
     .burger-btn{
       position:relative;width:72px;height:64px;
       border:0;background:transparent;cursor:pointer;padding:0;
@@ -311,24 +352,34 @@
   <div class="board-frame">
     <div id="menu"></div>
   </div>
-  <div class="board-tools">
-    <button type="button" class="btn primary" id="contaBtn" onclick="toggleConta()">📋 Conta da mesa</button>
-  </div>
 </main>
 
 <div class="burger-dock">
-  <button type="button" class="burger-btn" id="burgerBtn" onclick="togglePedir()" aria-label="Pedir" aria-expanded="false">
-    <span class="badge-count" id="cartBadge">0</span>
-    <span class="sand" aria-hidden="true">
-      <span class="bun-top"></span>
-      <span class="lettuce"></span>
-      <span class="tomato"></span>
-      <span class="cheese"></span>
-      <span class="patty"></span>
-      <span class="bun-bot"></span>
-    </span>
-  </button>
-  <span class="burger-hint" id="burgerHint">pedir</span>
+  <div class="dock-item">
+    <button type="button" class="burger-btn" id="burgerBtn" onclick="togglePedir()" aria-label="Pedir" aria-expanded="false">
+      <span class="badge-count" id="cartBadge">0</span>
+      <span class="sand" aria-hidden="true">
+        <span class="bun-top"></span>
+        <span class="lettuce"></span>
+        <span class="tomato"></span>
+        <span class="cheese"></span>
+        <span class="patty"></span>
+        <span class="bun-bot"></span>
+      </span>
+    </button>
+    <span class="burger-hint" id="burgerHint">pedir</span>
+  </div>
+  <div class="dock-item">
+    <button type="button" class="conta-btn" id="contaBtn" onclick="toggleConta()" aria-label="Total da mesa" aria-expanded="false">
+      <span class="badge-total" id="contaBadge">$</span>
+      <span class="bag" aria-hidden="true">
+        <span class="bag-handle"></span>
+        <span class="bag-body"></span>
+        <span class="bag-dollar">$</span>
+      </span>
+    </button>
+    <span class="burger-hint" id="contaHint">total</span>
+  </div>
 </div>
 <div class="sauce-layer" id="sauceLayer" aria-hidden="true"></div>
 
@@ -435,21 +486,22 @@ function cartTotal() {
 
 function updateCartPill() {
   const n = cartCount();
-  const countEl = document.getElementById('cartCount');
-  if (countEl) countEl.textContent = n;
   const badge = document.getElementById('cartBadge');
   if (badge) {
     badge.textContent = n;
-    // badge no sanduíche = total da conta / itens do carrinho: mostra pedidos ativos se houver sessão
-    const ativos = (sessaoData && sessaoData.pedidos)
-      ? sessaoData.pedidos.filter(p => p.status !== 'entregue').length
-      : 0;
-    const show = n > 0 || ativos > 0;
-    badge.textContent = n > 0 ? n : (ativos || '');
-    badge.classList.toggle('show', show && (n > 0 || ativos > 0));
+    badge.classList.toggle('show', n > 0);
   }
   const hint = document.getElementById('burgerHint');
-  if (hint) hint.textContent = document.body.classList.contains('pedir-open') || cartOpen ? 'fechar' : 'pedir';
+  if (hint) hint.textContent = (document.body.classList.contains('pedir-open') || cartOpen) ? 'fechar' : 'pedir';
+
+  const contaBadge = document.getElementById('contaBadge');
+  const total = totalDevido || (sessaoData && sessaoData.totalDevido) || 0;
+  if (contaBadge) {
+    contaBadge.textContent = total > 0 ? '•' : '$';
+    contaBadge.classList.toggle('show', total > 0 || (sessaoData && (sessaoData.pedidos || []).length > 0));
+  }
+  const contaHint = document.getElementById('contaHint');
+  if (contaHint) contaHint.textContent = document.body.classList.contains('conta-open') || sessaoOpen ? 'fechar' : 'total';
 }
 
 function showToast(html, ms = 1800) {
@@ -562,6 +614,8 @@ function togglePedir() {
 function toggleConta() {
   if (sessaoOpen) { closeModal(); return; }
   openSessao();
+  const btn = document.getElementById('contaBtn');
+  if (btn) btn.setAttribute('aria-expanded', 'true');
   updateCartPill();
 }
 

@@ -368,7 +368,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(302, { Location: `/login?next=${encodeURIComponent(p)}` });
       return res.end();
     }
-    let file = p === '/' ? '/index.html' : p;
+    if (p === '/') {
+      res.writeHead(302, { Location: '/admin' });
+      return res.end();
+    }
+    let file = p;
     if (file.startsWith('/mesa/')) file = '/mesa.html';
     if (file.startsWith('/pedido/')) file = '/pedido.html';
     if (file === '/cozinha') file = '/cozinha.html';
