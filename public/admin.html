@@ -170,7 +170,7 @@ async function loadMesas() {
     const url = host + '/mesa/' + m.token;
     const qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
     const badge = m.sessaoAberta
-      ? '<span class="badge badge-ocupada">ocupada · ' + br(m.valorTotal || 0) + '</span>'
+      ? '<span class="badge badge-ocupada">ocupada' + (m.clienteNome ? ' · ' + esc(m.clienteNome) : '') + ' · ' + br(m.valorTotal || 0) + '</span>'
       : '<span class="badge badge-livre">livre</span>';
     const shortToken = (m.token || '').slice(0, 8) + '…';
     return '<article class="panel qr mesa-card">' +
@@ -460,7 +460,7 @@ loadMesas();
 loadCardapio();
 loadGarcons();
 loadPedidosBoard();
-if(typeof EventSource!=="undefined"){const es=new EventSource("/api/events");es.addEventListener("update",()=>loadPedidosBoard());}
+if(typeof EventSource!=="undefined"){const es=new EventSource("/api/events");es.addEventListener("update",()=>{loadPedidosBoard();loadMesas();});}
 </script>
 </body>
 </html>

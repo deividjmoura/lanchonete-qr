@@ -17,7 +17,7 @@ class ErroAdmin extends Error {
 async function listMesas() {
   const { rows } = await pool.query(
     `SELECT m.id, m.numero, m.token, m.status,
-            s.id AS sessao_id, s.valor_total, s.aberta_em
+            s.id AS sessao_id, s.valor_total, s.aberta_em, s.cliente_nome
      FROM mesas m
      LEFT JOIN mesa_sessoes s ON s.mesa_id = m.id AND s.status = 'aberta'
      ORDER BY m.numero`
@@ -26,11 +26,12 @@ async function listMesas() {
     id: r.id,
     numero: r.numero,
     token: r.token,
-    status: r.status,
+    status: r.sessao_id ? 'ocupada' : r.status,
     sessaoAberta: Boolean(r.sessao_id),
     sessaoId: r.sessao_id || null,
     valorTotal: r.valor_total != null ? Number(r.valor_total) : null,
     abertaEm: r.aberta_em || null,
+    clienteNome: r.cliente_nome || null,
   }));
 }
 

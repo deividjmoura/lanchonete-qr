@@ -11,6 +11,7 @@ const {
   getSessao,
   getFilaCozinha,
   getFilaGarcom,
+  checkinCliente,
   ErroPedido,
 } = require('./db/pedidos');
 const {
@@ -109,92 +110,10 @@ const server = http.createServer(async (req, res) => {
     // -----------------------------------------------------------------------
     // Rotas antigas (JSON) — continuam ativas até a UI ser migrada
     // -----------------------------------------------------------------------
-    if (p === '/api/menu') return json(res, 200, db().menu);
-    if (p === '/api/orders' && req.method === 'GET')
-      return json(res, 200, db().orders.slice().reverse());
-    if (p === '/api/orders' && req.method === 'POST') {
-      const ip = req.socket.remoteAddress || 'unknown';
-      if (!golpePermitido(`pedido-legado:${ip}`, { janelaMs: 5 * 60 * 1000, max: 10 })) {
-        return json(res, 429, { error: 'Muitos pedidos em pouco tempo. Aguarde um instante.' });
-      }
-      const b = await body(req);
-      const d = db();
-      const input = Array.isArray(b.items) ? b.items : [];
-      let total = 0;
-      const out = [];
-      for (const i of input) {
-        const m = d.menu.find((x) => x.id === Number(i.productId ?? i.id));
-        if (!m) continue;
-        const q = Math.max(1, Math.min(99, Number(i.qty) || 1));
-        const c = m.customization || {};
-        const selectedAdds = Array.isArray(i.additions) ? i.additions : [];
-        const additions = [];
-        for (const a of selectedAdds) {
-          const allowed = (c.additions || []).find((x) => x.id === a.id);
-          if (allowed) additions.push({ id: allowed.id, name: allowed.name, price: allowed.price });
-        }
-        const removals = [
-          ...new Set(
-            (Array.isArray(i.removals) ? i.removals : []).filter((x) => (c.removals || []).includes(x))
-          ),
-        ];
-        const meatPoint =
-          c.meatPoint && ['MAL_PASSADO', 'AO_PONTO', 'BEM_PASSADO'].includes(i.meatPoint)
-            ? i.meatPoint
-            : null;
-        const note = String(i.note || '').trim().slice(0, 300);
-        const unit = m.price + additions.reduce((s, a) => s + a.price, 0);
-        total += unit * q;
-        out.push({
-          id: m.id,
-          name: m.name,
-          qty: q,
-          price: m.price,
-          additions,
-          removals,
-          meatPoint,
-          note,
-          unitTotal: unit,
-        });
-      }
-      if (!out.length) return json(res, 400, { error: 'O pedido está vazio' });
-      const o = {
-        id: d.nextOrder++,
-        table: Number(b.table) || 1,
-        status: 'PENDING',
-        statusLabel: statuses.PENDING,
-        note: String(b.note || '').trim().slice(0, 500),
-        items: out,
-        total: Number(total.toFixed(2)),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      d.orders.push(o);
-      save(d);
-      return json(res, 201, o);
-    }
-    if (p.startsWith('/api/orders/') && req.method === 'GET') {
-      const id = Number(p.split('/').pop());
-      const o = db().orders.find((x) => x.id === id);
-      if (!o) return json(res, 404, { error: 'Pedido não encontrado' });
-      return json(res, 200, o);
-    }
-    if (p.startsWith('/api/orders/') && req.method === 'PATCH') {
-      const id = Number(p.split('/').pop());
-      const b = await body(req);
-      const d = db();
-      const o = d.orders.find((x) => x.id === id);
-      if (!o) return json(res, 404, { error: 'Pedido não encontrado' });
-      if (!statuses[b.status]) return json(res, 400, { error: 'Status inválido' });
-      o.status = b.status;
-      o.statusLabel = statuses[b.status];
-      o.updatedAt = new Date().toISOString();
-      save(d);
-      return json(res, 200, o);
-    }
+    // Rotas legadas /api/menu e /api/orders (db.json) removidas — só Postgres.
 
     // -----------------------------------------------------------------------
-    // Rotas novas (Postgres) — convivem com as antigas até a UI migrar
+    // Rotas Postgres
     // -----------------------------------------------------------------------
     if (p === '/api/cardapio' && req.method === 'GET') {
       return json(res, 200, await getCardapio());
@@ -237,6 +156,16 @@ const server = http.createServer(async (req, res) => {
         throw e;
       }
     }
+    if ((m = p.match(/^\/api\/mesas\/([^/]+)\/checkin$/)) && req.method === 'POST') {
+      try {
+        const out = await checkinCliente(m[1], await body(req));
+        broadcast('update', { type: 'checkin', mesaToken: m[1], clienteNome: out.clienteNome });
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroPedido) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/sessao$/)) && req.method === 'GET') {
       try {
         return json(res, 200, await getSessao(m[1]));
@@ -244,9 +173,6 @@ const server = http.createServer(async (req, res) => {
         if (e instanceof ErroPedido) return json(res, e.status, { error: e.message });
         throw e;
       }
-    }
-    if (p === '/api/cozinha/pedidos' && req.method === 'GET') {
-      return json(res, 200, await getFilaCozinha());
     }
     if (p === '/api/garcom/pedidos' && req.method === 'GET') {
       return json(res, 200, await getFilaGarcom());
@@ -301,8 +227,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Admin e caixa exigem sessão válida — checa antes de rotear pra eles
-    if ((p.startsWith('/api/admin') || p.startsWith('/api/caixa')) && !estaAutenticado(req)) {
+    if ((p.startsWith('/api/admin') || p.startsWith('/api/caixa') || p.startsWith('/api/cozinha') || (p.match(/^\/api\/pedidos\/\d+\/status$/) && req.method === 'PATCH')) && !estaAutenticado(req)) {
       return json(res, 401, { error: 'Não autenticado' });
+    }
+
+    if (p === '/api/cozinha/pedidos' && req.method === 'GET') {
+      return json(res, 200, await getFilaCozinha());
     }
 
     // -----------------------------------------------------------------------
@@ -434,7 +364,7 @@ const server = http.createServer(async (req, res) => {
     // -----------------------------------------------------------------------
     // Arquivos estáticos
     // -----------------------------------------------------------------------
-    if ((p === '/admin' || p === '/caixa') && !estaAutenticado(req)) {
+    if ((p === '/admin' || p === '/caixa' || p === '/cozinha') && !estaAutenticado(req)) {
       res.writeHead(302, { Location: `/login?next=${encodeURIComponent(p)}` });
       return res.end();
     }

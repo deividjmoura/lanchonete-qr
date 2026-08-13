@@ -171,20 +171,20 @@
       box-shadow:0 3px 6px rgba(0,0,0,.25);
       transition:transform .4s cubic-bezier(.2,.9,.2,1);
     }
-    body.conta-open .sand{gap:8px}
-    body.conta-open .sand .bun-top{transform:translateY(-8px)}
-    body.conta-open .sand .bun-bot{transform:translateY(8px)}
-    body.conta-open .sand .lettuce,
-    body.conta-open .sand .tomato,
-    body.conta-open .sand .cheese,
-    body.conta-open .sand .patty{opacity:0;transform:scale(.4)}
+    body.pedir-open .sand{gap:8px}
+    body.pedir-open .sand .bun-top{transform:translateY(-8px)}
+    body.pedir-open .sand .bun-bot{transform:translateY(8px)}
+    body.pedir-open .sand .lettuce,
+    body.pedir-open .sand .tomato,
+    body.pedir-open .sand .cheese,
+    body.pedir-open .sand .patty{opacity:0;transform:scale(.4)}
 
     .burger-hint{
       font-family:Kalam,cursive;font-size:.78rem;color:#c8bfa8;
       letter-spacing:.03em;
     }
-    body.conta-open .burger-hint{color:#f0ebe0}
-    body.conta-open .burger-dock{z-index:96}
+    body.pedir-open .burger-hint{color:#f0ebe0}
+    body.pedir-open .burger-dock{z-index:96}
 
     /* splash */
     .sauce-layer{position:fixed;inset:0;z-index:91;pointer-events:none;overflow:hidden}
@@ -312,13 +312,12 @@
     <div id="menu"></div>
   </div>
   <div class="board-tools">
-    <button type="button" class="btn primary" id="cartBtn" onclick="openCart()">🛒 Pedir <span id="cartCount">0</span></button>
-    <button type="button" class="btn" >🌓 Tema</button>
+    <button type="button" class="btn primary" id="contaBtn" onclick="toggleConta()">📋 Conta da mesa</button>
   </div>
 </main>
 
 <div class="burger-dock">
-  <button type="button" class="burger-btn" id="burgerBtn" onclick="toggleConta()" aria-label="Conta da mesa" aria-expanded="false">
+  <button type="button" class="burger-btn" id="burgerBtn" onclick="togglePedir()" aria-label="Pedir" aria-expanded="false">
     <span class="badge-count" id="cartBadge">0</span>
     <span class="sand" aria-hidden="true">
       <span class="bun-top"></span>
@@ -329,7 +328,7 @@
       <span class="bun-bot"></span>
     </span>
   </button>
-  <span class="burger-hint" id="burgerHint">sua conta</span>
+  <span class="burger-hint" id="burgerHint">pedir</span>
 </div>
 <div class="sauce-layer" id="sauceLayer" aria-hidden="true"></div>
 
@@ -394,6 +393,11 @@ function ensureClienteNome() {
       setClienteNome(n);
       gate.hidden = true;
       gate.setAttribute('hidden', '');
+      fetch('/api/mesas/' + token + '/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteNome: n }),
+      }).catch(() => {});
       resolve(n);
     };
     btn.addEventListener('click', done);
@@ -445,7 +449,7 @@ function updateCartPill() {
     badge.classList.toggle('show', show && (n > 0 || ativos > 0));
   }
   const hint = document.getElementById('burgerHint');
-  if (hint) hint.textContent = document.body.classList.contains('conta-open') ? 'fechar' : 'sua conta';
+  if (hint) hint.textContent = document.body.classList.contains('pedir-open') || cartOpen ? 'fechar' : 'pedir';
 }
 
 function showToast(html, ms = 1800) {
@@ -545,12 +549,19 @@ function openSessao() {
   document.body.classList.add('modal-open');
 }
 
+function togglePedir() {
+  if (cartOpen) { closeModal(); return; }
+  spawnBurgerExplosion();
+  document.body.classList.add('pedir-open');
+  openCart();
+  const btn = document.getElementById('burgerBtn');
+  if (btn) { btn.setAttribute('aria-expanded', 'true'); btn.setAttribute('aria-label', 'Fechar pedido'); }
+  updateCartPill();
+}
+
 function toggleConta() {
   if (sessaoOpen) { closeModal(); return; }
-  spawnBurgerExplosion();
   openSessao();
-  const btn = document.getElementById('burgerBtn');
-  btn.setAttribute('aria-expanded', 'true');
   updateCartPill();
 }
 
@@ -733,6 +744,7 @@ function closeModal() {
   document.getElementById('modal').innerHTML = '';
   document.body.classList.remove('modal-open');
   document.body.classList.remove('conta-open');
+  document.body.classList.remove('pedir-open');
   cartOpen = false;
   sessaoOpen = false;
   const btn = document.getElementById('burgerBtn');

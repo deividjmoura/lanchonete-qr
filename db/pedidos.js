@@ -324,11 +324,40 @@ async function getFilaGarcom() {
   return listarPedidosPorStatus(['concluido']);
 }
 
+
+/** Check-in do cliente: abre sessão (se preciso) e grava o nome. */
+async function checkinCliente(token, body) {
+  const nome = String(body.clienteNome || body.cliente_nome || body.nome || '')
+    .trim()
+    .slice(0, 80);
+  if (!nome) throw new ErroPedido(400, 'Informe um nome');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const mesa = await getMesaPorToken(client, token);
+    if (!mesa) throw new ErroPedido(404, 'Mesa não encontrada');
+    const sessaoId = await getOuAbrirSessao(client, mesa.id);
+    await client.query(
+      `UPDATE mesa_sessoes SET cliente_nome = $2 WHERE id = $1`,
+      [sessaoId, nome]
+    );
+    await client.query('COMMIT');
+    return { ok: true, mesa: mesa.numero, sessaoId, clienteNome: nome };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   criarPedido,
   avancarStatus,
   getSessao,
   getFilaCozinha,
   getFilaGarcom,
+  checkinCliente,
   ErroPedido,
 };
