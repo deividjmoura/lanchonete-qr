@@ -2,9 +2,8 @@ require('dotenv').config();
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const url = require('url');
 
-const { getCardapio } = require('./db/cardapio');
+const { getCardapio, invalidarCardapio } = require('./db/cardapio');
 const {
   criarPedido,
   avancarStatus,
@@ -57,15 +56,35 @@ const {
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const DB = path.join(ROOT, 'data/db.json');
+const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 128 * 1024);
 
-function db() {
-  return JSON.parse(fs.readFileSync(DB, 'utf8'));
+function applySecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // CSP permissiva o suficiente para o front atual (fonts Google + inline styles).
+  // Aperte quando migrar estilos/scripts para arquivos locais.
+  if (!res.getHeader('Content-Security-Policy')) {
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        "default-src 'self'",
+        "img-src 'self' data: blob:",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "script-src 'self' 'unsafe-inline'",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+      ].join('; ')
+    );
+  }
 }
-function save(x) {
-  fs.writeFileSync(DB, JSON.stringify(x, null, 2));
-}
+
 function send(res, status, type, body) {
+  applySecurityHeaders(res);
   res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store' });
   res.end(body);
 }
@@ -74,15 +93,30 @@ function json(res, status, obj) {
 }
 function body(req) {
   return new Promise((resolve, reject) => {
-    let s = '';
-    req.on('data', (c) => (s += c));
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_BODY_BYTES) {
+        const err = new Error('Payload too large');
+        err.status = 413;
+        reject(err);
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
     req.on('end', () => {
       try {
+        const s = Buffer.concat(chunks).toString('utf8');
         resolve(JSON.parse(s || '{}'));
       } catch (e) {
-        reject(e);
+        const err = new Error('JSON inválido');
+        err.status = 400;
+        reject(err);
       }
     });
+    req.on('error', reject);
   });
 }
 
@@ -94,17 +128,10 @@ const mime = {
   '.svg': 'image/svg+xml',
 };
 
-const statuses = {
-  PENDING: 'Pedido recebido',
-  PREPARING: 'Na cozinha',
-  READY: 'Pronto para entregar',
-  DELIVERED: 'Entregue',
-  CANCELLED: 'Cancelado',
-};
 
 const server = http.createServer(async (req, res) => {
   try {
-    const u = url.parse(req.url, true);
+    const u = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     const p = u.pathname;
 
     // -----------------------------------------------------------------------
@@ -305,7 +332,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/admin/categorias' && req.method === 'POST') {
       try {
-        return json(res, 201, await criarCategoria(await body(req)));
+        const out = await criarCategoria(await body(req));
+        invalidarCardapio();
+        return json(res, 201, out);
       } catch (e) {
         if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
         throw e;
@@ -313,7 +342,9 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/categorias\/(\d+)$/)) && req.method === 'PATCH') {
       try {
-        return json(res, 200, await atualizarCategoria(Number(m[1]), await body(req)));
+        const out = await atualizarCategoria(Number(m[1]), await body(req));
+        invalidarCardapio();
+        return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
         throw e;
@@ -321,7 +352,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/admin/produtos' && req.method === 'POST') {
       try {
-        return json(res, 201, await criarProduto(await body(req)));
+        const out = await criarProduto(await body(req));
+        invalidarCardapio();
+        return json(res, 201, out);
       } catch (e) {
         if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
         throw e;
@@ -329,7 +362,9 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)$/)) && req.method === 'PATCH') {
       try {
-        return json(res, 200, await atualizarProduto(Number(m[1]), await body(req)));
+        const out = await atualizarProduto(Number(m[1]), await body(req));
+        invalidarCardapio();
+        return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
         throw e;
@@ -337,7 +372,9 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)\/adicionais$/)) && req.method === 'POST') {
       try {
-        return json(res, 201, await criarAdicional(Number(m[1]), await body(req)));
+        const out = await criarAdicional(Number(m[1]), await body(req));
+        invalidarCardapio();
+        return json(res, 201, out);
       } catch (e) {
         if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
         throw e;
@@ -345,7 +382,9 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/adicionais\/(\d+)$/)) && req.method === 'DELETE') {
       try {
-        return json(res, 200, await removerAdicional(Number(m[1])));
+        const out = await removerAdicional(Number(m[1]));
+        invalidarCardapio();
+        return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
         throw e;
@@ -354,7 +393,9 @@ const server = http.createServer(async (req, res) => {
     if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)\/removiveis$/)) && req.method === 'PUT') {
       try {
         const b = await body(req);
-        return json(res, 200, await setRemoviveis(Number(m[1]), b.ingredientes || b.removiveis || []));
+        const out = await setRemoviveis(Number(m[1]), b.ingredientes || b.removiveis || []);
+        invalidarCardapio();
+        return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
         throw e;
@@ -380,14 +421,29 @@ const server = http.createServer(async (req, res) => {
     if (file === '/caixa') file = '/caixa.html';
     if (file === '/admin') file = '/admin.html';
     if (file === '/login') file = '/login.html';
-    const fp = path.join(ROOT, 'public', file);
-    if (fs.existsSync(fp)) {
-      return send(res, 200, mime[path.extname(fp)] || 'text/plain', fs.readFileSync(fp));
+    // Normaliza e bloqueia path traversal (ex.: /../../../etc/passwd)
+    const publicRoot = path.resolve(ROOT, 'public');
+    const fp = path.resolve(publicRoot, '.' + (file.startsWith('/') ? file : '/' + file));
+    if (!fp.startsWith(publicRoot + path.sep) && fp !== publicRoot) {
+      return send(res, 400, 'text/plain', 'Bad path');
     }
-    send(res, 404, 'text/plain', '404');
+    try {
+      const data = await fs.promises.readFile(fp);
+      return send(res, 200, mime[path.extname(fp)] || 'application/octet-stream', data);
+    } catch {
+      return send(res, 404, 'text/plain', '404');
+    }
   } catch (e) {
     console.error(e);
-    json(res, 500, { error: e.message });
+    if (e && e.status) {
+      return json(res, e.status, { error: e.message || 'Erro' });
+    }
+    // Não vaza stack/mensagem interna em produção
+    const msg =
+      process.env.NODE_ENV === 'production'
+        ? 'Erro interno do servidor'
+        : (e && e.message) || 'Erro interno';
+    json(res, 500, { error: msg });
   }
 });
 

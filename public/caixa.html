@@ -50,6 +50,8 @@
 </main>
 <div id="toast" class="toast"></div>
 
+<script src="/js/safe-dom.js"></script>
+
 <script>
 (function () {
   // Sessão expirou no meio do turno? Manda pro login em vez de mostrar erro genérico.
@@ -73,13 +75,14 @@ const FORMAS = [
   { id: 'cartao_credito', label: 'Crédito' },
 ];
 
-function esc(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+const esc = (s) => {
+  if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
+    return SafeDOM.escapeHtml(s);
+  }
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  }[m]));
+};
 
 function money(n) {
   return 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');

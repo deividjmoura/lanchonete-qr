@@ -1,9 +1,13 @@
-// Cardápio público, lido do Postgres. Substitui o /api/menu antigo (que
-// lia data/db.json) para as rotas novas — o endpoint antigo continua
-// existindo em paralelo até o front ser migrado (ver plano, passo 5).
+// Cardápio público, lido do Postgres, com cache em memória de curto prazo.
+// Invalidar após qualquer mutação no admin (ver invalidarCardapio).
 const pool = require('./pool');
 
-async function getCardapio() {
+const CARDAPIO_TTL_MS = Number(process.env.CARDAPIO_CACHE_TTL_MS || 30_000);
+
+let cache = null;
+let cacheAt = 0;
+
+async function carregarCardapio() {
   const { rows: categorias } = await pool.query(
     'SELECT id, nome, ordem FROM categorias ORDER BY ordem'
   );
@@ -40,4 +44,18 @@ async function getCardapio() {
   }));
 }
 
-module.exports = { getCardapio };
+async function getCardapio() {
+  if (cache && Date.now() - cacheAt < CARDAPIO_TTL_MS) {
+    return cache;
+  }
+  cache = await carregarCardapio();
+  cacheAt = Date.now();
+  return cache;
+}
+
+function invalidarCardapio() {
+  cache = null;
+  cacheAt = 0;
+}
+
+module.exports = { getCardapio, invalidarCardapio };

@@ -19,6 +19,7 @@
   <div id="orders" class="kgrid"></div>
 </main>
 <div id="toast" class="toast"></div>
+<script src="/js/safe-dom.js"></script>
 <script>
 const parts = location.pathname.split('/').filter(Boolean);
 const garcomToken = parts[0] === 'garcom' && parts[1] ? parts[1] : new URLSearchParams(location.search).get('token');
@@ -31,7 +32,14 @@ let me = null, loading = false, advancing = false;
 function fmtHora(iso){try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}catch{return'—'}}
 function idadeMinutos(iso){return Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000))}
 function ageClass(min){if(min>=10)return'hot';if(min>=5)return'warn';return''}
-function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+const esc = (s) => {
+  if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
+    return SafeDOM.escapeHtml(s);
+  }
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  }[m]));
+};
 function extrasHtml(item){
   const parts=[];
   const adds=Array.isArray(item.adicionais)?item.adicionais:[];

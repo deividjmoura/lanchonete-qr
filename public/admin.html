@@ -36,7 +36,7 @@
   <div class="top">
     <div>
       <div class="brand">⚙️ Admin</div>
-      <div class="muted">Cardápio, mesas e QR Codes · Postgres</div>
+      <div class="muted">Cardápio · Mesas · QR Codes · </div>
     </div>
     <div class="nav">
       <a class="btn" href="/caixa">Caixa</a>
@@ -124,6 +124,8 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="/js/safe-dom.js"></script>
+
 <script>
 (function () {
   // Sessão expirou no meio do turno? Manda pro login em vez de mostrar erro genérico.
@@ -141,7 +143,14 @@ document.getElementById('btnSair').addEventListener('click', async () => {
 });
 const host = location.origin;
 const br = n => 'R$ ' + Number(n).toFixed(2).replace('.', ',');
-const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const esc = (s) => {
+  if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
+    return SafeDOM.escapeHtml(s);
+  }
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  }[m]));
+};
 
 function toast(msg) {
   const el = document.getElementById('toast');

@@ -393,7 +393,7 @@
 </div>
 <div id="cart"></div>
 <div id="modal"></div>
-
+<script src="/js/safe-dom.js"></script>
 <script>
 const token = location.pathname.split('/').filter(Boolean).pop() || '';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -464,9 +464,14 @@ const STATUS_LABEL = {
 };
 
 const br = n => 'R$ ' + Number(n).toFixed(2).replace('.', ',');
-const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-}[m]));
+const esc = (s) => {
+  if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
+    return SafeDOM.escapeHtml(s);
+  }
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  }[m]));
+};
 
 function temPersonalizacao(p) {
   return (p.adicionais && p.adicionais.length) || (p.removiveis && p.removiveis.length);
@@ -504,10 +509,15 @@ function updateCartPill() {
   if (contaHint) contaHint.textContent = document.body.classList.contains('conta-open') || sessaoOpen ? 'fechar' : 'total';
 }
 
-function showToast(html, ms = 1800) {
+function showToast(message, ms = 1800, opts = {}) {
   const toast = document.createElement('div');
   toast.className = 'toast-ok';
-  toast.innerHTML = html;
+  if (opts && opts.html) {
+    // Apenas para mensagens montadas com esc()/br() — nunca com input cru do usuário
+    toast.innerHTML = message;
+  } else {
+    toast.textContent = String(message ?? '').replace(/<br\s*\/?>/gi, '\n');
+  }
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), ms);
 }
@@ -927,7 +937,7 @@ async function send() {
     updateCartPill();
     closeModal();
     await loadSessao();
-    showToast(`Pedido #${o.id} enviado · ${br(o.total)}<br><small>O total da mesa foi atualizado</small>`, 3200);
+    showToast(`Pedido #${o.id} enviado · ${br(o.total)}<br><small>O total da mesa foi atualizado</small>`, 3200, { html: true });
   } catch (e) {
     alert('Falha de rede ao enviar o pedido');
     if (btn) { btn.disabled = false; if (cartOpen) openCart(); }

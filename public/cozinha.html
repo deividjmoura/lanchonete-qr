@@ -28,6 +28,8 @@
 </main>
 <div id="toast" class="toast"></div>
 
+<script src="/js/safe-dom.js"></script>
+
 <script>
 const LABELS = {
   recebido: 'Novo',
@@ -90,13 +92,14 @@ function extrasHtml(item) {
   return parts.length ? `<small class="item-extra">${parts.join(' · ')}</small>` : '';
 }
 
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+const esc = (s) => {
+  if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
+    return SafeDOM.escapeHtml(s);
+  }
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  }[m]));
+};
 
 function card(p) {
   const min = idadeMinutos(p.criado_em);

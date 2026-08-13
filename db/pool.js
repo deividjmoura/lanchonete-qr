@@ -5,10 +5,18 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+const useSsl = process.env.DATABASE_SSL === 'true';
+// Em produção preferimos validar o certificado. Para provedores com CA
+// própria, defina DATABASE_SSL_REJECT_UNAUTHORIZED=false explicitamente.
+const rejectUnauthorized =
+  process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false' &&
+  process.env.NODE_ENV === 'production';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Render/Heroku/Neon geralmente exigem SSL em produção; localhost não.
-  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  ssl: useSsl ? { rejectUnauthorized } : false,
+  max: Number(process.env.PG_POOL_MAX || 10),
+  idleTimeoutMillis: 30_000,
 });
 
 pool.on('error', (err) => {
