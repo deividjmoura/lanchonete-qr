@@ -39,6 +39,7 @@
       <div class="muted">Cardápio, mesas e QR Codes · Postgres</div>
     </div>
     <div class="nav">
+      <a class="btn" href="/caixa">Caixa</a>
       <a class="btn dark" href="/">Início</a>
       <button class="btn" id="btnSair" type="button">Sair</button>
     </div>
@@ -424,14 +425,33 @@ async function loadPedidosBoard(){
   if(!list.length){el.innerHTML='<p class="muted">Nenhum pedido ainda.</p>';return}
   el.innerHTML = '<div style="display:grid;gap:10px">'+list.map(p=>{
     const hora = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '';
-    return '<div class="card" style="padding:12px">'
+    const itens = (p.itens||[]).map(it=>{
+      const adds = (it.adicionais||[]).map(a=>a.nome||a).filter(Boolean);
+      const rems = it.remocoes||[];
+      return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--line);font-size:.9rem">'
+        + '<div><b>'+it.quantidade+'× '+esc(it.nome)+'</b>'
+        + (adds.length?'<div class="muted" style="font-size:.78rem">+ '+adds.map(esc).join(', ')+'</div>':'')
+        + (rems.length?'<div class="muted" style="font-size:.78rem">Sem: '+rems.map(esc).join(', ')+'</div>':'')
+        + (it.observacao?'<div class="muted" style="font-size:.78rem">📝 '+esc(it.observacao)+'</div>':'')
+        + '</div>'
+        + (it.totalLinha!=null?'<span style="font-family:var(--font-mono);white-space:nowrap">R$ '+Number(it.totalLinha).toFixed(2).replace('.',',')+'</span>':'')
+        + '</div>';
+    }).join('') || '<p class="muted" style="margin:8px 0 0">Sem itens</p>';
+    const total = p.totalPedido != null ? 'R$ '+Number(p.totalPedido).toFixed(2).replace('.',',') : '';
+    return '<details class="card" style="padding:12px">'
+      + '<summary style="cursor:pointer;list-style:none">'
       + '<div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap">'
       + '<div><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))
       + (p.cliente_nome?' · <span class="muted">'+esc(p.cliente_nome)+'</span>':'')
-      + '<div class="muted" style="font-size:.82rem">'+hora+'</div></div>'
+      + '<div class="muted" style="font-size:.82rem">'+hora+(total?' · '+total:'')+'</div></div>'
       + statusPill(p.status)+'</div>'
       + (p.garcom_nome?'<div class="muted" style="margin-top:6px">Entregue por <b>'+esc(p.garcom_nome)+'</b></div>':'')
-      + '</div>';
+      + '<div class="muted" style="font-size:.78rem;margin-top:6px">Toque para ver itens ▾</div>'
+      + '</summary>'
+      + '<div style="margin-top:10px">'+itens+'</div>'
+      + (p.observacao_geral?'<p class="muted" style="margin:8px 0 0">Obs. geral: '+esc(p.observacao_geral)+'</p>':'')
+      + (total?'<div class="row" style="justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)"><b>Total</b><b style="font-family:var(--font-mono)">'+total+'</b></div>':'')
+      + '</details>';
   }).join('')+'</div>';
 }
 
