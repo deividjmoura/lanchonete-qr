@@ -271,6 +271,22 @@
     .check span{flex:1}
     .check b{color:#a89f8c;font-size:.88rem;font-family:var(--font-mono)}
     body.modal-open,body.conta-open{overflow:hidden}
+    .name-gate{
+      position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.72);backdrop-filter:blur(8px);padding:20px;
+    }
+    .name-gate[hidden]{display:none!important}
+    .name-gate__card{
+      width:min(100%,360px);background:#1f1f1f;border:1px solid rgba(240,235,224,.2);
+      border-radius:18px;padding:22px 18px;color:#f0ebe0;
+    }
+    .name-gate__card h2{margin:0 0 8px;font-family:Kalam,cursive;font-size:1.35rem}
+    .name-gate__card p{margin:0 0 14px;color:#a89f8c;font-size:.92rem}
+    .name-gate__card input{
+      width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(240,235,224,.25);
+      background:rgba(255,255,255,.06);color:#f0ebe0;font-size:1rem;margin-bottom:12px;
+    }
+    .name-gate__card .btn{width:100%}
     #cart{display:none}
     .toast-ok{
       position:fixed;left:50%;bottom:110px;transform:translateX(-50%);
@@ -285,11 +301,7 @@
       .fly-ing,.splash,.sand *{transition:none!important;animation:none!important}
     }
   </style>
-  <script>
-  (function(){try{var t=localStorage.getItem('lq-theme');if(t)document.documentElement.setAttribute('data-theme',t);else document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();
-  function toggleTheme(){var h=document.documentElement,c=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',c);try{localStorage.setItem('lq-theme',c)}catch(e){}}
-  </script>
-</head>
+  </head>
 <body class="board-page">
 <main class="board">
   <header class="board-header">
@@ -300,8 +312,8 @@
     <div id="menu"></div>
   </div>
   <div class="board-tools">
-    <button type="button" class="btn primary" id="cartBtn" onclick="openCart()">🛒 Carrinho <span id="cartCount">0</span></button>
-    <button type="button" class="btn" onclick="toggleTheme()">🌓 Tema</button>
+    <button type="button" class="btn primary" id="cartBtn" onclick="openCart()">🛒 Pedir <span id="cartCount">0</span></button>
+    <button type="button" class="btn" >🌓 Tema</button>
   </div>
 </main>
 
@@ -321,6 +333,14 @@
 </div>
 <div class="sauce-layer" id="sauceLayer" aria-hidden="true"></div>
 
+<div id="nameGate" class="name-gate" hidden>
+  <div class="name-gate__card" role="dialog" aria-modal="true" aria-label="Seu nome">
+    <h2>Como podemos te chamar?</h2>
+    <p>Só o primeiro nome — a cozinha e o garçom usam para achar sua mesa com mais facilidade.</p>
+    <input id="clienteNomeInput" type="text" maxlength="80" placeholder="Ex.: Ana" autocomplete="nickname">
+    <button type="button" class="btn primary" id="clienteNomeBtn">Continuar</button>
+  </div>
+</div>
 <div id="cart"></div>
 <div id="modal"></div>
 
@@ -341,6 +361,45 @@ let orderNoteDraft = '';
 let cartOpen = false;
 let sessaoData = null;
 let sessaoOpen = false;
+let clienteNome = '';
+
+function getClienteNome() {
+  if (clienteNome) return clienteNome;
+  try { clienteNome = sessionStorage.getItem('lq-cliente-nome-' + token) || ''; } catch (_) {}
+  return clienteNome;
+}
+function setClienteNome(nome) {
+  clienteNome = String(nome || '').trim().slice(0, 80);
+  try { sessionStorage.setItem('lq-cliente-nome-' + token, clienteNome); } catch (_) {}
+}
+function ensureClienteNome() {
+  return new Promise((resolve) => {
+    if (getClienteNome()) return resolve(getClienteNome());
+    const gate = document.getElementById('nameGate');
+    const input = document.getElementById('clienteNomeInput');
+    const btn = document.getElementById('clienteNomeBtn');
+    if (!gate || !input || !btn) {
+      console.error('nameGate elements missing');
+      return resolve('');
+    }
+    gate.hidden = false;
+    gate.removeAttribute('hidden');
+    setTimeout(() => input.focus(), 50);
+    let finished = false;
+    const done = () => {
+      if (finished) return;
+      const n = (input.value || '').trim();
+      if (!n) { input.focus(); input.style.outline = '2px solid #c45c26'; return; }
+      finished = true;
+      setClienteNome(n);
+      gate.hidden = true;
+      gate.setAttribute('hidden', '');
+      resolve(n);
+    };
+    btn.addEventListener('click', done);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); done(); } });
+  });
+}
 
 const STATUS_LABEL = {
   recebido: 'Recebido',
@@ -404,7 +463,7 @@ async function loadSessao() {
     const s = await r.json();
     sessaoData = s;
     totalDevido = s.totalDevido || 0;
-    document.getElementById('mesaDesk').textContent = 'Mesa ' + s.mesa + ' · Cardápio';
+    document.getElementById('mesaDesk').textContent = 'Mesa ' + s.mesa + (getClienteNome() ? ' · ' + getClienteNome() : ' · Cardápio');
     updateCartPill();
     if (sessaoOpen) openSessao();
   } catch (_) {}
@@ -470,6 +529,7 @@ function openSessao() {
       <div class="modal-sheet">
         <button class="close" type="button" onclick="closeModal()" aria-label="Fechar">×</button>
         <h2>Conta da mesa ${esc(String(s.mesa ?? ''))}</h2>
+        ${getClienteNome() ? `<p class="muted" style="margin:0 0 8px">Olá, <b>${esc(getClienteNome())}</b></p>` : ''}
         <p class="muted" style="margin:0 0 4px">Acompanhe o que já pediu e o status de cada pedido</p>
         <div class="cart-total-row" style="margin-top:8px;margin-bottom:12px">
           <span>Total da mesa</span>
@@ -767,6 +827,7 @@ function changeQty(key, d) {
 }
 
 async function send() {
+  await ensureClienteNome();
   if (!cart.length) return;
   const btn = document.getElementById('btnSend');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
@@ -785,7 +846,8 @@ async function send() {
     const r = await fetch('/api/mesas/' + token + '/pedidos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, note: orderNote }),
+      body: JSON.stringify({
+      clienteNome: getClienteNome(), items, note: orderNote }),
     });
     const o = await r.json();
     if (!r.ok) {

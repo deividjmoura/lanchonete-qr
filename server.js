@@ -43,6 +43,16 @@ const {
 } = require('./db/auth');
 const { golpePermitido } = require('./db/rateLimit');
 const { subscribe, broadcast } = require('./db/events');
+const {
+  ErroGarcom,
+  listGarcons,
+  criarGarcom,
+  setGarcomAtivo,
+  removerGarcom,
+  getGarcomPorToken,
+  entregarComoGarcom,
+  listPedidosRecentes,
+} = require('./db/garcons');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -241,6 +251,32 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/garcom/pedidos' && req.method === 'GET') {
       return json(res, 200, await getFilaGarcom());
     }
+    // Garçom autenticado por token na URL (?token= ou path)
+    if ((m = p.match(/^\/api\/garcom\/([^/]+)\/me$/)) && req.method === 'GET') {
+      const g = await getGarcomPorToken(m[1]);
+      if (!g || !g.ativo) return json(res, 401, { error: 'Link inválido ou desativado' });
+      return json(res, 200, { id: g.id, nome: g.nome });
+    }
+    if ((m = p.match(/^\/api\/garcom\/([^/]+)\/pedidos$/)) && req.method === 'GET') {
+      const g = await getGarcomPorToken(m[1]);
+      if (!g || !g.ativo) return json(res, 401, { error: 'Link inválido ou desativado' });
+      return json(res, 200, await getFilaGarcom());
+    }
+    if ((m = p.match(/^\/api\/garcom\/([^/]+)\/pedidos\/(\d+)\/entregar$/)) && req.method === 'POST') {
+      try {
+        const out = await entregarComoGarcom(Number(m[2]), m[1]);
+        broadcast('update', {
+          type: 'status_alterado',
+          pedidoId: Number(m[2]),
+          status: 'entregue',
+          garcom: out.garcom?.nome,
+        });
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
 
     // -----------------------------------------------------------------------
     // Autenticação (staff — admin/caixa)
@@ -302,6 +338,37 @@ const server = http.createServer(async (req, res) => {
     // -----------------------------------------------------------------------
     if (p === '/api/admin/mesas' && req.method === 'GET') {
       return json(res, 200, await listMesas());
+    }
+    if (p === '/api/admin/garcons' && req.method === 'GET') {
+      return json(res, 200, await listGarcons());
+    }
+    if (p === '/api/admin/garcons' && req.method === 'POST') {
+      try {
+        return json(res, 201, await criarGarcom(await body(req)));
+      } catch (e) {
+        if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/garcons\/(\d+)$/)) && req.method === 'PATCH') {
+      try {
+        const b = await body(req);
+        return json(res, 200, await setGarcomAtivo(Number(m[1]), b.ativo !== false));
+      } catch (e) {
+        if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/garcons\/(\d+)$/)) && req.method === 'DELETE') {
+      try {
+        return json(res, 200, await removerGarcom(Number(m[1])));
+      } catch (e) {
+        if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/pedidos' && req.method === 'GET') {
+      return json(res, 200, await listPedidosRecentes({ limit: 80 }));
     }
     if (p === '/api/admin/cardapio' && req.method === 'GET') {
       return json(res, 200, await getCardapioAdmin());
@@ -375,7 +442,7 @@ const server = http.createServer(async (req, res) => {
     if (file.startsWith('/mesa/')) file = '/mesa.html';
     if (file.startsWith('/pedido/')) file = '/pedido.html';
     if (file === '/cozinha') file = '/cozinha.html';
-    if (file === '/garcom') file = '/garcom.html';
+    if (file === '/garcom' || /^\/garcom\/[0-9a-f-]{36}$/i.test(file)) file = '/garcom.html';
     if (file === '/caixa') file = '/caixa.html';
     if (file === '/admin') file = '/admin.html';
     if (file === '/login') file = '/login.html';

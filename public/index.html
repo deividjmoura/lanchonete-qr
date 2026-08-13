@@ -5,24 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
-  <script>
-  (function(){try{var t=localStorage.getItem('lq-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();
-  function toggleTheme(){var h=document.documentElement,c=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',c);try{localStorage.setItem('lq-theme',c)}catch(e){}}
-  </script>
-</head>
+  </head>
 <body>
 <main class="wrap">
   <section class="panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
       <div class="brand">🍔 Lanchonete QR</div>
-      <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema" title="Tema claro/escuro">🌓</button>
-    </div>
+</div>
     <h1>Protótipo de pedidos por mesa</h1>
     <p class="muted">Cliente lê o QR → escolhe → envia → cozinha recebe → pedido avança até ficar pronto.</p>
     <div class="nav" position="center">
-      <a class="btn dark" href="/cozinha">Cozinha</a>
-      <a class="btn" href="/garcom">Garçom</a>
-      <a class="btn" href="/caixa">Caixa</a>
       <a class="btn" href="/admin">Gerar QRs</a>
     </div>
   </section>

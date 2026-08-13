@@ -290,6 +290,7 @@ hr {
 
 /* ========== THEME TOGGLE ========== */
 .theme-toggle {
+  display: none !important; /* tema segue o sistema */
   display: inline-flex;
   align-items: center;
   justify-content: center;

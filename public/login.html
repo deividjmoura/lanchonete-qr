@@ -28,10 +28,6 @@
   .login-back:hover{ color:var(--text); }
   .login-theme{ position:absolute; top:-48px; right:16px; }
 </style>
-<script>
-(function(){try{var t=localStorage.getItem('lq-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();
-function toggleTheme(){var h=document.documentElement,c=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',c);try{localStorage.setItem('lq-theme',c)}catch(e){}}
-</script>
 </head>
 <body>
 <div class="login-shell">

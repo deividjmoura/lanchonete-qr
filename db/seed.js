@@ -15,15 +15,34 @@ const NUM_MESAS = 12; // atual: qr/mesa-1.png ... mesa-12.png já gerados
 async function run() {
   const raw = JSON.parse(fs.readFileSync(DB_JSON, 'utf8'));
   const client = await pool.connect();
+  const force = process.env.FORCE_SEED === '1' || process.argv.includes('--force');
 
   try {
     const { rows: existentes } = await client.query('SELECT COUNT(*)::int AS n FROM categorias');
-    if (existentes[0].n > 0) {
+    if (existentes[0].n > 0 && !force) {
       console.log('⚠️  Já existem categorias no banco. Seed abortado para não duplicar.');
+      console.log('   Para substituir o cardápio: FORCE_SEED=1 npm run db:seed');
       return;
     }
 
     await client.query('BEGIN');
+
+    if (force && existentes[0].n > 0) {
+      // Limpa só o cardápio (mantém mesas, pedidos e sessões se possível).
+      // Itens de pedidos antigos referenciam produtos — em ambiente de demo
+      // apagamos em cascata o cardápio; pedidos históricos podem ficar órfãos
+      // de nome se a FK impedir. Preferimos truncar cardápio em ordem segura.
+      await client.query('DELETE FROM itens_pedido_adicionais');
+      await client.query('DELETE FROM itens_pedido_remocoes');
+      await client.query('DELETE FROM itens_pedido');
+      await client.query('DELETE FROM pedidos');
+      await client.query('DELETE FROM mesa_sessoes');
+      await client.query('DELETE FROM adicionais');
+      await client.query('DELETE FROM produtos_ingredientes_removiveis');
+      await client.query('DELETE FROM produtos');
+      await client.query('DELETE FROM categorias');
+      console.log('🗑️  Cardápio e pedidos anteriores removidos (FORCE_SEED).');
+    }
 
     // Mesas — o token novo (uuid) substitui o número puro na URL do QR.
     // Os QR codes em qr/*.png precisam ser regenerados apontando pro token,

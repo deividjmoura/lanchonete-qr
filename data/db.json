@@ -51,278 +51,687 @@
   "menu": [
     {
       "id": 1,
-      "category": "🍔 Hambúrgueres",
-      "name": "X-Bacon",
-      "description": "Pão brioche, hambúrguer 150g, bacon, queijo e molho da casa",
-      "price": 27.9,
+      "name": "Dog Tradicional",
+      "description": "Pão, salsicha, purê de batata, milho, ervilha, batata palha, ketchup, mostarda e maionese",
+      "price": 12.0,
+      "category": "Hot Dogs",
       "customization": {
         "additions": [
           {
-            "id": "extra-cheddar",
-            "name": "Cheddar extra",
-            "price": 4
-          },
-          {
-            "id": "extra-bacon",
             "name": "Bacon extra",
-            "price": 5
-          },
-          {
-            "id": "ovo",
-            "name": "Ovo",
             "price": 3
           },
           {
-            "id": "salada-extra",
-            "name": "Salada extra",
-            "price": 2
+            "name": "Queijo extra",
+            "price": 2.5
           },
           {
-            "id": "hamb-extra",
-            "name": "Hambúrguer extra 150g",
-            "price": 9
+            "name": "Catupiry",
+            "price": 3
           }
         ],
         "removals": [
-          "Bacon",
-          "Queijo",
-          "Molho da casa",
-          "Tomate"
-        ],
-        "meatPoint": true
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ]
       }
     },
     {
       "id": 2,
-      "category": "🍔 Hambúrgueres",
-      "name": "X-Salada",
-      "description": "Hambúrguer 150g, queijo, alface, tomate e maionese",
-      "price": 23.9,
+      "name": "Dog Bacon",
+      "description": "Tudo do tradicional + bacon crocante e cheddar cremoso",
+      "price": 16.0,
+      "category": "Hot Dogs",
       "customization": {
         "additions": [
           {
-            "id": "extra-queijo",
-            "name": "Queijo extra",
-            "price": 4
-          },
-          {
-            "id": "extra-bacon",
             "name": "Bacon extra",
-            "price": 5
-          },
-          {
-            "id": "ovo",
-            "name": "Ovo",
             "price": 3
           },
           {
-            "id": "hamb-extra",
-            "name": "Hambúrguer extra 150g",
-            "price": 9
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
           }
         ],
         "removals": [
-          "Queijo",
-          "Alface",
-          "Tomate",
-          "Maionese"
-        ],
-        "meatPoint": true
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ]
       }
     },
     {
       "id": 3,
-      "category": "🍔 Hambúrgueres",
-      "name": "Duplo Cheddar",
-      "description": "Dois burgers 120g, cheddar cremoso e cebola caramelizada",
-      "price": 32.9,
+      "name": "Dog Especial da Casa",
+      "description": "Salsicha artesanal, catupiry, bacon, milho, cebola crispy e molho barbecue",
+      "price": 19.0,
+      "category": "Hot Dogs",
       "customization": {
         "additions": [
           {
-            "id": "extra-cheddar",
-            "name": "Cheddar extra",
-            "price": 4
-          },
-          {
-            "id": "extra-bacon",
             "name": "Bacon extra",
-            "price": 5
+            "price": 3
           },
           {
-            "id": "hamb-extra",
-            "name": "Hambúrguer extra 120g",
-            "price": 8
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
           }
         ],
         "removals": [
-          "Cheddar",
-          "Cebola caramelizada"
-        ],
-        "meatPoint": true
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ]
       }
     },
     {
       "id": 4,
-      "category": "🔥 Combos",
-      "name": "Combo Clássico",
-      "description": "X-Salada + batata P + refrigerante lata",
-      "price": 32.9,
-      "oldPrice": 39.5,
+      "name": "Dog Vegetariano",
+      "description": "Salsicha vegetal, purê, milho, ervilha, molhos e batata palha",
+      "price": 15.0,
+      "category": "Hot Dogs",
       "customization": {
         "additions": [
           {
-            "id": "troca-batata-m",
-            "name": "Trocar para batata M",
-            "price": 4
+            "name": "Bacon extra",
+            "price": 3
           },
           {
-            "id": "extra-cheddar",
-            "name": "Cheddar extra no lanche",
-            "price": 4
+            "name": "Queijo extra",
+            "price": 2.5
           },
           {
-            "id": "extra-bacon",
-            "name": "Bacon extra no lanche",
-            "price": 5
-          },
-          {
-            "id": "hamb-extra",
-            "name": "Hambúrguer extra 150g",
-            "price": 9
+            "name": "Catupiry",
+            "price": 3
           }
         ],
         "removals": [
-          "Queijo",
-          "Alface",
-          "Tomate",
-          "Maionese"
-        ],
-        "meatPoint": true
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ]
       }
     },
     {
       "id": 5,
-      "category": "🔥 Combos",
-      "name": "Combo Bacon",
-      "description": "X-Bacon + batata P + refrigerante lata",
-      "price": 38.9,
-      "oldPrice": 44.5,
+      "name": "Dog Duplo",
+      "description": "Duas salsichas, queijo, bacon, purê e todos os acompanhamentos",
+      "price": 22.0,
+      "category": "Hot Dogs",
       "customization": {
         "additions": [
           {
-            "id": "extra-cheddar",
-            "name": "Cheddar extra no lanche",
-            "price": 4
-          },
-          {
-            "id": "extra-bacon",
             "name": "Bacon extra",
-            "price": 5
+            "price": 3
           },
           {
-            "id": "troca-batata-m",
-            "name": "Trocar para batata M",
-            "price": 4
+            "name": "Queijo extra",
+            "price": 2.5
           },
           {
-            "id": "hamb-extra",
-            "name": "Hambúrguer extra 150g",
-            "price": 9
+            "name": "Catupiry",
+            "price": 3
           }
         ],
         "removals": [
-          "Bacon",
-          "Queijo",
-          "Molho da casa"
-        ],
-        "meatPoint": true
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ]
       }
     },
     {
       "id": 6,
-      "category": "🔥 Combos",
-      "name": "Combo Duplo",
-      "description": "Duplo Cheddar + batata M + refrigerante lata",
-      "price": 45.9,
-      "oldPrice": 51.5,
+      "name": "X-Salada",
+      "description": "Pão, hambúrguer 150g, queijo, alface, tomate e maionese",
+      "price": 15.0,
+      "category": "Sanduíches",
       "customization": {
         "additions": [
           {
-            "id": "extra-cheddar",
-            "name": "Cheddar extra",
-            "price": 4
-          },
-          {
-            "id": "extra-bacon",
-            "name": "Bacon extra",
-            "price": 5
-          },
-          {
-            "id": "troca-bebida",
-            "name": "Trocar bebida por suco",
-            "price": 2
-          },
-          {
-            "id": "hamb-extra",
-            "name": "Hambúrguer extra 120g",
+            "name": "Hambúrguer extra 150g",
             "price": 8
+          },
+          {
+            "name": "Bacon extra",
+            "price": 3
+          },
+          {
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
           }
         ],
         "removals": [
-          "Cheddar",
-          "Cebola caramelizada"
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
         ],
         "meatPoint": true
       }
     },
     {
       "id": 7,
-      "category": "🍟 Acompanhamentos",
-      "name": "Batata P",
-      "description": "Batata frita crocante",
-      "price": 9.9
+      "name": "X-Bacon",
+      "description": "X-Salada + bacon crocante",
+      "price": 18.0,
+      "category": "Sanduíches",
+      "customization": {
+        "additions": [
+          {
+            "name": "Hambúrguer extra 150g",
+            "price": 8
+          },
+          {
+            "name": "Bacon extra",
+            "price": 3
+          },
+          {
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
+          }
+        ],
+        "removals": [
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ],
+        "meatPoint": true
+      }
     },
     {
       "id": 8,
-      "category": "🍟 Acompanhamentos",
-      "name": "Batata M",
-      "description": "Porção maior de batata frita",
-      "price": 13.9
+      "name": "X-Tudo",
+      "description": "Hambúrguer, presunto, queijo, bacon, ovo, salada e milho",
+      "price": 24.0,
+      "category": "Sanduíches",
+      "customization": {
+        "additions": [
+          {
+            "name": "Hambúrguer extra 150g",
+            "price": 8
+          },
+          {
+            "name": "Bacon extra",
+            "price": 3
+          },
+          {
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
+          }
+        ],
+        "removals": [
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ],
+        "meatPoint": true
+      }
     },
     {
       "id": 9,
-      "category": "🍟 Acompanhamentos",
-      "name": "Onion Rings",
-      "description": "Anéis de cebola empanados",
-      "price": 12.9
+      "name": "X-Frango Grelhado",
+      "description": "Filé de frango grelhado, queijo, alface, tomate e catupiry",
+      "price": 19.0,
+      "category": "Sanduíches",
+      "customization": {
+        "additions": [
+          {
+            "name": "Hambúrguer extra 150g",
+            "price": 8
+          },
+          {
+            "name": "Bacon extra",
+            "price": 3
+          },
+          {
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
+          }
+        ],
+        "removals": [
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ],
+        "meatPoint": true
+      }
     },
     {
       "id": 10,
-      "category": "🥤 Bebidas",
-      "name": "Coca-Cola Lata",
-      "description": "350ml",
-      "price": 6.9
+      "name": "Misto Quente Prensado",
+      "description": "Pão de forma, presunto e queijo derretido na chapa",
+      "price": 10.0,
+      "category": "Sanduíches"
     },
     {
       "id": 11,
-      "category": "🥤 Bebidas",
-      "name": "Guaraná Lata",
-      "description": "350ml",
-      "price": 6.9
+      "name": "Sanduíche Natural de Frango",
+      "description": "Pão integral, frango desfiado, cenoura, milho e molho de iogurte",
+      "price": 13.0,
+      "category": "Sanduíches"
     },
     {
       "id": 12,
-      "category": "🥤 Bebidas",
-      "name": "Água Mineral",
-      "description": "500ml",
-      "price": 4.5
+      "name": "Batata Frita",
+      "description": "Porção individual",
+      "price": 12.0,
+      "category": "Porções"
     },
     {
       "id": 13,
-      "category": "🥤 Bebidas",
-      "name": "Suco de Laranja",
-      "description": "300ml, natural",
-      "price": 8.9
+      "name": "Batata Frita Grande",
+      "description": "Serve 2 a 3 pessoas",
+      "price": 22.0,
+      "category": "Porções"
+    },
+    {
+      "id": 14,
+      "name": "Batata com Cheddar e Bacon",
+      "description": "Batata frita coberta com cheddar cremoso e bacon",
+      "price": 26.0,
+      "category": "Porções"
+    },
+    {
+      "id": 15,
+      "name": "Onion Rings",
+      "description": "Anéis de cebola empanados e crocantes",
+      "price": 18.0,
+      "category": "Porções"
+    },
+    {
+      "id": 16,
+      "name": "Frango a Passarinho",
+      "description": "Iscas de frango temperadas e fritas",
+      "price": 24.0,
+      "category": "Porções"
+    },
+    {
+      "id": 17,
+      "name": "Polenta Frita",
+      "description": "Palitos de polenta crocante com molho da casa",
+      "price": 16.0,
+      "category": "Porções"
+    },
+    {
+      "id": 18,
+      "name": "Mandioca Frita",
+      "description": "Com molho de alho ou barbecue",
+      "price": 15.0,
+      "category": "Porções"
+    },
+    {
+      "id": 19,
+      "name": "Refrigerante Lata",
+      "description": "Coca-Cola, Guaraná, Fanta",
+      "price": 6.0,
+      "category": "Bebidas"
+    },
+    {
+      "id": 20,
+      "name": "Refrigerante 600ml",
+      "description": "Coca-Cola, Guaraná",
+      "price": 9.0,
+      "category": "Bebidas"
+    },
+    {
+      "id": 21,
+      "name": "Suco Natural",
+      "description": "Laranja, limão, maracujá ou abacaxi",
+      "price": 8.0,
+      "category": "Bebidas"
+    },
+    {
+      "id": 22,
+      "name": "Água Mineral",
+      "description": "Com ou sem gás",
+      "price": 4.0,
+      "category": "Bebidas"
+    },
+    {
+      "id": 23,
+      "name": "Água de Coco",
+      "description": "Gelada, 300ml",
+      "price": 7.0,
+      "category": "Bebidas"
+    },
+    {
+      "id": 24,
+      "name": "Milk Shake",
+      "description": "Chocolate, morango ou baunilha",
+      "price": 16.0,
+      "category": "Bebidas"
+    },
+    {
+      "id": 25,
+      "name": "Caipirinha Clássica",
+      "description": "Cachaça, limão, açúcar e gelo",
+      "price": 18.0,
+      "category": "Drinks"
+    },
+    {
+      "id": 26,
+      "name": "Caipirinha de Frutas",
+      "description": "Morango, maracujá ou abacaxi",
+      "price": 20.0,
+      "category": "Drinks"
+    },
+    {
+      "id": 27,
+      "name": "Gin Tônica",
+      "description": "Gin, água tônica e limão siciliano",
+      "price": 22.0,
+      "category": "Drinks"
+    },
+    {
+      "id": 28,
+      "name": "Moscow Mule",
+      "description": "Vodka, gengibre, limão e espuma de cerveja de gengibre",
+      "price": 24.0,
+      "category": "Drinks"
+    },
+    {
+      "id": 29,
+      "name": "Cerveja Long Neck",
+      "description": "Diversas marcas",
+      "price": 10.0,
+      "category": "Drinks"
+    },
+    {
+      "id": 30,
+      "name": "Cerveja em Dose",
+      "description": "Chopp artesanal",
+      "price": 9.0,
+      "category": "Drinks"
+    },
+    {
+      "id": 31,
+      "name": "Drink sem Álcool",
+      "description": "Limonada suíça ou soda italiana",
+      "price": 12.0,
+      "category": "Drinks"
+    },
+    {
+      "id": 32,
+      "name": "Red Bull",
+      "description": "Lata 250ml",
+      "price": 12.0,
+      "category": "Energéticos"
+    },
+    {
+      "id": 33,
+      "name": "Monster Energy",
+      "description": "Lata 473ml",
+      "price": 14.0,
+      "category": "Energéticos"
+    },
+    {
+      "id": 34,
+      "name": "TNT Energy Drink",
+      "description": "Lata 269ml",
+      "price": 8.0,
+      "category": "Energéticos"
+    },
+    {
+      "id": 35,
+      "name": "Baly Energy",
+      "description": "Lata 269ml",
+      "price": 7.0,
+      "category": "Energéticos"
+    },
+    {
+      "id": 36,
+      "name": "Energético + Vodka",
+      "description": "Dose de vodka com energético à sua escolha",
+      "price": 20.0,
+      "category": "Energéticos"
+    },
+    {
+      "id": 37,
+      "name": "Long Neck Pilsen",
+      "description": "Original, Budweiser, Heineken",
+      "price": 10.0,
+      "category": "Cervejas"
+    },
+    {
+      "id": 38,
+      "name": "Long Neck Puro Malte",
+      "description": "Colorado, Baden Baden, Eisenbahn",
+      "price": 14.0,
+      "category": "Cervejas"
+    },
+    {
+      "id": 39,
+      "name": "Long Neck IPA",
+      "description": "Amargor acentuado e lupulada",
+      "price": 16.0,
+      "category": "Cervejas"
+    },
+    {
+      "id": 40,
+      "name": "Cerveja Lata 350ml",
+      "description": "Skol, Brahma, Antarctica",
+      "price": 7.0,
+      "category": "Cervejas"
+    },
+    {
+      "id": 41,
+      "name": "Cerveja Lata 473ml",
+      "description": "Skol, Brahma, Antarctica",
+      "price": 9.0,
+      "category": "Cervejas"
+    },
+    {
+      "id": 42,
+      "name": "Chopp Pilsen 300ml",
+      "description": "Chopp artesanal gelado",
+      "price": 9.0,
+      "category": "Cervejas"
+    },
+    {
+      "id": 43,
+      "name": "Chopp Pilsen 500ml",
+      "description": "Chopp artesanal gelado",
+      "price": 14.0,
+      "category": "Cervejas"
+    },
+    {
+      "id": 44,
+      "name": "Balde de Cerveja",
+      "description": "5 long necks à sua escolha, bem geladas",
+      "price": 45.0,
+      "category": "Cervejas"
+    },
+    {
+      "id": 45,
+      "name": "Combo Dog",
+      "description": "1 Dog Tradicional + batata pequena + refrigerante lata",
+      "price": 22.0,
+      "category": "Combos",
+      "customization": {
+        "additions": [
+          {
+            "name": "Bacon extra",
+            "price": 3
+          },
+          {
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
+          }
+        ],
+        "removals": [
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ]
+      }
+    },
+    {
+      "id": 46,
+      "name": "Combo X-Salada",
+      "description": "1 X-Salada + batata pequena + refrigerante lata",
+      "price": 24.0,
+      "category": "Combos",
+      "customization": {
+        "additions": [
+          {
+            "name": "Hambúrguer extra 150g",
+            "price": 8
+          },
+          {
+            "name": "Bacon extra",
+            "price": 3
+          },
+          {
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
+          }
+        ],
+        "removals": [
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ],
+        "meatPoint": true
+      }
+    },
+    {
+      "id": 47,
+      "name": "Combo X-Tudo",
+      "description": "1 X-Tudo + batata grande + refrigerante 600ml",
+      "price": 34.0,
+      "category": "Combos",
+      "customization": {
+        "additions": [
+          {
+            "name": "Hambúrguer extra 150g",
+            "price": 8
+          },
+          {
+            "name": "Bacon extra",
+            "price": 3
+          },
+          {
+            "name": "Queijo extra",
+            "price": 2.5
+          },
+          {
+            "name": "Catupiry",
+            "price": 3
+          }
+        ],
+        "removals": [
+          "alface",
+          "tomate",
+          "cebola",
+          "milho",
+          "ervilha"
+        ],
+        "meatPoint": true
+      }
+    },
+    {
+      "id": 48,
+      "name": "Combo Casal",
+      "description": "2 X-Bacon + 1 batata grande + 2 refrigerantes lata",
+      "price": 48.0,
+      "category": "Combos"
+    },
+    {
+      "id": 49,
+      "name": "Combo Boteco",
+      "description": "Porção de frango a passarinho + porção de batata + balde de cerveja (5 un.)",
+      "price": 79.0,
+      "category": "Combos"
+    },
+    {
+      "id": 50,
+      "name": "Combo Amigos",
+      "description": "4 dogs à escolha + 2 batatas grandes + 4 refrigerantes lata",
+      "price": 89.0,
+      "category": "Combos"
+    },
+    {
+      "id": 51,
+      "name": "Combo Drink Night",
+      "description": "2 drinks à escolha + porção de onion rings",
+      "price": 45.0,
+      "category": "Combos"
+    },
+    {
+      "id": 52,
+      "name": "Petit Gateau",
+      "description": "Bolo de chocolate quente com sorvete",
+      "price": 16.0,
+      "category": "Sobremesas"
+    },
+    {
+      "id": 53,
+      "name": "Brownie com Sorvete",
+      "description": "Brownie de chocolate com calda e sorvete de creme",
+      "price": 14.0,
+      "category": "Sobremesas"
+    },
+    {
+      "id": 54,
+      "name": "Churros",
+      "description": "Recheados com doce de leite ou chocolate",
+      "price": 12.0,
+      "category": "Sobremesas"
     }
   ]
 }

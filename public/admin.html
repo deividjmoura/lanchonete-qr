@@ -30,11 +30,7 @@
     .toast.show{opacity:1}
     @media (max-width:640px){.edit-panel .grid2{grid-template-columns:1fr}}
   </style>
-  <script>
-  (function(){try{var t=localStorage.getItem('lq-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();
-  function toggleTheme(){var h=document.documentElement,c=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',c);try{localStorage.setItem('lq-theme',c)}catch(e){}}
-  </script>
-</head>
+  </head>
 <body>
 <main class="wrap">
   <div class="top">
@@ -43,10 +39,6 @@
       <div class="muted">Cardápio, mesas e QR Codes · Postgres</div>
     </div>
     <div class="nav">
-      <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema" title="Tema claro/escuro">🌓</button>
-      <a class="btn" href="/cozinha">Cozinha</a>
-      <a class="btn" href="/garcom">Garçom</a>
-      <a class="btn" href="/caixa">Caixa</a>
       <a class="btn dark" href="/">Início</a>
       <button class="btn" id="btnSair" type="button">Sair</button>
     </div>
@@ -55,6 +47,8 @@
   <div class="admin-tabs">
     <button type="button" class="active" data-tab="mesas">Mesas & QR</button>
     <button type="button" data-tab="cardapio">Cardápio</button>
+    <button type="button" data-tab="garcons">Garçons</button>
+    <button type="button" data-tab="pedidos">Pedidos</button>
   </div>
 
   <section id="sec-mesas" class="admin-section active">
@@ -106,6 +100,26 @@
     <div id="cardapio"></div>
   </section>
 </main>
+
+  <section id="sec-garcons" class="admin-section">
+    <div class="panel">
+      <h2 style="margin-top:0">Garçons</h2>
+      <p class="muted">Cada garçom ganha um link pessoal. Só quem tem o link entrega e o nome fica no histórico (lock otimista: um pedido, um garçom).</p>
+      <div class="form-inline" style="margin-top:12px">
+        <input id="garcomNome" placeholder="Nome do garçom" maxlength="80">
+        <button class="btn primary" type="button" onclick="criarGarcom()">Adicionar</button>
+      </div>
+      <div id="garconsList" style="margin-top:18px"></div>
+    </div>
+  </section>
+
+  <section id="sec-pedidos" class="admin-section">
+    <div class="panel">
+      <h2 style="margin-top:0">Pedidos ao vivo</h2>
+      <p class="muted">Status, cliente e quem entregou. Atualiza via SSE.</p>
+      <div id="pedidosBoard" style="margin-top:14px"></div>
+    </div>
+  </section>
 
 <div class="toast" id="toast"></div>
 
@@ -167,7 +181,7 @@ async function loadMesas() {
       '<p class="token" title="' + esc(m.token) + '">' + esc(shortToken) + '</p>' +
       '<div class="nav" style="margin-top:12px">' +
         '<button class="btn primary" type="button" style="flex:1" onclick="navigator.clipboard.writeText(\'' + url + '\').then(()=>toast(\'Link copiado\'))">Copiar link</button>' +
-        '<a class="btn" href="' + url + '" target="_blank" rel="noopener" style="flex:1">Testar</a>' +
+        '' +
       '</div>' +
       '</article>';
   }).join('');
@@ -340,8 +354,93 @@ async function salvarRems(produtoId) {
   loadCardapio();
 }
 
+
+const STATUS_PT = {recebido:'Recebido',em_producao:'Na cozinha',concluido:'Pronto',entregue:'Entregue'};
+function statusPill(s){return '<span class="badge">'+esc(STATUS_PT[s]||s)+'</span>'}
+
+async function loadGarcons(){
+  const list = await (await fetch('/api/admin/garcons')).json();
+  const el = document.getElementById('garconsList');
+  if(!list.length){el.innerHTML='<p class="muted">Nenhum garçom ainda.</p>';return}
+  const base = location.origin;
+  el.innerHTML = list.map(g=>{
+    const link = base + '/garcom/' + g.token;
+    const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(link);
+    const entregas = g.entregas != null ? g.entregas : 0;
+    return '<div class="card" style="margin-bottom:14px;padding:14px">'
+      + '<div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">'
+      + '<div style="flex:1;min-width:180px">'
+      + '<b style="font-size:1.05rem">'+esc(g.nome)+'</b> '
+      + (g.ativo?'<span class="muted">ativo</span>':'<span class="muted">desativado</span>')
+      + '<div style="margin-top:6px"><span class="badge">'+entregas+' entrega'+(entregas===1?'':'s')+'</span></div>'
+      + '<div style="margin-top:10px"><label class="muted">Link pessoal</label>'
+      + '<div class="form-inline"><input readonly value="'+esc(link)+'" style="flex:1;min-width:160px" id="g-link-'+g.id+'">'
+      + '<button class="btn" type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'g-link-'+g.id+'\').value);toast(\'Link copiado\')">Copiar</button>'
+      + '</div></div>'
+      + '<div class="nav" style="margin-top:10px">'
+      + (g.ativo
+          ? '<button class="btn" type="button" onclick="toggleGarcom('+g.id+',false)">Desativar</button>'
+          : '<button class="btn primary" type="button" onclick="toggleGarcom('+g.id+',true)">Reativar</button>')
+      + '<button class="btn" type="button" style="border-color:#c45c26;color:#c45c26" onclick="removerGarcom('+g.id+',\''+esc(g.nome).replace(/'/g,'')+'\')">Remover</button>'
+      + '</div></div>'
+      + '<div style="text-align:center">'
+      + '<img src="'+qr+'" alt="QR '+esc(g.nome)+'" width="160" height="160" style="border-radius:12px;background:#fff;padding:8px">'
+      + '<div class="muted" style="font-size:.78rem;margin-top:6px">QR para o celular do garçom</div>'
+      + '</div></div></div>';
+  }).join('');
+}
+
+async function removerGarcom(id, nome){
+  if(!confirm('Remover o garçom "'+(nome||'')+'"? O histórico de entregas mantém o nome.')) return;
+  const r = await fetch('/api/admin/garcons/'+id,{method:'DELETE'});
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) return toast(data.error||'Erro ao remover');
+  toast('Garçom removido');
+  loadGarcons();
+}
+
+async function criarGarcom(){
+  const nome = document.getElementById('garcomNome').value.trim();
+  if(!nome) return toast('Informe o nome');
+  const r = await fetch('/api/admin/garcons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome})});
+  const data = await r.json();
+  if(!r.ok) return toast(data.error||'Erro');
+  document.getElementById('garcomNome').value='';
+  toast('Garçom criado');
+  loadGarcons();
+}
+
+async function toggleGarcom(id, ativo){
+  const r = await fetch('/api/admin/garcons/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({ativo})});
+  const data = await r.json();
+  if(!r.ok) return toast(data.error||'Erro');
+  toast(ativo?'Reativado':'Desativado');
+  loadGarcons();
+}
+
+async function loadPedidosBoard(){
+  const list = await (await fetch('/api/admin/pedidos')).json();
+  const el = document.getElementById('pedidosBoard');
+  if(!list.length){el.innerHTML='<p class="muted">Nenhum pedido ainda.</p>';return}
+  el.innerHTML = '<div style="display:grid;gap:10px">'+list.map(p=>{
+    const hora = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '';
+    return '<div class="card" style="padding:12px">'
+      + '<div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap">'
+      + '<div><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))
+      + (p.cliente_nome?' · <span class="muted">'+esc(p.cliente_nome)+'</span>':'')
+      + '<div class="muted" style="font-size:.82rem">'+hora+'</div></div>'
+      + statusPill(p.status)+'</div>'
+      + (p.garcom_nome?'<div class="muted" style="margin-top:6px">Entregue por <b>'+esc(p.garcom_nome)+'</b></div>':'')
+      + '</div>';
+  }).join('')+'</div>';
+}
+
+
 loadMesas();
 loadCardapio();
+loadGarcons();
+loadPedidosBoard();
+if(typeof EventSource!=="undefined"){const es=new EventSource("/api/events");es.addEventListener("update",()=>loadPedidosBoard());}
 </script>
 </body>
 </html>

@@ -6,203 +6,99 @@
   <meta name="theme-color" content="#111">
   <title>Garçom · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
-  <style>
-    /* page-specific overrides covered by global tokens */
-  </style>
-  <script>
-  (function(){try{var t=localStorage.getItem('lq-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();
-  function toggleTheme(){var h=document.documentElement,c=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',c);try{localStorage.setItem('lq-theme',c)}catch(e){}}
-  </script>
 </head>
 <body>
 <main class="wrap">
   <div class="top">
     <div>
       <div class="brand">🛎️ Garçom</div>
-      <div class="muted">Pedidos <code>concluido</code> → marcar <code>entregue</code> (valor entra na conta da mesa)</div>
-    </div>
-    <div class="nav">
-      <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Alternar tema" title="Tema claro/escuro">🌓</button>
-      <a class="btn" href="/cozinha">Cozinha</a>
-      <a class="btn" href="/caixa">Caixa</a>
-      <a class="btn" href="/admin">Admin</a>
-      <a class="btn dark" href="/">Início</a>
+      <div class="muted" id="who">Carregando…</div>
     </div>
   </div>
-
   <div id="stats" class="muted" style="margin-bottom:14px"></div>
   <div id="orders" class="kgrid"></div>
 </main>
 <div id="toast" class="toast"></div>
-
 <script>
-const PONTO = {
-  MAL_PASSADO: 'Mal passado',
-  AO_PONTO: 'Ao ponto',
-  BEM_PASSADO: 'Bem passado',
-};
-
-function fmtHora(iso) {
-  try {
-    return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return '—';
-  }
+const parts = location.pathname.split('/').filter(Boolean);
+const garcomToken = parts[0] === 'garcom' && parts[1] ? parts[1] : new URLSearchParams(location.search).get('token');
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+if (!garcomToken || !UUID_RE.test(garcomToken)) {
+  document.body.innerHTML = '<main class="wrap"><div class="panel"><h2>Acesso do garçom</h2><p class="muted">Use o link pessoal gerado no painel Admin (com seu nome).</p></div></main>';
+  throw new Error('token ausente');
 }
-
-function idadeMinutos(iso) {
-  const ms = Date.now() - new Date(iso).getTime();
-  return Math.max(0, Math.floor(ms / 60000));
+let me = null, loading = false, advancing = false;
+function fmtHora(iso){try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}catch{return'—'}}
+function idadeMinutos(iso){return Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000))}
+function ageClass(min){if(min>=10)return'hot';if(min>=5)return'warn';return''}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function extrasHtml(item){
+  const parts=[];
+  const adds=Array.isArray(item.adicionais)?item.adicionais:[];
+  if(adds.length)parts.push(`<span class="com">+ ${adds.map(a=>a.nome).join(', ')}</span>`);
+  const rems=Array.isArray(item.remocoes)?item.remocoes:[];
+  if(rems.length)parts.push(`<span class="sem">sem ${rems.join(', ')}</span>`);
+  if(item.observacao)parts.push(`Obs.: ${esc(item.observacao)}`);
+  return parts.length?`<small class="item-extra">${parts.join(' · ')}</small>`:'';
 }
-
-function ageClass(min) {
-  if (min >= 10) return 'hot';
-  if (min >= 5) return 'warn';
-  return '';
-}
-
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function extrasHtml(item) {
-  const parts = [];
-  if (item.ponto_carne && PONTO[item.ponto_carne]) {
-    parts.push(`<span class="ponto">Ponto: ${PONTO[item.ponto_carne]}</span>`);
-  }
-  const adds = Array.isArray(item.adicionais) ? item.adicionais : [];
-  if (adds.length) {
-    parts.push(`<span class="com">+ ${adds.map((a) => a.nome).join(', ')}</span>`);
-  }
-  const rems = Array.isArray(item.remocoes) ? item.remocoes : [];
-  if (rems.length) {
-    parts.push(`<span class="sem">sem ${rems.join(', ')}</span>`);
-  }
-  if (item.observacao) {
-    parts.push(`Obs.: ${esc(item.observacao)}`);
-  }
-  return parts.length ? `<small class="item-extra">${parts.join(' · ')}</small>` : '';
-}
-
-function card(p) {
-  const min = idadeMinutos(p.criado_em);
-  const itens = (p.itens || [])
-    .map(
-      (i) =>
-        `<div class="row">
-          <span><b>${i.quantidade}×</b> ${esc(i.nome)}${extrasHtml(i)}</span>
-        </div>`
-    )
-    .join('');
-
-  return `<article class="order" data-id="${p.id}">
-    <div class="row">
-      <div>
-        <div class="big">Mesa ${p.mesa}</div>
-        <div class="meta-row">
-          <span class="badge concluido">Pronto</span>
-          <span class="age ${ageClass(min)}">${min === 0 ? 'agora' : min + ' min na fila'}</span>
-        </div>
-        <div class="mesa-hint">Levar à mesa e confirmar entrega</div>
-      </div>
-      <b>#${p.id}</b>
+function card(p){
+  const min=idadeMinutos(p.criado_em);
+  const itens=(p.itens||[]).map(i=>`<div class="row"><span><b>${i.quantidade}×</b> ${esc(i.nome)}${extrasHtml(i)}</span></div>`).join('');
+  const cliente=p.cliente_nome?`<div class="muted" style="margin-top:4px">Cliente: <b>${esc(p.cliente_nome)}</b></div>`:'';
+  return `<article class="card kcard ${ageClass(min)}">
+    <div class="row" style="justify-content:space-between">
+      <div><b>Mesa ${esc(String(p.mesa))}</b> · #${p.id}
+        <div class="muted">${fmtHora(p.criado_em)} · ${min} min</div>${cliente}</div>
+      <span class="badge">Pronto</span>
     </div>
-    <hr>
-    ${itens || '<p class="muted">Sem itens</p>'}
-    ${p.observacao_geral ? `<p><b>Obs. geral:</b> ${esc(p.observacao_geral)}</p>` : ''}
-    <p class="muted">Pedido às ${fmtHora(p.criado_em)}</p>
-    <div class="nav">
-      <button class="btn primary" data-deliver="${p.id}">Marcar entregue</button>
+    <div style="margin-top:10px">${itens||'<span class="muted">Sem itens</span>'}</div>
+    ${p.observacao_geral?`<p class="muted" style="margin:8px 0 0">Obs.: ${esc(p.observacao_geral)}</p>`:''}
+    <div class="nav" style="margin-top:12px">
+      <button class="btn primary" type="button" data-deliver="${p.id}">Entregar · assinar como ${esc(me?.nome||'…')}</button>
     </div>
   </article>`;
 }
-
-function toast(msg, kind) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show' + (kind === 'err' ? ' err' : kind === 'ok' ? ' ok' : '');
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => {
-    el.className = 'toast';
-  }, 2200);
+function toast(msg,kind){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(kind||'');clearTimeout(toast._t);toast._t=setTimeout(()=>{el.className='toast'},2400)}
+async function loadMe(){
+  const res=await fetch('/api/garcom/'+garcomToken+'/me');
+  if(!res.ok){document.body.innerHTML='<main class="wrap"><div class="panel"><h2>Link inválido</h2><p class="muted">Peça um novo link ao admin.</p></div></main>';throw new Error('unauth')}
+  me=await res.json();
+  document.getElementById('who').textContent=me.nome+' · só pedidos prontos para entregar';
 }
-
-let loading = false;
-let advancing = false;
-
-async function load() {
-  if (loading || advancing) return;
-  loading = true;
-  try {
-    const res = await fetch('/api/garcom/pedidos');
-    if (!res.ok) throw new Error('Falha ao carregar fila');
-    const pedidos = await res.json();
-
-    document.getElementById('stats').textContent = pedidos.length
-      ? `${pedidos.length} pedido(s) pronto(s) para entregar`
-      : 'Nada aguardando entrega';
-
-    const root = document.getElementById('orders');
-    if (!pedidos.length) {
-      root.innerHTML =
-        '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido pronto no momento.</div></div>';
-    } else {
-      root.innerHTML = pedidos.map(card).join('');
-    }
-  } catch (e) {
-    console.error(e);
-    document.getElementById('stats').textContent = 'Erro ao atualizar a fila';
-  } finally {
-    loading = false;
-  }
+async function load(){
+  if(loading||advancing)return;loading=true;
+  try{
+    const res=await fetch('/api/garcom/'+garcomToken+'/pedidos');
+    if(!res.ok)throw new Error('fail');
+    const pedidos=await res.json();
+    document.getElementById('stats').textContent=pedidos.length?`${pedidos.length} pronto(s) para entregar`:'Nenhum pedido aguardando entrega';
+    document.getElementById('orders').innerHTML=pedidos.length?pedidos.map(card).join(''):'<div class="panel empty-state"><div class="big">✅</div><div>Fila vazia.</div></div>';
+  }catch(e){document.getElementById('stats').textContent='Erro ao atualizar'}
+  finally{loading=false}
 }
-
-async function entregar(id) {
-  if (advancing) return;
-  advancing = true;
-  try {
-    const res = await fetch(`/api/pedidos/${id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'entregue' }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast(data.error || 'Não foi possível marcar como entregue', 'err');
-      return;
-    }
-    toast('Entregue — valor somado na conta da mesa', 'ok');
+async function entregar(id){
+  if(advancing)return;advancing=true;
+  try{
+    const res=await fetch(`/api/garcom/${garcomToken}/pedidos/${id}/entregar`,{method:'POST'});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){toast(data.error||'Não foi possível entregar','err');await load();return}
+    toast('Entregue e assinado por '+(data.garcom?.nome||me.nome),'ok');
     await load();
-  } catch (e) {
-    console.error(e);
-    toast('Erro de rede', 'err');
-  } finally {
-    advancing = false;
-  }
+  }catch(e){toast('Erro de rede','err')}
+  finally{advancing=false}
 }
-
-document.getElementById('orders').addEventListener('click', (ev) => {
-  const btn = ev.target.closest('[data-deliver]');
-  if (!btn) return;
-  entregar(Number(btn.dataset.deliver));
+document.getElementById('orders').addEventListener('click',(ev)=>{
+  const btn=ev.target.closest('[data-deliver]');if(!btn)return;entregar(Number(btn.dataset.deliver));
 });
-
-load();
-function connectEvents() {
-  if (typeof EventSource === 'undefined') {
-    setInterval(load, 3000);
-    return;
-  }
-  const es = new EventSource('/api/events');
-  es.addEventListener('update', () => load());
-  es.addEventListener('hello', () => load());
-  setInterval(load, 15000);
-}
-connectEvents();
+(async()=>{
+  await loadMe();await load();
+  if(typeof EventSource!=='undefined'){
+    const es=new EventSource('/api/events');
+    es.addEventListener('update',()=>load());
+    es.addEventListener('hello',()=>load());
+    setInterval(load,20000);
+  }else setInterval(load,3000);
+})();
 </script>
 </body>
 </html>

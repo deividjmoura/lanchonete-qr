@@ -28,11 +28,21 @@ async function criarPedido(token, body) {
 
     const sessaoId = await getOuAbrirSessao(client, mesa.id);
 
+    const clienteNome = String(body.clienteNome || body.cliente_nome || '')
+      .trim()
+      .slice(0, 80) || null;
+    if (clienteNome) {
+      await client.query(
+        `UPDATE mesa_sessoes SET cliente_nome = COALESCE(cliente_nome, $2) WHERE id = $1`,
+        [sessaoId, clienteNome]
+      );
+    }
+
     const observacaoGeral = String(body.note || '').trim().slice(0, 500) || null;
     const { rows: pedidoRows } = await client.query(
-      `INSERT INTO pedidos (sessao_id, observacao_geral)
-       VALUES ($1, $2) RETURNING id, status, criado_em`,
-      [sessaoId, observacaoGeral]
+      `INSERT INTO pedidos (sessao_id, observacao_geral, cliente_nome)
+       VALUES ($1, $2, $3) RETURNING id, status, criado_em, cliente_nome`,
+      [sessaoId, observacaoGeral, clienteNome]
     );
     const pedido = pedidoRows[0];
 
@@ -116,6 +126,7 @@ async function criarPedido(token, body) {
       mesa: mesa.numero,
       status: pedido.status,
       criadoEm: pedido.criado_em,
+      clienteNome: pedido.cliente_nome || clienteNome,
       observacaoGeral,
       itens: itensGravados,
       total: Number(total.toFixed(2)),
@@ -194,14 +205,15 @@ async function getSessao(token) {
     if (!mesa) throw new ErroPedido(404, 'Mesa não encontrada');
 
     const { rows: sessaoRows } = await client.query(
-      "SELECT id, aberta_em FROM mesa_sessoes WHERE mesa_id = $1 AND status = 'aberta'",
+      "SELECT id, aberta_em, cliente_nome FROM mesa_sessoes WHERE mesa_id = $1 AND status = 'aberta'",
       [mesa.id]
     );
     const sessao = sessaoRows[0];
-    if (!sessao) return { mesa: mesa.numero, sessaoAberta: false, pedidos: [], totalDevido: 0 };
+    if (!sessao) return { mesa: mesa.numero, sessaoAberta: false, pedidos: [], totalDevido: 0, clienteNome: null };
 
     const { rows: pedidos } = await client.query(
-      `SELECT id, status, criado_em, observacao_geral FROM pedidos
+      `SELECT id, status, criado_em, observacao_geral, cliente_nome, garcom_nome, claimed_at
+       FROM pedidos
        WHERE sessao_id = $1 ORDER BY criado_em`,
       [sessao.id]
     );
@@ -244,6 +256,7 @@ async function getSessao(token) {
       sessaoAberta: true,
       sessaoId: sessao.id,
       abertaEm: sessao.aberta_em,
+      clienteNome: sessao.cliente_nome || null,
       pedidos: pedidosComItens,
       totalDevido: Number(totalDevido.toFixed(2)),
     };
@@ -282,7 +295,8 @@ async function carregarItensPedido(pedidoId) {
 
 async function listarPedidosPorStatus(statuses) {
   const { rows: pedidos } = await pool.query(
-    `SELECT p.id, p.status, p.criado_em, p.observacao_geral, m.numero AS mesa
+    `SELECT p.id, p.status, p.criado_em, p.observacao_geral, p.cliente_nome, p.garcom_nome,
+            m.numero AS mesa
      FROM pedidos p
      JOIN mesa_sessoes s ON s.id = p.sessao_id
      JOIN mesas m ON m.id = s.mesa_id
