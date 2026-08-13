@@ -128,9 +128,10 @@ async function entregarComoGarcom(pedidoId, garcomToken) {
   }
 }
 
-/** Painel admin: pedidos recentes com status e assinaturas. */
+/** Painel admin: pedidos recentes — 3 queries em lote (sem N+1). */
 async function listPedidosRecentes({ limit = 50 } = {}) {
-  const { rows } = await pool.query(
+  const lim = Math.min(200, Math.max(1, Number(limit) || 50));
+  const { rows: pedidos } = await pool.query(
     `SELECT p.id, p.status, p.criado_em, p.cliente_nome, p.garcom_nome, p.claimed_at,
             p.observacao_geral,
             m.numero AS mesa
@@ -139,44 +140,84 @@ async function listPedidosRecentes({ limit = 50 } = {}) {
      JOIN mesas m ON m.id = s.mesa_id
      ORDER BY p.criado_em DESC
      LIMIT $1`,
-    [Math.min(200, Math.max(1, Number(limit) || 50))]
+    [lim]
+  );
+  if (!pedidos.length) return [];
+
+  const ids = pedidos.map((p) => p.id);
+  const { rows: itensRows } = await pool.query(
+    `SELECT ip.id, ip.pedido_id, pr.nome, ip.quantidade, ip.preco_unitario, ip.ponto_carne, ip.observacao
+     FROM itens_pedido ip
+     JOIN produtos pr ON pr.id = ip.produto_id
+     WHERE ip.pedido_id = ANY($1::int[])
+     ORDER BY ip.id`,
+    [ids]
   );
 
-  const out = [];
-  for (const p of rows) {
-    const { rows: itens } = await pool.query(
-      `SELECT ip.id, pr.nome, ip.quantidade, ip.preco_unitario, ip.ponto_carne, ip.observacao
-       FROM itens_pedido ip JOIN produtos pr ON pr.id = ip.produto_id
-       WHERE ip.pedido_id = $1`,
-      [p.id]
-    );
-    let totalPedido = 0;
-    for (const item of itens) {
-      const { rows: adicionais } = await pool.query(
-        `SELECT a.nome, ipa.preco_unitario
+  const itemIds = itensRows.map((i) => i.id);
+  let adicionaisRows = [];
+  let remocoesRows = [];
+  if (itemIds.length) {
+    const [adRes, remRes] = await Promise.all([
+      pool.query(
+        `SELECT ipa.item_pedido_id, a.nome, ipa.preco_unitario
          FROM itens_pedido_adicionais ipa
          JOIN adicionais a ON a.id = ipa.adicional_id
-         WHERE ipa.item_pedido_id = $1`,
-        [item.id]
-      );
-      const { rows: remocoes } = await pool.query(
-        `SELECT ingrediente FROM itens_pedido_remocoes WHERE item_pedido_id = $1`,
-        [item.id]
-      );
-      const totalAdicionais = adicionais.reduce((s, a) => s + Number(a.preco_unitario), 0);
-      const linha = (Number(item.preco_unitario) + totalAdicionais) * item.quantidade;
-      totalPedido += linha;
-      item.adicionais = adicionais.map((a) => ({ nome: a.nome, preco: Number(a.preco_unitario) }));
-      item.remocoes = remocoes.map((r) => r.ingrediente);
-      item.totalLinha = Number(linha.toFixed(2));
-    }
-    out.push({
+         WHERE ipa.item_pedido_id = ANY($1::int[])`,
+        [itemIds]
+      ),
+      pool.query(
+        `SELECT item_pedido_id, ingrediente
+         FROM itens_pedido_remocoes
+         WHERE item_pedido_id = ANY($1::int[])`,
+        [itemIds]
+      ),
+    ]);
+    adicionaisRows = adRes.rows;
+    remocoesRows = remRes.rows;
+  }
+
+  const addByItem = new Map();
+  for (const a of adicionaisRows) {
+    if (!addByItem.has(a.item_pedido_id)) addByItem.set(a.item_pedido_id, []);
+    addByItem.get(a.item_pedido_id).push({ nome: a.nome, preco: Number(a.preco_unitario) });
+  }
+  const remByItem = new Map();
+  for (const r of remocoesRows) {
+    if (!remByItem.has(r.item_pedido_id)) remByItem.set(r.item_pedido_id, []);
+    remByItem.get(r.item_pedido_id).push(r.ingrediente);
+  }
+
+  const itensByPedido = new Map();
+  for (const item of itensRows) {
+    const adicionais = addByItem.get(item.id) || [];
+    const remocoes = remByItem.get(item.id) || [];
+    const totalAdicionais = adicionais.reduce((s, a) => s + a.preco, 0);
+    const linha = (Number(item.preco_unitario) + totalAdicionais) * item.quantidade;
+    const packed = {
+      id: item.id,
+      nome: item.nome,
+      quantidade: item.quantidade,
+      preco_unitario: item.preco_unitario,
+      ponto_carne: item.ponto_carne,
+      observacao: item.observacao,
+      adicionais,
+      remocoes,
+      totalLinha: Number(linha.toFixed(2)),
+    };
+    if (!itensByPedido.has(item.pedido_id)) itensByPedido.set(item.pedido_id, []);
+    itensByPedido.get(item.pedido_id).push(packed);
+  }
+
+  return pedidos.map((p) => {
+    const itens = itensByPedido.get(p.id) || [];
+    const totalPedido = itens.reduce((s, i) => s + i.totalLinha, 0);
+    return {
       ...p,
       itens,
       totalPedido: Number(totalPedido.toFixed(2)),
-    });
-  }
-  return out;
+    };
+  });
 }
 
 module.exports = {

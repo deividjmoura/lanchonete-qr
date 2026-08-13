@@ -11,96 +11,133 @@ class ErroCaixa extends Error {
   }
 }
 
-async function carregarItensPedido(client, pedidoId) {
-  const { rows: itens } = await client.query(
-    `SELECT ip.id, pr.nome, ip.quantidade, ip.preco_unitario, ip.ponto_carne, ip.observacao
-     FROM itens_pedido ip JOIN produtos pr ON pr.id = ip.produto_id
-     WHERE ip.pedido_id = $1`,
-    [pedidoId]
-  );
-
-  for (const item of itens) {
-    const { rows: adicionais } = await client.query(
-      `SELECT a.nome, ipa.preco_unitario
-       FROM itens_pedido_adicionais ipa
-       JOIN adicionais a ON a.id = ipa.adicional_id
-       WHERE ipa.item_pedido_id = $1`,
-      [item.id]
-    );
-    const { rows: remocoes } = await client.query(
-      `SELECT ingrediente FROM itens_pedido_remocoes WHERE item_pedido_id = $1`,
-      [item.id]
-    );
-    item.adicionais = adicionais.map((a) => ({
-      nome: a.nome,
-      preco: Number(a.preco_unitario),
-    }));
-    item.remocoes = remocoes.map((r) => r.ingrediente);
-    const totalAdicionais = item.adicionais.reduce((s, a) => s + a.preco, 0);
-    item.precoUnitario = Number(item.preco_unitario);
-    item.subtotal = Number(
-      ((item.precoUnitario + totalAdicionais) * item.quantidade).toFixed(2)
-    );
-  }
-  return itens;
+/** Monta itens com extras e subtotal a partir de rows já buscadas em lote. */
+function montarItensComExtras(itensRows, addByItem, remByItem) {
+  return itensRows.map((item) => {
+    const adicionais = addByItem.get(item.id) || [];
+    const remocoes = remByItem.get(item.id) || [];
+    const totalAdicionais = adicionais.reduce((s, a) => s + a.preco, 0);
+    const precoUnitario = Number(item.preco_unitario);
+    return {
+      id: item.id,
+      nome: item.nome,
+      quantidade: item.quantidade,
+      preco_unitario: item.preco_unitario,
+      ponto_carne: item.ponto_carne,
+      observacao: item.observacao,
+      adicionais,
+      remocoes,
+      precoUnitario,
+      subtotal: Number(((precoUnitario + totalAdicionais) * item.quantidade).toFixed(2)),
+    };
+  });
 }
 
-// Lista todas as sessões abertas com resumo da conta (itens entregues)
-// e contagem de pedidos ainda em andamento na cozinha/garçom.
 async function listSessoesAbertas() {
-  const client = await pool.connect();
-  try {
-    const { rows: sessoes } = await client.query(
-      `SELECT s.id, s.aberta_em, s.valor_total, m.id AS mesa_id, m.numero AS mesa
-       FROM mesa_sessoes s
-       JOIN mesas m ON m.id = s.mesa_id
-       WHERE s.status = 'aberta'
-       ORDER BY m.numero`
+  const { rows: sessoes } = await pool.query(
+    `SELECT s.id, s.aberta_em, s.valor_total, m.id AS mesa_id, m.numero AS mesa
+     FROM mesa_sessoes s
+     JOIN mesas m ON m.id = s.mesa_id
+     WHERE s.status = 'aberta'
+     ORDER BY m.numero`
+  );
+  if (!sessoes.length) return [];
+
+  const sessaoIds = sessoes.map((s) => s.id);
+  const { rows: pedidos } = await pool.query(
+    `SELECT id, sessao_id, status, criado_em, observacao_geral
+     FROM pedidos
+     WHERE sessao_id = ANY($1::int[])
+     ORDER BY criado_em`,
+    [sessaoIds]
+  );
+
+  const entregueIds = pedidos.filter((p) => p.status === 'entregue').map((p) => p.id);
+  let itensRows = [];
+  const addByItem = new Map();
+  const remByItem = new Map();
+
+  if (entregueIds.length) {
+    const itensRes = await pool.query(
+      `SELECT ip.id, ip.pedido_id, pr.nome, ip.quantidade, ip.preco_unitario, ip.ponto_carne, ip.observacao
+       FROM itens_pedido ip
+       JOIN produtos pr ON pr.id = ip.produto_id
+       WHERE ip.pedido_id = ANY($1::int[])
+       ORDER BY ip.id`,
+      [entregueIds]
     );
-
-    const resultado = [];
-    for (const s of sessoes) {
-      const { rows: pedidos } = await client.query(
-        `SELECT id, status, criado_em, observacao_geral
-         FROM pedidos WHERE sessao_id = $1 ORDER BY criado_em`,
-        [s.id]
-      );
-
-      const entregues = [];
-      let pendentes = 0;
-      for (const p of pedidos) {
-        if (p.status === 'entregue') {
-          const itens = await carregarItensPedido(client, p.id);
-          const totalPedido = Number(
-            itens.reduce((acc, i) => acc + i.subtotal, 0).toFixed(2)
-          );
-          entregues.push({
-            id: p.id,
-            criadoEm: p.criado_em,
-            observacaoGeral: p.observacao_geral,
-            itens,
-            total: totalPedido,
-          });
-        } else {
-          pendentes += 1;
-        }
+    itensRows = itensRes.rows;
+    const itemIds = itensRows.map((i) => i.id);
+    if (itemIds.length) {
+      const [adRes, remRes] = await Promise.all([
+        pool.query(
+          `SELECT ipa.item_pedido_id, a.nome, ipa.preco_unitario
+           FROM itens_pedido_adicionais ipa
+           JOIN adicionais a ON a.id = ipa.adicional_id
+           WHERE ipa.item_pedido_id = ANY($1::int[])`,
+          [itemIds]
+        ),
+        pool.query(
+          `SELECT item_pedido_id, ingrediente
+           FROM itens_pedido_remocoes
+           WHERE item_pedido_id = ANY($1::int[])`,
+          [itemIds]
+        ),
+      ]);
+      for (const a of adRes.rows) {
+        if (!addByItem.has(a.item_pedido_id)) addByItem.set(a.item_pedido_id, []);
+        addByItem.get(a.item_pedido_id).push({ nome: a.nome, preco: Number(a.preco_unitario) });
       }
-
-      resultado.push({
-        id: s.id,
-        mesa: s.mesa,
-        mesaId: s.mesa_id,
-        abertaEm: s.aberta_em,
-        valorTotal: Number(s.valor_total),
-        pedidosEntregues: entregues,
-        pedidosPendentes: pendentes,
-        podeFechar: pendentes === 0,
-      });
+      for (const r of remRes.rows) {
+        if (!remByItem.has(r.item_pedido_id)) remByItem.set(r.item_pedido_id, []);
+        remByItem.get(r.item_pedido_id).push(r.ingrediente);
+      }
     }
-    return resultado;
-  } finally {
-    client.release();
   }
+
+  const itensByPedido = new Map();
+  for (const item of itensRows) {
+    if (!itensByPedido.has(item.pedido_id)) itensByPedido.set(item.pedido_id, []);
+    itensByPedido.get(item.pedido_id).push(item);
+  }
+
+  const pedidosBySessao = new Map();
+  for (const p of pedidos) {
+    if (!pedidosBySessao.has(p.sessao_id)) pedidosBySessao.set(p.sessao_id, []);
+    pedidosBySessao.get(p.sessao_id).push(p);
+  }
+
+  return sessoes.map((s) => {
+    const lista = pedidosBySessao.get(s.id) || [];
+    const entregues = [];
+    let pendentes = 0;
+    for (const p of lista) {
+      if (p.status === 'entregue') {
+        const raw = itensByPedido.get(p.id) || [];
+        const itens = montarItensComExtras(raw, addByItem, remByItem);
+        const totalPedido = Number(itens.reduce((acc, i) => acc + i.subtotal, 0).toFixed(2));
+        entregues.push({
+          id: p.id,
+          criadoEm: p.criado_em,
+          observacaoGeral: p.observacao_geral,
+          itens,
+          total: totalPedido,
+        });
+      } else {
+        pendentes += 1;
+      }
+    }
+    return {
+      id: s.id,
+      mesa: s.mesa,
+      mesaId: s.mesa_id,
+      abertaEm: s.aberta_em,
+      valorTotal: Number(s.valor_total),
+      pedidosEntregues: entregues,
+      pedidosPendentes: pendentes,
+      podeFechar: pendentes === 0,
+    };
+  });
 }
 
 // Fecha a sessão: grava forma de pagamento, libera a mesa.

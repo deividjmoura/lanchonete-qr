@@ -217,39 +217,90 @@ async function getSessao(token) {
        WHERE sessao_id = $1 ORDER BY criado_em`,
       [sessao.id]
     );
+    if (!pedidos.length) {
+      return {
+        mesa: mesa.numero,
+        sessaoAberta: true,
+        sessaoId: sessao.id,
+        abertaEm: sessao.aberta_em,
+        clienteNome: sessao.cliente_nome || null,
+        pedidos: [],
+        totalDevido: 0,
+      };
+    }
 
-    let totalDevido = 0;
-    const pedidosComItens = [];
-    for (const p of pedidos) {
-      const { rows: itens } = await client.query(
-        `SELECT ip.id, pr.nome, ip.quantidade, ip.preco_unitario, ip.ponto_carne, ip.observacao
-         FROM itens_pedido ip JOIN produtos pr ON pr.id = ip.produto_id
-         WHERE ip.pedido_id = $1`,
-        [p.id]
-      );
-      let totalPedido = 0;
-      for (const item of itens) {
-        const { rows: adicionais } = await client.query(
-          `SELECT a.nome, ipa.preco_unitario
+    const ids = pedidos.map((p) => p.id);
+    const { rows: itensRows } = await client.query(
+      `SELECT ip.id, ip.pedido_id, pr.nome, ip.quantidade, ip.preco_unitario, ip.ponto_carne, ip.observacao
+       FROM itens_pedido ip
+       JOIN produtos pr ON pr.id = ip.produto_id
+       WHERE ip.pedido_id = ANY($1::int[])
+       ORDER BY ip.id`,
+      [ids]
+    );
+
+    const itemIds = itensRows.map((i) => i.id);
+    let adRows = [];
+    let remRows = [];
+    if (itemIds.length) {
+      const [adRes, remRes] = await Promise.all([
+        client.query(
+          `SELECT ipa.item_pedido_id, a.nome, ipa.preco_unitario
            FROM itens_pedido_adicionais ipa
            JOIN adicionais a ON a.id = ipa.adicional_id
-           WHERE ipa.item_pedido_id = $1`,
-          [item.id]
-        );
-        const { rows: remocoes } = await client.query(
-          `SELECT ingrediente FROM itens_pedido_remocoes WHERE item_pedido_id = $1`,
-          [item.id]
-        );
-        const totalAdicionais = adicionais.reduce((s, a) => s + Number(a.preco_unitario), 0);
-        const linha = (Number(item.preco_unitario) + totalAdicionais) * item.quantidade;
-        totalPedido += linha;
-        item.adicionais = adicionais.map((a) => ({ nome: a.nome, preco: Number(a.preco_unitario) }));
-        item.remocoes = remocoes.map((r) => r.ingrediente);
-        item.totalLinha = Number(linha.toFixed(2));
-      }
-      totalDevido += totalPedido;
-      pedidosComItens.push({ ...p, itens, totalPedido: Number(totalPedido.toFixed(2)) });
+           WHERE ipa.item_pedido_id = ANY($1::int[])`,
+          [itemIds]
+        ),
+        client.query(
+          `SELECT item_pedido_id, ingrediente
+           FROM itens_pedido_remocoes
+           WHERE item_pedido_id = ANY($1::int[])`,
+          [itemIds]
+        ),
+      ]);
+      adRows = adRes.rows;
+      remRows = remRes.rows;
     }
+
+    const addByItem = new Map();
+    for (const a of adRows) {
+      if (!addByItem.has(a.item_pedido_id)) addByItem.set(a.item_pedido_id, []);
+      addByItem.get(a.item_pedido_id).push({ nome: a.nome, preco: Number(a.preco_unitario) });
+    }
+    const remByItem = new Map();
+    for (const r of remRows) {
+      if (!remByItem.has(r.item_pedido_id)) remByItem.set(r.item_pedido_id, []);
+      remByItem.get(r.item_pedido_id).push(r.ingrediente);
+    }
+
+    const itensByPedido = new Map();
+    for (const item of itensRows) {
+      const adicionais = addByItem.get(item.id) || [];
+      const remocoes = remByItem.get(item.id) || [];
+      const totalAdicionais = adicionais.reduce((sum, a) => sum + a.preco, 0);
+      const linha = (Number(item.preco_unitario) + totalAdicionais) * item.quantidade;
+      const packed = {
+        id: item.id,
+        nome: item.nome,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario,
+        ponto_carne: item.ponto_carne,
+        observacao: item.observacao,
+        adicionais,
+        remocoes,
+        totalLinha: Number(linha.toFixed(2)),
+      };
+      if (!itensByPedido.has(item.pedido_id)) itensByPedido.set(item.pedido_id, []);
+      itensByPedido.get(item.pedido_id).push(packed);
+    }
+
+    let totalDevido = 0;
+    const pedidosComItens = pedidos.map((p) => {
+      const itens = itensByPedido.get(p.id) || [];
+      const totalPedido = itens.reduce((sum, i) => sum + i.totalLinha, 0);
+      totalDevido += totalPedido;
+      return { ...p, itens, totalPedido: Number(totalPedido.toFixed(2)) };
+    });
 
     return {
       mesa: mesa.numero,
@@ -265,8 +316,42 @@ async function getSessao(token) {
   }
 }
 
-// Carrega itens do pedido com adicionais e remoções (usado pelas filas
-// de cozinha e garçom).
+/** Anexa adicionais/remoções a uma lista de itens (1–2 queries em lote). */
+async function anexarExtrasAosItens(itens) {
+  if (!itens.length) return itens;
+  const itemIds = itens.map((i) => i.id);
+  const [adRes, remRes] = await Promise.all([
+    pool.query(
+      `SELECT ipa.item_pedido_id, a.nome
+       FROM itens_pedido_adicionais ipa
+       JOIN adicionais a ON a.id = ipa.adicional_id
+       WHERE ipa.item_pedido_id = ANY($1::int[])`,
+      [itemIds]
+    ),
+    pool.query(
+      `SELECT item_pedido_id, ingrediente
+       FROM itens_pedido_remocoes
+       WHERE item_pedido_id = ANY($1::int[])`,
+      [itemIds]
+    ),
+  ]);
+  const addByItem = new Map();
+  for (const a of adRes.rows) {
+    if (!addByItem.has(a.item_pedido_id)) addByItem.set(a.item_pedido_id, []);
+    addByItem.get(a.item_pedido_id).push({ nome: a.nome });
+  }
+  const remByItem = new Map();
+  for (const r of remRes.rows) {
+    if (!remByItem.has(r.item_pedido_id)) remByItem.set(r.item_pedido_id, []);
+    remByItem.get(r.item_pedido_id).push(r.ingrediente);
+  }
+  for (const item of itens) {
+    item.adicionais = addByItem.get(item.id) || [];
+    item.remocoes = remByItem.get(item.id) || [];
+  }
+  return itens;
+}
+
 async function carregarItensPedido(pedidoId) {
   const { rows: itens } = await pool.query(
     `SELECT ip.id, pr.nome, ip.quantidade, ip.ponto_carne, ip.observacao
@@ -274,23 +359,7 @@ async function carregarItensPedido(pedidoId) {
      WHERE ip.pedido_id = $1`,
     [pedidoId]
   );
-
-  for (const item of itens) {
-    const { rows: adicionais } = await pool.query(
-      `SELECT a.nome
-       FROM itens_pedido_adicionais ipa
-       JOIN adicionais a ON a.id = ipa.adicional_id
-       WHERE ipa.item_pedido_id = $1`,
-      [item.id]
-    );
-    const { rows: remocoes } = await pool.query(
-      `SELECT ingrediente FROM itens_pedido_remocoes WHERE item_pedido_id = $1`,
-      [item.id]
-    );
-    item.adicionais = adicionais;
-    item.remocoes = remocoes.map((r) => r.ingrediente);
-  }
-  return itens;
+  return anexarExtrasAosItens(itens);
 }
 
 async function listarPedidosPorStatus(statuses) {
@@ -304,13 +373,25 @@ async function listarPedidosPorStatus(statuses) {
      ORDER BY p.criado_em`,
     [statuses]
   );
+  if (!pedidos.length) return [];
 
-  const resultado = [];
-  for (const p of pedidos) {
-    const itens = await carregarItensPedido(p.id);
-    resultado.push({ ...p, itens });
+  const ids = pedidos.map((p) => p.id);
+  const { rows: itensRows } = await pool.query(
+    `SELECT ip.id, ip.pedido_id, pr.nome, ip.quantidade, ip.ponto_carne, ip.observacao
+     FROM itens_pedido ip
+     JOIN produtos pr ON pr.id = ip.produto_id
+     WHERE ip.pedido_id = ANY($1::int[])
+     ORDER BY ip.id`,
+    [ids]
+  );
+  await anexarExtrasAosItens(itensRows);
+
+  const byPedido = new Map();
+  for (const item of itensRows) {
+    if (!byPedido.has(item.pedido_id)) byPedido.set(item.pedido_id, []);
+    byPedido.get(item.pedido_id).push(item);
   }
-  return resultado;
+  return pedidos.map((p) => ({ ...p, itens: byPedido.get(p.id) || [] }));
 }
 
 // Fila da cozinha: pedidos recebido/em_producao, mais antigo primeiro.
