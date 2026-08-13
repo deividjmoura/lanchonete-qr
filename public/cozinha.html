@@ -216,7 +216,18 @@ document.getElementById('orders').addEventListener('click', (ev) => {
 });
 
 load();
-setInterval(load, 2000);
+// SSE: atualiza na hora; fallback leve se a conexão cair
+function connectEvents() {
+  if (typeof EventSource === 'undefined') {
+    setInterval(load, 3000);
+    return;
+  }
+  const es = new EventSource('/api/events');
+  es.addEventListener('update', () => load());
+  es.addEventListener('hello', () => load());
+  setInterval(load, 15000);
+}
+connectEvents();
 </script>
 </body>
 </html>

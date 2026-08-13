@@ -988,7 +988,17 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('mesaDesk').textContent = 'Cardápio';
 loadSessao();
 loadCardapio();
-setInterval(loadSessao, 8000);
+function connectEvents() {
+  if (typeof EventSource === 'undefined') {
+    setInterval(loadSessao, 8000);
+    return;
+  }
+  const es = new EventSource('/api/events');
+  es.addEventListener('update', () => loadSessao());
+  es.addEventListener('hello', () => loadSessao());
+  setInterval(loadSessao, 30000);
+}
+connectEvents();
 </script>
 </body>
 </html>

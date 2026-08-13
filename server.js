@@ -42,6 +42,7 @@ const {
   cookieDeLogout,
 } = require('./db/auth');
 const { golpePermitido } = require('./db/rateLimit');
+const { subscribe, broadcast } = require('./db/events');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -190,13 +191,37 @@ const server = http.createServer(async (req, res) => {
     }
 
     let m;
+    // SSE — atualização em tempo quase real (cozinha, garçom, caixa, mesa)
+    if (p === '/api/events' && req.method === 'GET') {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      res.write(`event: hello\ndata: ${JSON.stringify({ ok: true })}\n\n`);
+      subscribe(res);
+      // keepalive a cada 25s (proxies costumam cortar idle)
+      const hb = setInterval(() => {
+        try {
+          res.write(`: ping\n\n`);
+        } catch (_) {
+          clearInterval(hb);
+        }
+      }, 25000);
+      req.on('close', () => clearInterval(hb));
+      return;
+    }
+
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pedidos$/)) && req.method === 'POST') {
       const ip = req.socket.remoteAddress || 'unknown';
       if (!golpePermitido(`pedido:${ip}:${m[1]}`, { janelaMs: 5 * 60 * 1000, max: 10 })) {
         return json(res, 429, { error: 'Muitos pedidos em pouco tempo. Aguarde um instante.' });
       }
       try {
-        return json(res, 201, await criarPedido(m[1], await body(req)));
+        const pedido = await criarPedido(m[1], await body(req));
+        broadcast('update', { type: 'pedido_criado', pedidoId: pedido.id, mesaToken: m[1] });
+        return json(res, 201, pedido);
       } catch (e) {
         if (e instanceof ErroPedido) return json(res, e.status, { error: e.message });
         throw e;
@@ -252,7 +277,9 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/fechar$/)) && req.method === 'POST') {
       try {
-        return json(res, 200, await fecharSessao(Number(m[1]), await body(req)));
+        const out = await fecharSessao(Number(m[1]), await body(req));
+        broadcast('update', { type: 'sessao_fechada', sessaoId: Number(m[1]) });
+        return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroCaixa) return json(res, e.status, { error: e.message });
         throw e;
@@ -261,7 +288,9 @@ const server = http.createServer(async (req, res) => {
     if ((m = p.match(/^\/api\/pedidos\/(\d+)\/status$/)) && req.method === 'PATCH') {
       try {
         const b = await body(req);
-        return json(res, 200, await avancarStatus(Number(m[1]), b.status));
+        const out = await avancarStatus(Number(m[1]), b.status);
+        broadcast('update', { type: 'status_alterado', pedidoId: Number(m[1]), status: b.status });
+        return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroPedido) return json(res, e.status, { error: e.message });
         throw e;

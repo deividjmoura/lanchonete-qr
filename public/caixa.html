@@ -233,7 +233,17 @@ document.getElementById('lista').addEventListener('click', (ev) => {
 });
 
 load();
-setInterval(load, 3000);
+function connectEvents() {
+  if (typeof EventSource === 'undefined') {
+    setInterval(load, 5000);
+    return;
+  }
+  const es = new EventSource('/api/events');
+  es.addEventListener('update', () => load());
+  es.addEventListener('hello', () => load());
+  setInterval(load, 20000);
+}
+connectEvents();
 </script>
 </body>
 </html>

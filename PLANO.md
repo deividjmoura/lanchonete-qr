@@ -31,7 +31,8 @@ Objetivo: evoluir o MVP atual (Node.js + arquivos JSON) para um sistema completo
 - **Garçom (`garcom.html`)** — fila `concluido` → `entregue`
 - **Caixa (`caixa.html`)** — sessões abertas, fechar conta + pagamento
 
-**Pendente:** SSE no lugar de polling; autenticação admin/caixa; rate limit no criar pedido; aposentar rotas legadas e `data/db.json`.
+**Pendente:** aposentar rotas legadas e `data/db.json`.
+**Feito recentemente:** SSE; auth admin/caixa; rate limit; conta da mesa; menu sanduíche.
 ---
 ## 1. Visão geral do fluxo
 ```
@@ -64,13 +65,14 @@ Ponto-chave: uma mesa pode gerar **vários pedidos** na mesma visita. O que impo
 | Admin | `/admin` | CRUD cardápio + QR por mesa | ✅ |
 ---
 ## 3. Tempo real
-O MVP usa polling (2–3s). Para reduzir latência (principalmente cozinha/garçom), migrar depois para **Server-Sent Events (SSE)**.
+~~Polling~~ → **SSE** em `GET /api/events`. Cozinha, garçom, caixa e mesa atualizam sob evento; polling lento só como fallback.
 ---
 ## 4. Segurança básica
 - ~~Token opaco (uuid) na URL da mesa~~ ✅
 - ~~Preço sempre recalculado no servidor~~ ✅
-- Admin/Caixa atrás de autenticação — pendente
-- Rate limit básico no endpoint de criar pedido — pendente
+- ~~Admin/Caixa atrás de autenticação~~ ✅
+- ~~Rate limit básico no endpoint de criar pedido~~ ✅
+- ~~SSE~~ ✅
 ---
 ## 5. Ordem de execução (histórico)
 1. ~~Setup do PostgreSQL~~ ✅
@@ -83,7 +85,8 @@ O MVP usa polling (2–3s). Para reduzir latência (principalmente cozinha/garç
 8. ~~Migrar `cozinha.html`~~ ✅
 9. ~~Tela do garçom~~ ✅
 10. ~~Tela do caixa + fechar sessão~~ ✅
-11. **Próximo:** SSE, autenticação admin/caixa, aposentar rotas antigas e `data/db.json`
+11. ~~SSE + auth + rate limit~~ ✅
+12. **Próximo:** aposentar rotas legadas (`/api/menu`, `/api/orders*`) e `data/db.json`
 ---
 ## 6. Decisões já tomadas
 - Banco: **PostgreSQL** (Neon)

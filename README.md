@@ -24,7 +24,7 @@ Cliente escaneia o QR da mesa → monta o pedido com adicionais, remoções e po
 | Auth admin/caixa (login por senha + sessão) | ✅ |
 | Rate limit na criação de pedido e no login | ✅ |
 | Tema claro/escuro (Clean Corporate) | ✅ |
-| SSE no lugar de polling | ⏳ |
+| SSE no lugar de polling | ✅ |
 
 ---
 
@@ -175,6 +175,17 @@ mesma senha, o que é suficiente pro tamanho da operação hoje.
 - Temas **claro** e **escuro** (Clean Corporate): primary azul, Inter + JetBrains Mono.
 - Toggle 🌓 em todas as telas; preferência salva em `localStorage` (`lq-theme`).
 - Respeita `prefers-color-scheme` quando o usuário ainda não escolheu.
+
+---
+
+## Tempo real (SSE)
+
+- Endpoint: `GET /api/events` (Server-Sent Events)
+- Eventos: `hello` (conexão) e `update` (`pedido_criado`, `status_alterado`, `sessao_fechada`)
+- Disparados ao criar pedido, avançar status e fechar sessão
+- Telas cozinha, garçom, caixa e mesa escutam o stream e recarregam a fila/sessão
+- Fallback: polling lento (15–30s) se `EventSource` não existir ou a conexão oscilar
+- Keepalive a cada 25s para não cair em proxies
 
 ---
 
