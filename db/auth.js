@@ -1,15 +1,10 @@
-// Autenticação de staff (admin/caixa) — sessão em memória via cookie httpOnly.
-// Sem tabela de usuários: uma senha compartilhada (ADMIN_PASSWORD no .env) é
-// suficiente pro tamanho da operação hoje. Se crescer pra múltiplos operadores
-// com permissões diferentes, trocar por login por usuário + tabela `staff`.
+// Auth de staff: senha compartilhada (ADMIN_PASSWORD) + sessão em memória (cookie httpOnly).
 const crypto = require('crypto');
 
 const SESSION_COOKIE = 'lqr_session';
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h — cobre um turno inteiro
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
-// token -> timestamp de expiração. Em memória de propósito: reiniciar o
-// servidor derruba as sessões, o que é aceitável (basta logar de novo) e
-// evita depender de mais infra pra um único processo.
+// token -> expiração (ms). Reinício do processo invalida todas as sessões.
 const sessions = new Map();
 
 class ErroAuth extends Error {
@@ -27,8 +22,6 @@ function senhaValida(candidata) {
   const esperada = process.env.ADMIN_PASSWORD || '';
   const a = Buffer.from(String(candidata || ''));
   const b = Buffer.from(esperada);
-  // timingSafeEqual exige buffers do mesmo tamanho — comparar tamanho antes
-  // já vaza 1 bit de informação (tamanho da senha), aceitável aqui.
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
 }
@@ -86,7 +79,6 @@ function cookieDeLogout() {
   return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0`;
 }
 
-// housekeeping simples pra sessões expiradas não ficarem acumulando em memória
 setInterval(() => {
   const agora = Date.now();
   for (const [token, expira] of sessions) {

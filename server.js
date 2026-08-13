@@ -58,13 +58,26 @@ const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 128 * 1024);
 
+/** IP do cliente; em produção usa o primeiro hop de X-Forwarded-For. */
+function clientIp(req) {
+  if (process.env.NODE_ENV === 'production') {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.length) {
+      return xff.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+    }
+  }
+  return req.socket.remoteAddress || 'unknown';
+}
+
 function applySecurityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  // CSP permissiva o suficiente para o front atual (fonts Google + inline styles).
-  // Aperte quando migrar estilos/scripts para arquivos locais.
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  // CSP: 'unsafe-inline' necessário enquanto scripts/estilos estão embutidos no HTML.
   if (!res.getHeader('Content-Security-Policy')) {
     res.setHeader(
       'Content-Security-Policy',
@@ -134,20 +147,11 @@ const server = http.createServer(async (req, res) => {
     const u = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     const p = u.pathname;
 
-    // -----------------------------------------------------------------------
-    // Rotas antigas (JSON) — continuam ativas até a UI ser migrada
-    // -----------------------------------------------------------------------
-    // Rotas legadas /api/menu e /api/orders (db.json) removidas — só Postgres.
-
-    // -----------------------------------------------------------------------
-    // Rotas Postgres
-    // -----------------------------------------------------------------------
     if (p === '/api/cardapio' && req.method === 'GET') {
       return json(res, 200, await getCardapio());
     }
 
     let m;
-    // SSE — atualização em tempo quase real (cozinha, garçom, caixa, mesa)
     if (p === '/api/events' && req.method === 'GET') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -157,7 +161,6 @@ const server = http.createServer(async (req, res) => {
       });
       res.write(`event: hello\ndata: ${JSON.stringify({ ok: true })}\n\n`);
       subscribe(res);
-      // keepalive a cada 25s (proxies costumam cortar idle)
       const hb = setInterval(() => {
         try {
           res.write(`: ping\n\n`);
@@ -170,7 +173,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pedidos$/)) && req.method === 'POST') {
-      const ip = req.socket.remoteAddress || 'unknown';
+      const ip = clientIp(req);
       if (!golpePermitido(`pedido:${ip}:${m[1]}`, { janelaMs: 5 * 60 * 1000, max: 10 })) {
         return json(res, 429, { error: 'Muitos pedidos em pouco tempo. Aguarde um instante.' });
       }
@@ -201,10 +204,10 @@ const server = http.createServer(async (req, res) => {
         throw e;
       }
     }
+    // Fila do garçom só via token: /api/garcom/:token/pedidos
     if (p === '/api/garcom/pedidos' && req.method === 'GET') {
-      return json(res, 200, await getFilaGarcom());
+      return json(res, 401, { error: 'Use /api/garcom/:token/pedidos com o link do garçom' });
     }
-    // Garçom autenticado por token na URL (?token= ou path)
     if ((m = p.match(/^\/api\/garcom\/([^/]+)\/me$/)) && req.method === 'GET') {
       const g = await getGarcomPorToken(m[1]);
       if (!g || !g.ativo) return json(res, 401, { error: 'Link inválido ou desativado' });
@@ -231,14 +234,11 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // -----------------------------------------------------------------------
-    // Autenticação (staff — admin/caixa)
-    // -----------------------------------------------------------------------
     if (p === '/api/login' && req.method === 'POST') {
       if (!senhaConfigurada()) {
         return json(res, 500, { error: 'ADMIN_PASSWORD não configurada no servidor' });
       }
-      const ip = req.socket.remoteAddress || 'unknown';
+      const ip = clientIp(req);
       if (!golpePermitido(`login:${ip}`, { janelaMs: 5 * 60 * 1000, max: 8 })) {
         return json(res, 429, { error: 'Muitas tentativas. Aguarde alguns minutos.' });
       }
@@ -253,7 +253,6 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
-    // Admin e caixa exigem sessão válida — checa antes de rotear pra eles
     if ((p.startsWith('/api/admin') || p.startsWith('/api/caixa') || p.startsWith('/api/cozinha') || (p.match(/^\/api\/pedidos\/\d+\/status$/) && req.method === 'PATCH')) && !estaAutenticado(req)) {
       return json(res, 401, { error: 'Não autenticado' });
     }
@@ -262,9 +261,6 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, await getFilaCozinha());
     }
 
-    // -----------------------------------------------------------------------
-    // Caixa (Postgres) — sessões abertas + fechar conta
-    // -----------------------------------------------------------------------
     if (p === '/api/caixa/sessoes' && req.method === 'GET') {
       return json(res, 200, await listSessoesAbertas());
     }
@@ -290,9 +286,6 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // -----------------------------------------------------------------------
-    // Admin (Postgres) — passo 6 do plano
-    // -----------------------------------------------------------------------
     if (p === '/api/admin/mesas' && req.method === 'GET') {
       return json(res, 200, await listMesas());
     }
@@ -402,9 +395,6 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // -----------------------------------------------------------------------
-    // Arquivos estáticos
-    // -----------------------------------------------------------------------
     if ((p === '/admin' || p === '/caixa' || p === '/cozinha') && !estaAutenticado(req)) {
       res.writeHead(302, { Location: `/login?next=${encodeURIComponent(p)}` });
       return res.end();
@@ -421,7 +411,6 @@ const server = http.createServer(async (req, res) => {
     if (file === '/caixa') file = '/caixa.html';
     if (file === '/admin') file = '/admin.html';
     if (file === '/login') file = '/login.html';
-    // Normaliza e bloqueia path traversal (ex.: /../../../etc/passwd)
     const publicRoot = path.resolve(ROOT, 'public');
     const fp = path.resolve(publicRoot, '.' + (file.startsWith('/') ? file : '/' + file));
     if (!fp.startsWith(publicRoot + path.sep) && fp !== publicRoot) {
@@ -438,7 +427,6 @@ const server = http.createServer(async (req, res) => {
     if (e && e.status) {
       return json(res, e.status, { error: e.message || 'Erro' });
     }
-    // Não vaza stack/mensagem interna em produção
     const msg =
       process.env.NODE_ENV === 'production'
         ? 'Erro interno do servidor'

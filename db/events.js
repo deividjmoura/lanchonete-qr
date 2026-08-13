@@ -1,7 +1,4 @@
-// Barramento simples de Server-Sent Events (SSE).
-// Clientes conectam em GET /api/events e recebem pings quando há mudança
-// operacional (pedido criado, status avançado, sessão fechada).
-
+// Barramento SSE: clientes em GET /api/events recebem eventos operacionais.
 const clients = new Set();
 
 function subscribe(res) {

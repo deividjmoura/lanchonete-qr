@@ -1,7 +1,5 @@
-// Rate limit simples em memória (janela deslizante por chave).
-// Suficiente pra um único processo; se um dia rodar em múltiplas instâncias
-// atrás de um load balancer, trocar por um contador compartilhado (Redis).
-const buckets = new Map(); // chave -> timestamps[]
+// Rate limit em memória (janela deslizante). Não é compartilhado entre processos.
+const buckets = new Map();
 
 function golpePermitido(chave, { janelaMs, max }) {
   const agora = Date.now();
@@ -15,7 +13,6 @@ function golpePermitido(chave, { janelaMs, max }) {
   return true;
 }
 
-// housekeeping — evita crescer pra sempre com chaves velhas (ex.: IPs que não voltam mais)
 setInterval(() => {
   const agora = Date.now();
   for (const [chave, lista] of buckets) {

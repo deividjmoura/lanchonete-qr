@@ -6,16 +6,13 @@
   <meta name="theme-color" content="#111">
   <title>Cozinha · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
-  <style>
-    /* page-specific overrides already covered by global tokens */
-  </style>
   </head>
 <body>
 <main class="wrap">
   <div class="top">
     <div>
       <div class="brand">👨‍🍳 Cozinha</div>
-      <div class="muted">Fila <code>recebido</code> → <code>em_producao</code> → <code>concluido</code> · atualiza a cada 2s</div>
+      <div class="muted">Fila <code>recebido</code> → <code>em_producao</code> → <code>concluido</code> · ao vivo (SSE)</div>
     </div>
     <div class="nav">
       <a class="btn" href="/admin">Admin</a>
@@ -23,7 +20,7 @@
     </div>
   </div>
 
-  <div id="stats" class="muted" style="margin-bottom:14px"></div>
+  <div id="stats" class="muted" style="margin-bottom:14px" aria-live="polite" role="status"></div>
   <div id="orders" class="kgrid"></div>
 </main>
 <div id="toast" class="toast"></div>
@@ -214,7 +211,6 @@ document.getElementById('orders').addEventListener('click', (ev) => {
 });
 
 load();
-// SSE: atualiza na hora; fallback leve se a conexão cair
 function connectEvents() {
   if (typeof EventSource === 'undefined') {
     setInterval(load, 3000);
