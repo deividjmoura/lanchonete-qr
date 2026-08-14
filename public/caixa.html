@@ -30,6 +30,8 @@
     .grid-caixa{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
     details.pedido{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;background:var(--surface-2)}
     details.pedido summary{cursor:pointer;font-weight:700}
+    .pix-box{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:14px;background:var(--surface-2);text-align:center}
+    .pix-box img{display:block;margin:0 auto;border-radius:12px;background:#fff;padding:8px}
   </style>
   </head>
 <body>
@@ -74,6 +76,58 @@ const FORMAS = [
   { id: 'cartao_debito', label: 'Débito' },
   { id: 'cartao_credito', label: 'Crédito' },
 ];
+
+// Recebedor PIX (chave = CPF)
+const PIX = {
+  chave: '07374955960',
+  nome: 'DEIVID DE JESUS DE MOURA',
+  cidade: 'PENHA',
+};
+
+function tlv(id, value) {
+  const v = String(value);
+  return id + String(v.length).padStart(2, '0') + v;
+}
+
+function crc16(payload) {
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+/** Payload PIX (BR Code) com valor — QR / copia-e-cola. */
+function montarPixCopiaCola(valor) {
+  const nome = PIX.nome.slice(0, 25);
+  const cidade = PIX.cidade.slice(0, 15);
+  const mai = tlv('00', 'br.gov.bcb.pix') + tlv('01', PIX.chave);
+  const amount = Number(valor || 0).toFixed(2);
+  let payload =
+    tlv('00', '01') +
+    tlv('26', mai) +
+    tlv('52', '0000') +
+    tlv('53', '986') +
+    tlv('54', amount) +
+    tlv('58', 'BR') +
+    tlv('59', nome) +
+    tlv('60', cidade) +
+    tlv('62', tlv('05', '***'));
+  payload += '6304';
+  payload += crc16(payload);
+  return payload;
+}
+
+function qrUrlPix(valor) {
+  return (
+    'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' +
+    encodeURIComponent(montarPixCopiaCola(valor))
+  );
+}
 
 const esc = (s) => {
   if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
@@ -143,6 +197,12 @@ function card(s) {
     </div>
     ${pedidosHtml || '<p class="muted" style="margin-top:12px">Nenhum pedido entregue ainda.</p>'}
     <div class="pay-row" data-pay="${s.id}">${pay}</div>
+    <div class="pix-box" id="pix-${s.id}" style="display:none">
+      <img src="${qrUrlPix(s.valorTotal)}" alt="QR Code PIX" width="220" height="220" loading="lazy">
+      <p class="muted" style="margin:10px 0 6px;font-size:.85rem">PIX · ${money(s.valorTotal)} · ${esc(PIX.nome)}</p>
+      <button class="btn" type="button" data-copy-pix="${s.id}">Copiar código PIX</button>
+      <textarea id="pix-payload-${s.id}" readonly hidden>${esc(montarPixCopiaCola(s.valorTotal))}</textarea>
+    </div>
     <div class="actions">
       <button class="btn primary" data-close="${s.id}" ${s.podeFechar ? '' : 'disabled title="Aguarde pedidos em andamento"'}>
         Fechar conta
@@ -181,6 +241,7 @@ async function load() {
         '<div class="panel empty-state" style="grid-column:1/-1"><div class="big">✅</div><div>Nenhuma sessão aberta no momento.</div></div>';
     } else {
       root.innerHTML = sessoes.map(card).join('');
+      sessoes.forEach((s) => syncPixBox(s.id));
     }
   } catch (e) {
     console.error(e);
@@ -221,7 +282,31 @@ async function fechar(id) {
   }
 }
 
+function syncPixBox(sessaoId) {
+  const radio = document.querySelector(`input[name="pay-${sessaoId}"]:checked`);
+  const box = document.getElementById('pix-' + sessaoId);
+  if (!box) return;
+  box.style.display = radio && radio.value === 'pix' ? 'block' : 'none';
+}
+
+document.getElementById('lista').addEventListener('change', (ev) => {
+  const input = ev.target.closest('input[type="radio"][name^="pay-"]');
+  if (!input) return;
+  syncPixBox(input.name.replace('pay-', ''));
+});
+
 document.getElementById('lista').addEventListener('click', (ev) => {
+  const copyBtn = ev.target.closest('[data-copy-pix]');
+  if (copyBtn) {
+    const ta = document.getElementById('pix-payload-' + copyBtn.dataset.copyPix);
+    if (ta) {
+      navigator.clipboard.writeText(ta.value).then(
+        () => toast('Código PIX copiado', 'ok'),
+        () => toast('Não foi possível copiar', 'err')
+      );
+    }
+    return;
+  }
   const btn = ev.target.closest('[data-close]');
   if (!btn || btn.disabled) return;
   fechar(Number(btn.dataset.close));
