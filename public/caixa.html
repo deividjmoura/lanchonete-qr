@@ -1,1 +1,325 @@
-PLACEHOLDER_CAIXA
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111">
+  <title>Caixa · Lanchonete QR</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;transition:background-color .2s ease,border-color .2s ease}
+    .sessao-card.blocked{opacity:.92}
+    .sessao-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    .valor-big{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;font-family:var(--font-mono)}
+    .badge.warn{background:var(--warning-soft);color:var(--warning)}
+    .badge.ok{background:var(--success-soft);color:var(--success)}
+    .itens-list{margin:14px 0 0;padding:0;list-style:none}
+    .itens-list li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+    .itens-list li:last-child{border-bottom:0}
+    .itens-list small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+    .pay-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+    .pay-row label{
+      display:inline-flex;align-items:center;gap:6px;
+      border:1px solid var(--line);border-radius:999px;padding:8px 14px;
+      cursor:pointer;font-weight:600;font-size:.88rem;background:var(--surface);color:var(--text);
+      transition:background-color .2s ease,border-color .2s ease,color .2s ease;
+    }
+    .pay-row input{accent-color:var(--primary)}
+    .pay-row label:has(input:checked){border-color:var(--dark);background:var(--dark);color:var(--bg)}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+    .grid-caixa{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+    details.pedido{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;background:var(--surface-2)}
+    details.pedido summary{cursor:pointer;font-weight:700}
+    .pix-box{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:14px;background:var(--surface-2);text-align:center}
+    .pix-box img{display:block;margin:0 auto;border-radius:12px;background:#fff;padding:8px}
+  </style>
+  </head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div>
+      <div class="brand">💵 Caixa</div>
+      <div class="muted">Sessões abertas · fecha conta e libera a mesa</div>
+    </div>
+    <div class="nav">
+      <a class="btn dark" href="/">Início</a>
+      <button class="btn" id="btnSair" type="button">Sair</button>
+    </div>
+  </div>
+
+  <div id="stats" class="muted" style="margin-bottom:14px"></div>
+  <div id="lista" class="grid-caixa"></div>
+</main>
+<div id="toast" class="toast"></div>
+
+<script src="/js/safe-dom.js"></script>
+<script src="/js/realtime.js"></script>
+
+<script>
+(function () {
+  // Sessão expirou no meio do turno? Manda pro login em vez de mostrar erro genérico.
+  const _fetch = window.fetch;
+  window.fetch = async function (...args) {
+    const res = await _fetch(...args);
+    if (res.status === 401) location.href = '/login?next=' + encodeURIComponent(location.pathname);
+    return res;
+  };
+})();
+
+document.getElementById('btnSair').addEventListener('click', async () => {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
+  location.href = '/login';
+});
+
+const FORMAS = [
+  { id: 'dinheiro', label: 'Dinheiro' },
+  { id: 'pix', label: 'PIX' },
+  { id: 'cartao_debito', label: 'Débito' },
+  { id: 'cartao_credito', label: 'Crédito' },
+];
+
+// Recebedor PIX (chave = CPF)
+const PIX = {
+  chave: '07374955960',
+  nome: 'DEIVID DE JESUS DE MOURA',
+  cidade: 'PENHA',
+};
+
+function tlv(id, value) {
+  const v = String(value);
+  return id + String(v.length).padStart(2, '0') + v;
+}
+
+function crc16(payload) {
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+/** Payload PIX (BR Code) com valor — QR / copia-e-cola. */
+function montarPixCopiaCola(valor) {
+  const nome = PIX.nome.slice(0, 25);
+  const cidade = PIX.cidade.slice(0, 15);
+  const mai = tlv('00', 'br.gov.bcb.pix') + tlv('01', PIX.chave);
+  const amount = Number(valor || 0).toFixed(2);
+  let payload =
+    tlv('00', '01') +
+    tlv('26', mai) +
+    tlv('52', '0000') +
+    tlv('53', '986') +
+    tlv('54', amount) +
+    tlv('58', 'BR') +
+    tlv('59', nome) +
+    tlv('60', cidade) +
+    tlv('62', tlv('05', '***'));
+  payload += '6304';
+  payload += crc16(payload);
+  return payload;
+}
+
+function qrUrlPix(valor) {
+  return (
+    'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' +
+    encodeURIComponent(montarPixCopiaCola(valor))
+  );
+}
+
+const esc = (s) => {
+  if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
+    return SafeDOM.escapeHtml(s);
+  }
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#039;',
+  }[m]));
+};
+
+function money(n) {
+  return 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');
+}
+
+function fmtHora(iso) {
+  try {
+    return new Date(iso).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return '—';
+  }
+}
+
+function itemLine(i) {
+  const extras = [];
+  if (i.adicionais?.length) extras.push('+ ' + i.adicionais.map((a) => a.nome).join(', '));
+  if (i.remocoes?.length) extras.push('sem ' + i.remocoes.join(', '));
+  if (i.ponto_carne) extras.push('ponto: ' + i.ponto_carne.replace(/_/g, ' ').toLowerCase());
+  if (i.observacao) extras.push(i.observacao);
+  return `<li>
+    <span><b>${i.quantidade}×</b> ${esc(i.nome)}
+      ${extras.length ? `<small>${esc(extras.join(' · '))}</small>` : ''}
+    </span>
+    <span>${money(i.subtotal)}</span>
+  </li>`;
+}
+
+function card(s) {
+  const pedidosHtml = (s.pedidosEntregues || [])
+    .map((p) => {
+      const itens = (p.itens || []).map(itemLine).join('');
+      return `<details class="pedido">
+        <summary>Pedido #${p.id} · ${money(p.total)}</summary>
+        <ul class="itens-list">${itens || '<li class="muted">Sem itens</li>'}</ul>
+      </details>`;
+    })
+    .join('');
+
+  const pay = FORMAS.map(
+    (f, idx) =>
+      `<label><input type="radio" name="pay-${s.id}" value="${f.id}" ${idx === 1 ? 'checked' : ''}> ${f.label}</label>`
+  ).join('');
+
+  const bloqueio = s.pedidosPendentes > 0
+    ? `<span class="badge warn">${s.pedidosPendentes} em andamento</span>`
+    : `<span class="badge ok">Pronto para fechar</span>`;
+
+  return `<article class="sessao-card ${s.podeFechar ? '' : 'blocked'}" data-id="${s.id}">
+    <div class="sessao-head">
+      <div>
+        <div class="big">Mesa ${s.mesa}</div>
+        <div class="muted" style="font-size:.85rem">Aberta em ${fmtHora(s.abertaEm)} · sessão #${s.id}</div>
+        <div style="margin-top:8px">${bloqueio}</div>
+      </div>
+      <div class="valor-big">${money(s.valorTotal)}</div>
+    </div>
+    ${pedidosHtml || '<p class="muted" style="margin-top:12px">Nenhum pedido entregue ainda.</p>'}
+    <div class="pay-row" data-pay="${s.id}">${pay}</div>
+    <div class="pix-box" id="pix-${s.id}" style="display:none">
+      <img src="${qrUrlPix(s.valorTotal)}" alt="QR Code PIX" width="220" height="220" loading="lazy">
+      <p class="muted" style="margin:10px 0 6px;font-size:.85rem">PIX · ${money(s.valorTotal)} · ${esc(PIX.nome)}</p>
+      <button class="btn" type="button" data-copy-pix="${s.id}">Copiar código PIX</button>
+      <textarea id="pix-payload-${s.id}" readonly hidden>${esc(montarPixCopiaCola(s.valorTotal))}</textarea>
+    </div>
+    <div class="actions">
+      <button class="btn primary" data-close="${s.id}" ${s.podeFechar ? '' : 'disabled title="Aguarde pedidos em andamento"'}>
+        Fechar conta
+      </button>
+    </div>
+  </article>`;
+}
+
+function toast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (kind === 'err' ? ' err' : kind === 'ok' ? ' ok' : '');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
+}
+
+let closing = false;
+
+const load = (window.LQRRealtime && LQRRealtime.createLoader
+  ? LQRRealtime.createLoader
+  : (fn) => {
+      let loading = false, dirty = false;
+      return async function load() {
+        if (loading) { dirty = true; return; }
+        loading = true;
+        try { do { dirty = false; await fn(); } while (dirty); }
+        finally { loading = false; }
+      };
+    })(async () => {
+  if (closing) return;
+  const res = await fetch('/api/caixa/sessoes');
+  if (!res.ok) throw new Error('Falha ao carregar');
+  const sessoes = await res.json();
+
+  const totalAberto = sessoes.reduce((s, x) => s + Number(x.valorTotal || 0), 0);
+  document.getElementById('stats').textContent = sessoes.length
+    ? `${sessoes.length} mesa(s) aberta(s) · total em aberto ${money(totalAberto)}`
+    : 'Nenhuma mesa com conta aberta';
+
+  const root = document.getElementById('lista');
+  if (!sessoes.length) {
+    root.innerHTML =
+      '<div class="panel empty-state" style="grid-column:1/-1"><div class="big">✅</div><div>Nenhuma sessão aberta no momento.</div></div>';
+  } else {
+    root.innerHTML = sessoes.map(card).join('');
+    sessoes.forEach((s) => syncPixBox(s.id));
+  }
+});
+
+async function fechar(id) {
+  if (closing) return;
+  const radio = document.querySelector(`input[name="pay-${id}"]:checked`);
+  if (!radio) {
+    toast('Escolha a forma de pagamento', 'err');
+    return;
+  }
+  if (!confirm('Confirmar fechamento da conta?')) return;
+
+  closing = true;
+  try {
+    const res = await fetch(`/api/caixa/sessoes/${id}/fechar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ formaPagamento: radio.value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || 'Não foi possível fechar', 'err');
+      return;
+    }
+    toast(`Mesa ${data.mesa} fechada · ${money(data.valorTotal)} · ${data.formaPagamento}`, 'ok');
+    await load();
+  } catch (e) {
+    console.error(e);
+    toast('Erro de rede', 'err');
+  } finally {
+    closing = false;
+  }
+}
+
+function syncPixBox(sessaoId) {
+  const radio = document.querySelector(`input[name="pay-${sessaoId}"]:checked`);
+  const box = document.getElementById('pix-' + sessaoId);
+  if (!box) return;
+  box.style.display = radio && radio.value === 'pix' ? 'block' : 'none';
+}
+
+document.getElementById('lista').addEventListener('change', (ev) => {
+  const input = ev.target.closest('input[type="radio"][name^="pay-"]');
+  if (!input) return;
+  syncPixBox(input.name.replace('pay-', ''));
+});
+
+document.getElementById('lista').addEventListener('click', (ev) => {
+  const copyBtn = ev.target.closest('[data-copy-pix]');
+  if (copyBtn) {
+    const ta = document.getElementById('pix-payload-' + copyBtn.dataset.copyPix);
+    if (ta) {
+      navigator.clipboard.writeText(ta.value).then(
+        () => toast('Código PIX copiado', 'ok'),
+        () => toast('Não foi possível copiar', 'err')
+      );
+    }
+    return;
+  }
+  const btn = ev.target.closest('[data-close]');
+  if (!btn || btn.disabled) return;
+  fechar(Number(btn.dataset.close));
+});
+
+load();
+if (window.LQRRealtime) {
+  LQRRealtime.connect(() => load(), { fallbackMs: 20000, debounceMs: 150 });
+} else {
+  setInterval(load, 5000);
+}
+</script>
+</body>
+</html>
