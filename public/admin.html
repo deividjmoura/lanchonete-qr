@@ -1,1 +1,30 @@
-LOADING
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin · Lanchonete QR</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div><div class="brand">⚙️ Admin</div></div>
+    <div class="nav">
+      <a class="btn" href="/caixa">Caixa</a>
+      <a class="btn" href="/cozinha">Cozinha</a>
+      <button class="btn" id="btnSair" type="button">Sair</button>
+    </div>
+  </div>
+  <div class="panel"><p class="muted">Restaurando… recarregue em alguns segundos.</p></div>
+</main>
+<script src="/js/safe-dom.js"></script>
+<script src="/js/realtime.js"></script>
+<script>
+document.getElementById('btnSair')?.addEventListener('click', async () => {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
+  location.href = '/login';
+});
+</script>
+</body>
+</html>
