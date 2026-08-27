@@ -17,7 +17,8 @@
   .login-card h1{ font-size:1.5rem; margin-bottom:6px; }
   .login-card p.muted{ margin-bottom:26px; }
   .login-card form{ text-align:left; }
-  .login-card .btn.primary{ width:100%; margin-top:18px; }
+  .login-card label{ display:block; margin-top:12px; margin-bottom:6px; }
+  .login-card .btn.primary{ width:100%; margin-top:18px; min-height:44px; }
   .login-card .btn.primary[disabled]{ opacity:.7; cursor:default; transform:none; }
   .login-error{
     display:none; margin-top:14px; padding:10px 14px; border-radius:10px;
@@ -27,6 +28,7 @@
   .login-back{ display:block; text-align:center; margin-top:18px; color:var(--muted); font-size:.86rem; transition:color .2s ease; }
   .login-back:hover{ color:var(--text); }
   .login-theme{ position:absolute; top:-48px; right:16px; }
+  .login-hint{ margin-top:16px; font-size:.78rem; color:var(--muted); line-height:1.4; }
 </style>
 </head>
 <body>
@@ -35,25 +37,34 @@
   <section class="panel login-card">
     <div class="login-lock">🔒</div>
     <h1>Área restrita</h1>
-    <p class="muted">Acesso da equipe — admin e caixa</p>
+    <p class="muted">Login da equipe — admin, cozinha ou caixa</p>
     <form id="loginForm" autocomplete="on">
+      <label for="usuario">Usuário</label>
+      <input type="text" id="usuario" name="usuario" autocomplete="username" autofocus required placeholder="admin">
       <label for="senha">Senha</label>
-      <input type="password" id="senha" name="senha" autocomplete="current-password" autofocus required>
-      <button class="btn primary" type="submit" style="min-height:44px">Entrar</button>
+      <input type="password" id="senha" name="senha" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Entrar</button>
     </form>
     <div id="erro" class="login-error" role="alert" aria-live="assertive"></div>
+    <p class="login-hint">Usuários iniciais após migrate: <code>admin</code>, <code>cozinha</code>, <code>caixa</code> (senha do seed / <code>ADMIN_PASSWORD</code>).</p>
   </section>
-  <a class="login-back" href="/">← Voltar ao início</a>
+  <a class="login-back" href="/login">← Login</a>
 </div>
 
 <script src="/js/safe-dom.js"></script>
 
 <script>
 const params = new URLSearchParams(location.search);
-const next = params.get('next') || '/admin';
+const nextParam = params.get('next');
 const form = document.getElementById('loginForm');
 const erroEl = document.getElementById('erro');
 const btn = form.querySelector('button');
+
+function destinoPadrao(home, next) {
+  if (!next || next === '/' || next === '/login') return home || '/admin';
+  if (next.startsWith('/') && !next.startsWith('//')) return next;
+  return home || '/admin';
+}
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -64,7 +75,10 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senha: document.getElementById('senha').value }),
+      body: JSON.stringify({
+        usuario: document.getElementById('usuario').value.trim(),
+        senha: document.getElementById('senha').value,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -74,7 +88,7 @@ form.addEventListener('submit', async (e) => {
       btn.textContent = 'Entrar';
       return;
     }
-    location.href = next;
+    location.href = destinoPadrao(data.home, nextParam);
   } catch (err) {
     erroEl.textContent = 'Erro de rede. Tente novamente.';
     erroEl.className = 'login-error show';
