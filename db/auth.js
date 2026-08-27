@@ -1,50 +1,34 @@
-// Auth de staff: senha compartilhada (ADMIN_PASSWORD) + sessão em memória (cookie httpOnly).
+// Auth de staff: usuários no Postgres (papéis) + sessão persistente (cookie httpOnly).
 const crypto = require('crypto');
+const { promisify } = require('util');
+const pool = require('./pool');
+
+const scrypt = promisify(crypto.scrypt);
 
 const SESSION_COOKIE = 'lqr_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const SCRYPT_KEYLEN = 64;
 
-// token -> expiração (ms). Reinício do processo invalida todas as sessões.
-const sessions = new Map();
+const PAPEIS = Object.freeze(['admin', 'cozinha', 'caixa']);
+
+// admin acessa tudo; cozinha e caixa só o próprio domínio
+const ACESSO = Object.freeze({
+  admin: new Set(['admin', 'cozinha', 'caixa']),
+  cozinha: new Set(['cozinha']),
+  caixa: new Set(['caixa']),
+});
+
+const HOME_POR_PAPEL = Object.freeze({
+  admin: '/admin',
+  cozinha: '/cozinha',
+  caixa: '/caixa',
+});
 
 class ErroAuth extends Error {
   constructor(status, message) {
     super(message);
     this.status = status;
   }
-}
-
-function senhaConfigurada() {
-  return typeof process.env.ADMIN_PASSWORD === 'string' && process.env.ADMIN_PASSWORD.length > 0;
-}
-
-function senhaValida(candidata) {
-  const esperada = process.env.ADMIN_PASSWORD || '';
-  const a = Buffer.from(String(candidata || ''));
-  const b = Buffer.from(esperada);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
-}
-
-function criarSessao() {
-  const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, Date.now() + SESSION_TTL_MS);
-  return token;
-}
-
-function destruirSessao(token) {
-  if (token) sessions.delete(token);
-}
-
-function sessaoValida(token) {
-  if (!token) return false;
-  const expira = sessions.get(token);
-  if (!expira) return false;
-  if (Date.now() > expira) {
-    sessions.delete(token);
-    return false;
-  }
-  return true;
 }
 
 function parseCookies(req) {
@@ -57,10 +41,6 @@ function parseCookies(req) {
     out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
   }
   return out;
-}
-
-function estaAutenticado(req) {
-  return sessaoValida(parseCookies(req)[SESSION_COOKIE]);
 }
 
 function cookieDeSessao(token) {
@@ -79,22 +59,184 @@ function cookieDeLogout() {
   return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0`;
 }
 
-setInterval(() => {
-  const agora = Date.now();
-  for (const [token, expira] of sessions) {
-    if (agora > expira) sessions.delete(token);
+async function hashSenha(senha) {
+  const salt = crypto.randomBytes(16);
+  const derived = await scrypt(String(senha), salt, SCRYPT_KEYLEN);
+  return `${salt.toString('hex')}:${Buffer.from(derived).toString('hex')}`;
+}
+
+async function verificarSenha(senha, stored) {
+  if (!stored || typeof stored !== 'string' || !stored.includes(':')) return false;
+  const [saltHex, hashHex] = stored.split(':');
+  if (!saltHex || !hashHex) return false;
+  try {
+    const salt = Buffer.from(saltHex, 'hex');
+    const esperado = Buffer.from(hashHex, 'hex');
+    const derived = await scrypt(String(senha || ''), salt, SCRYPT_KEYLEN);
+    const atual = Buffer.from(derived);
+    if (atual.length !== esperado.length) return false;
+    return crypto.timingSafeEqual(atual, esperado);
+  } catch {
+    return false;
   }
+}
+
+function staffPublico(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    nome: row.nome,
+    login: row.login,
+    papel: row.papel,
+  };
+}
+
+async function contarStaff() {
+  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM staff');
+  return rows[0].n;
+}
+
+/** Garante usuários iniciais (idempotente). */
+async function garantirStaffSeed() {
+  const n = await contarStaff();
+  if (n > 0) return { created: false, count: n };
+
+  const senhaPadrao = process.env.STAFF_SEED_PASSWORD || process.env.ADMIN_PASSWORD || 'troque-esta-senha';
+  const hash = await hashSenha(senhaPadrao);
+  const users = [
+    { nome: 'Administrador', login: 'admin', papel: 'admin' },
+    { nome: 'Cozinha', login: 'cozinha', papel: 'cozinha' },
+    { nome: 'Caixa', login: 'caixa', papel: 'caixa' },
+  ];
+  for (const u of users) {
+    await pool.query(
+      `INSERT INTO staff (nome, login, senha_hash, papel)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (login) DO NOTHING`,
+      [u.nome, u.login, hash, u.papel]
+    );
+  }
+  return { created: true, count: users.length, senhaPadraoUsada: true };
+}
+
+async function autenticar(login, senha) {
+  const user = String(login || '').trim().toLowerCase();
+  if (!user || !senha) {
+    throw new ErroAuth(400, 'Informe usuário e senha');
+  }
+
+  const { rows } = await pool.query(
+    `SELECT id, nome, login, senha_hash, papel, ativo
+     FROM staff WHERE lower(login) = $1 LIMIT 1`,
+    [user]
+  );
+  const row = rows[0];
+  if (!row || !row.ativo) {
+    throw new ErroAuth(401, 'Usuário ou senha incorretos');
+  }
+  const ok = await verificarSenha(senha, row.senha_hash);
+  if (!ok) {
+    throw new ErroAuth(401, 'Usuário ou senha incorretos');
+  }
+  return staffPublico(row);
+}
+
+async function criarSessao(staffId) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expira = new Date(Date.now() + SESSION_TTL_MS);
+  await pool.query(
+    `INSERT INTO staff_sessoes (token, staff_id, expira_em)
+     VALUES ($1, $2, $3)`,
+    [token, staffId, expira]
+  );
+  return token;
+}
+
+async function destruirSessao(token) {
+  if (!token) return;
+  await pool.query('DELETE FROM staff_sessoes WHERE token = $1', [token]);
+}
+
+async function getStaffDaRequisicao(req) {
+  const token = parseCookies(req)[SESSION_COOKIE];
+  if (!token) return null;
+
+  const { rows } = await pool.query(
+    `SELECT s.id, s.nome, s.login, s.papel, s.ativo, ss.expira_em
+     FROM staff_sessoes ss
+     JOIN staff s ON s.id = ss.staff_id
+     WHERE ss.token = $1`,
+    [token]
+  );
+  const row = rows[0];
+  if (!row || !row.ativo) {
+    if (token) await destruirSessao(token);
+    return null;
+  }
+  if (new Date(row.expira_em).getTime() <= Date.now()) {
+    await destruirSessao(token);
+    return null;
+  }
+
+  // Touch leve (não bloqueia se falhar)
+  pool
+    .query('UPDATE staff_sessoes SET ultimo_uso = now() WHERE token = $1', [token])
+    .catch(() => {});
+
+  return staffPublico(row);
+}
+
+async function estaAutenticado(req) {
+  const staff = await getStaffDaRequisicao(req);
+  return Boolean(staff);
+}
+
+function papelPodeAcessar(papel, recurso) {
+  const set = ACESSO[papel];
+  return Boolean(set && set.has(recurso));
+}
+
+/** recurso: 'admin' | 'cozinha' | 'caixa' */
+async function exigirAcesso(req, recurso) {
+  const staff = await getStaffDaRequisicao(req);
+  if (!staff) {
+    const err = new ErroAuth(401, 'Não autenticado');
+    throw err;
+  }
+  if (!papelPodeAcessar(staff.papel, recurso)) {
+    throw new ErroAuth(403, 'Sem permissão para esta área');
+  }
+  return staff;
+}
+
+function homeDoPapel(papel) {
+  return HOME_POR_PAPEL[papel] || '/admin';
+}
+
+// Limpa sessões expiradas de tempos em tempos
+setInterval(() => {
+  pool
+    .query('DELETE FROM staff_sessoes WHERE expira_em < now()')
+    .catch(() => {});
 }, 30 * 60 * 1000).unref();
 
 module.exports = {
   ErroAuth,
   SESSION_COOKIE,
-  senhaConfigurada,
-  senhaValida,
-  criarSessao,
-  destruirSessao,
-  estaAutenticado,
+  PAPEIS,
   parseCookies,
   cookieDeSessao,
   cookieDeLogout,
+  hashSenha,
+  verificarSenha,
+  autenticar,
+  criarSessao,
+  destruirSessao,
+  getStaffDaRequisicao,
+  estaAutenticado,
+  exigirAcesso,
+  papelPodeAcessar,
+  homeDoPapel,
+  garantirStaffSeed,
+  contarStaff,
 };
