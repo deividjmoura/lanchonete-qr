@@ -7,6 +7,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const pool = require('./pool');
+const { garantirStaffSeed } = require('./auth');
 
 const DB_JSON = path.join(__dirname, '..', 'data', 'db.json');
 
@@ -20,18 +21,20 @@ async function run() {
   try {
     const { rows: existentes } = await client.query('SELECT COUNT(*)::int AS n FROM categorias');
     if (existentes[0].n > 0 && !force) {
-      console.log('⚠️  Já existem categorias no banco. Seed abortado para não duplicar.');
+      console.log('⚠️  Já existem categorias no banco. Seed de cardápio abortado para não duplicar.');
       console.log('   Para substituir o cardápio: FORCE_SEED=1 npm run db:seed');
+      const staff = await garantirStaffSeed();
+      if (staff.created) {
+        console.log('👤 Staff inicial criado (admin / cozinha / caixa).');
+      } else {
+        console.log(`👤 Staff já existe (${staff.count} usuário(s)).`);
+      }
       return;
     }
 
     await client.query('BEGIN');
 
     if (force && existentes[0].n > 0) {
-      // Limpa só o cardápio (mantém mesas, pedidos e sessões se possível).
-      // Itens de pedidos antigos referenciam produtos — em ambiente de demo
-      // apagamos em cascata o cardápio; pedidos históricos podem ficar órfãos
-      // de nome se a FK impedir. Preferimos truncar cardápio em ordem segura.
       await client.query('DELETE FROM itens_pedido_adicionais');
       await client.query('DELETE FROM itens_pedido_remocoes');
       await client.query('DELETE FROM itens_pedido');
@@ -44,15 +47,11 @@ async function run() {
       console.log('🗑️  Cardápio e pedidos anteriores removidos (FORCE_SEED).');
     }
 
-    // Mesas — o token novo (uuid) substitui o número puro na URL do QR.
-    // Os QR codes em qr/*.png precisam ser regenerados apontando pro token,
-    // não pro número (ver seção 7 do plano: "Segurança básica").
     for (let numero = 1; numero <= NUM_MESAS; numero++) {
       await client.query('INSERT INTO mesas (numero) VALUES ($1) ON CONFLICT (numero) DO NOTHING', [numero]);
     }
     console.log(`✅ ${NUM_MESAS} mesas inseridas (tokens uuid gerados automaticamente).`);
 
-    // Ordem das categorias = ordem de primeira aparição no db.json
     const categoriasNomes = [...new Set(raw.menu.map((p) => p.category))];
     const categoriaIdPorNome = {};
 
@@ -68,7 +67,6 @@ async function run() {
 
     let totalProdutos = 0;
     let totalAdicionais = 0;
-
     let totalRemoviveis = 0;
 
     for (const p of raw.menu) {
@@ -103,6 +101,11 @@ async function run() {
 
     await client.query('COMMIT');
     console.log(`✅ ${totalProdutos} produtos, ${totalAdicionais} adicionais e ${totalRemoviveis} ingredientes removíveis inseridos.`);
+
+    const staff = await garantirStaffSeed();
+    if (staff.created) {
+      console.log('👤 Staff inicial criado (admin / cozinha / caixa).');
+    }
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
