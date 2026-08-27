@@ -20,6 +20,7 @@
 </main>
 <div id="toast" class="toast"></div>
 <script src="/js/safe-dom.js"></script>
+<script src="/js/realtime.js"></script>
 <script>
 const parts = location.pathname.split('/').filter(Boolean);
 const garcomToken = parts[0] === 'garcom' && parts[1] ? parts[1] : new URLSearchParams(location.search).get('token');
@@ -28,7 +29,7 @@ if (!garcomToken || !UUID_RE.test(garcomToken)) {
   document.body.innerHTML = '<main class="wrap"><div class="panel"><h2>Acesso do garçom</h2><p class="muted">Use o link pessoal gerado no painel Admin (com seu nome).</p></div></main>';
   throw new Error('token ausente');
 }
-let me = null, loading = false, advancing = false;
+let me = null, advancing = false;
 function fmtHora(iso){try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}catch{return'—'}}
 function idadeMinutos(iso){return Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000))}
 function ageClass(min){if(min>=10)return'hot';if(min>=5)return'warn';return''}
@@ -53,7 +54,7 @@ function card(p){
   const min=idadeMinutos(p.criado_em);
   const itens=(p.itens||[]).map(i=>`<div class="row"><span><b>${i.quantidade}×</b> ${esc(i.nome)}${extrasHtml(i)}</span></div>`).join('');
   const cliente=p.cliente_nome?`<div class="muted" style="margin-top:4px">Cliente: <b>${esc(p.cliente_nome)}</b></div>`:'';
-  return `<article class="card kcard ${ageClass(min)}">
+  return `<article class="card kcard ${ageClass(min)}" data-id="${p.id}">
     <div class="row" style="justify-content:space-between">
       <div><b>Mesa ${esc(String(p.mesa))}</b> · #${p.id}
         <div class="muted">${fmtHora(p.criado_em)} · ${min} min</div>${cliente}</div>
@@ -73,39 +74,55 @@ async function loadMe(){
   me=await res.json();
   document.getElementById('who').textContent=me.nome+' · só pedidos prontos para entregar';
 }
-async function load(){
-  if(loading||advancing)return;loading=true;
-  try{
-    const res=await fetch('/api/garcom/'+garcomToken+'/pedidos');
-    if(!res.ok)throw new Error('fail');
-    const pedidos=await res.json();
-    document.getElementById('stats').textContent=pedidos.length?`${pedidos.length} pronto(s) para entregar`:'Nenhum pedido aguardando entrega';
-    document.getElementById('orders').innerHTML=pedidos.length?pedidos.map(card).join(''):'<div class="panel empty-state"><div class="big">✅</div><div>Fila vazia.</div></div>';
-  }catch(e){document.getElementById('stats').textContent='Erro ao atualizar'}
-  finally{loading=false}
-}
+const load = (window.LQRRealtime && LQRRealtime.createLoader
+  ? LQRRealtime.createLoader
+  : (fn) => {
+      let loading = false, dirty = false;
+      return async function load() {
+        if (loading) { dirty = true; return; }
+        loading = true;
+        try { do { dirty = false; await fn(); } while (dirty); }
+        finally { loading = false; }
+      };
+    })(async () => {
+  if (advancing) return;
+  const res = await fetch('/api/garcom/' + garcomToken + '/pedidos');
+  if (!res.ok) throw new Error('fail');
+  const pedidos = await res.json();
+  document.getElementById('stats').textContent = pedidos.length
+    ? `${pedidos.length} pronto(s) para entregar`
+    : 'Nenhum pedido aguardando entrega';
+  document.getElementById('orders').innerHTML = pedidos.length
+    ? pedidos.map(card).join('')
+    : '<div class="panel empty-state"><div class="big">✅</div><div>Fila vazia.</div></div>';
+});
 async function entregar(id){
   if(advancing)return;advancing=true;
+  const art = document.querySelector(`article[data-id="${id}"]`);
+  if (art) art.remove();
   try{
     const res=await fetch(`/api/garcom/${garcomToken}/pedidos/${id}/entregar`,{method:'POST'});
     const data=await res.json().catch(()=>({}));
     if(!res.ok){toast(data.error||'Não foi possível entregar','err');await load();return}
     toast('Entregue e assinado por '+(data.garcom?.nome||me.nome),'ok');
     await load();
-  }catch(e){toast('Erro de rede','err')}
+  }catch(e){toast('Erro de rede','err');await load();}
   finally{advancing=false}
 }
 document.getElementById('orders').addEventListener('click',(ev)=>{
   const btn=ev.target.closest('[data-deliver]');if(!btn)return;entregar(Number(btn.dataset.deliver));
 });
 (async()=>{
-  await loadMe();await load();
-  if(typeof EventSource!=='undefined'){
-    const es=new EventSource('/api/events');
-    es.addEventListener('update',()=>load());
-    es.addEventListener('hello',()=>load());
-    setInterval(load,20000);
-  }else setInterval(load,3000);
+  await loadMe();
+  await load();
+  if (window.LQRRealtime) {
+    LQRRealtime.connect(() => load(), { fallbackMs: 20000, debounceMs: 120 });
+  } else if (typeof EventSource !== 'undefined') {
+    const es = new EventSource('/api/events');
+    es.addEventListener('update', () => load());
+    es.addEventListener('hello', () => load());
+    setInterval(load, 20000);
+  } else setInterval(load, 3000);
 })();
 </script>
 </body>
