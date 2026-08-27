@@ -19,7 +19,7 @@ Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Cont
 ### Visão geral
 
 ```text
-████████████████████████████████████░░░░░░░░  78%
+████████████████████████████████░░░░░░░░  78%
 │                 MVP Core                 │  Próxima fase
 ```
 
@@ -43,7 +43,7 @@ Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Cont
 | Cozinha | Fila `recebido → em_producao → concluido` | ✅ |
 | Garçom | Link pessoal + lock otimista na entrega | ✅ |
 | Caixa | Fecha sessão + forma de pagamento | ✅ |
-| Admin | Cardápio, QR, garçons, pedidos recentes | ✅ |
+| Admin | Cardápio, QR, garçons, **painel de pedidos ativos** (histórico sob busca) | ✅ |
 | Tempo real (SSE) | Atualiza filas e mesa sem refresh | ✅ |
 | Rate limit | Pedido + login | ✅ |
 | Segurança básica | UUID na mesa, headers, CSP, auth staff | ✅ |
@@ -80,10 +80,10 @@ Próximos passos sugeridos
 ## 🔄 Fluxo operacional
 
 ```text
-┌─────────────┐     ┌──────────┐     ┌─────────┐     ┌────────┐
+┌─────────────┐     ┌──────────┐     ┌─────────┐     ┌───────┐
 │  Cliente    │────▶│ Cozinha  │────▶│ Garçom  │────▶│ Caixa  │
 │ /mesa/:tok  │     │ (login)  │     │ /garcom │     │(login) │
-└─────────────┘     └──────────┘     │ /:token │     └────────┘
+└─────────────┘     └──────────┘     │ /:token │     └───────┘
        │                  │          └─────────┘           │
        │ check-in nome    │ status                         │ fecha
        │ + pedidos        │ recebido → concluido           │ sessão
@@ -153,6 +153,19 @@ npm start
 
 ---
 
+## 🧾 Admin · Painel de pedidos
+
+Aba **Pedidos** no `/admin`:
+
+| Área | Comportamento |
+|------|----------------|
+| **Pedidos ativos** | Kanban em 3 colunas: *Recebido* → *Na cozinha* → *Pronto*. Só status em andamento (não mostra `entregue`). Atualiza via SSE. |
+| **Histórico** | Vazio por padrão. Carrega só quando você busca por intervalo de datas (`De` / `Até`). Evita poluir a tela com pedidos antigos. |
+
+Mesmo espírito da fila do garçom/cozinha: o que importa agora fica em destaque; o restante só sob demanda.
+
+---
+
 ## 🔌 API (resumo)
 
 **Público**
@@ -162,6 +175,8 @@ npm start
 
 **Staff** (após `/login`)
 - Cozinha · `PATCH /api/pedidos/:id/status` · Caixa · `/api/admin/*`
+- `GET /api/admin/pedidos?ativos=1` — só pedidos em andamento (`recebido` / `em_producao` / `concluido`)
+- `GET /api/admin/pedidos?from=YYYY-MM-DD&to=YYYY-MM-DD` — histórico por período
 
 Telas protegidas: `/admin`, `/caixa`, `/cozinha`.
 
