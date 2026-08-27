@@ -26,6 +26,7 @@
 <div id="toast" class="toast"></div>
 
 <script src="/js/safe-dom.js"></script>
+<script src="/js/realtime.js"></script>
 
 <script>
 const LABELS = {
@@ -147,42 +148,57 @@ function toast(msg, isErr) {
   }, 2200);
 }
 
-let loading = false;
 let advancing = false;
 
-async function load() {
-  if (loading || advancing) return;
-  loading = true;
-  try {
-    const res = await fetch('/api/cozinha/pedidos');
-    if (res.status === 401) { location.href = '/login?next=' + encodeURIComponent('/cozinha'); return; }
-    if (!res.ok) throw new Error('Falha ao carregar fila');
-    const pedidos = await res.json();
+const load = (window.LQRRealtime && LQRRealtime.createLoader
+  ? LQRRealtime.createLoader
+  : (fn) => {
+      let loading = false, dirty = false;
+      return async function load() {
+        if (loading) { dirty = true; return; }
+        loading = true;
+        try { do { dirty = false; await fn(); } while (dirty); }
+        finally { loading = false; }
+      };
+    })(async () => {
+  if (advancing) return;
+  const res = await fetch('/api/cozinha/pedidos');
+  if (res.status === 401) { location.href = '/login?next=' + encodeURIComponent('/cozinha'); return; }
+  if (!res.ok) throw new Error('Falha ao carregar fila');
+  const pedidos = await res.json();
 
-    const novos = pedidos.filter((p) => p.status === 'recebido').length;
-    const prep = pedidos.filter((p) => p.status === 'em_producao').length;
-    document.getElementById('stats').textContent = pedidos.length
-      ? `${pedidos.length} na fila · ${novos} novo(s) · ${prep} em produção`
-      : 'Fila vazia';
+  const novos = pedidos.filter((p) => p.status === 'recebido').length;
+  const prep = pedidos.filter((p) => p.status === 'em_producao').length;
+  document.getElementById('stats').textContent = pedidos.length
+    ? `${pedidos.length} na fila · ${novos} novo(s) · ${prep} em produção`
+    : 'Fila vazia';
 
-    const root = document.getElementById('orders');
-    if (!pedidos.length) {
-      root.innerHTML =
-        '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
-    } else {
-      root.innerHTML = pedidos.map(card).join('');
-    }
-  } catch (e) {
-    console.error(e);
-    document.getElementById('stats').textContent = 'Erro ao atualizar a fila';
-  } finally {
-    loading = false;
+  const root = document.getElementById('orders');
+  if (!pedidos.length) {
+    root.innerHTML =
+      '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
+  } else {
+    root.innerHTML = pedidos.map(card).join('');
   }
-}
+});
 
 async function avancar(id, status) {
   if (advancing) return;
   advancing = true;
+  const btn = document.querySelector(`[data-advance="${id}"]`);
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '…';
+  }
+  // Optimistic: remove/atualiza card na hora
+  const art = document.querySelector(`article[data-id="${id}"]`);
+  if (art && status === 'concluido') art.remove();
+  else if (art && status === 'em_producao') {
+    const badge = art.querySelector('.badge');
+    if (badge) { badge.className = 'badge em_producao'; badge.textContent = LABELS.em_producao; }
+    const nav = art.querySelector('.nav');
+    if (nav) nav.innerHTML = `<button class="btn primary" data-advance="${id}" data-status="concluido">${ACAO.em_producao}</button>`;
+  }
   try {
     const res = await fetch(`/api/pedidos/${id}/status`, {
       method: 'PATCH',
@@ -192,6 +208,7 @@ async function avancar(id, status) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       toast(data.error || 'Não foi possível avançar o status', true);
+      await load();
       return;
     }
     toast(status === 'em_producao' ? 'Pedido em preparo' : 'Pedido concluído — aguardando garçom');
@@ -199,6 +216,7 @@ async function avancar(id, status) {
   } catch (e) {
     console.error(e);
     toast('Erro de rede', true);
+    await load();
   } finally {
     advancing = false;
   }
@@ -211,17 +229,16 @@ document.getElementById('orders').addEventListener('click', (ev) => {
 });
 
 load();
-function connectEvents() {
-  if (typeof EventSource === 'undefined') {
-    setInterval(load, 3000);
-    return;
-  }
+if (window.LQRRealtime) {
+  LQRRealtime.connect(() => load(), { fallbackMs: 20000, debounceMs: 120 });
+} else if (typeof EventSource !== 'undefined') {
   const es = new EventSource('/api/events');
   es.addEventListener('update', () => load());
   es.addEventListener('hello', () => load());
   setInterval(load, 15000);
+} else {
+  setInterval(load, 3000);
 }
-connectEvents();
 </script>
 </body>
 </html>
