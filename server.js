@@ -56,6 +56,7 @@ const {
   entregarComoGarcom,
   listPedidosRecentes,
 } = require('./db/garcons');
+const { resumoDia } = require('./db/dashboard');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -80,7 +81,6 @@ function applySecurityHeaders(res) {
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
-  // CSP: 'unsafe-inline' necessário enquanto scripts/estilos estão embutidos no HTML.
   if (!res.getHeader('Content-Security-Policy')) {
     res.setHeader(
       'Content-Security-Policy',
@@ -144,7 +144,6 @@ const mime = {
   '.svg': 'image/svg+xml',
 };
 
-
 const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -163,7 +162,6 @@ const server = http.createServer(async (req, res) => {
         Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       });
-      // Desliga timeout de socket ocioso enquanto a conexão SSE viver
       if (req.socket && typeof req.socket.setTimeout === 'function') {
         req.socket.setTimeout(0);
       }
@@ -215,7 +213,6 @@ const server = http.createServer(async (req, res) => {
         throw e;
       }
     }
-    // Fila do garçom só via token: /api/garcom/:token/pedidos
     if (p === '/api/garcom/pedidos' && req.method === 'GET') {
       return json(res, 401, { error: 'Use /api/garcom/:token/pedidos com o link do garçom' });
     }
@@ -277,7 +274,6 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { staff, home: homeDoPapel(staff.papel) });
     }
 
-    // Autorização por papel (admin acessa tudo)
     try {
       if (p.startsWith('/api/admin')) {
         await exigirAcesso(req, 'admin');
@@ -353,6 +349,12 @@ const server = http.createServer(async (req, res) => {
         if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
         throw e;
       }
+    }
+    if (p === '/api/admin/dashboard' && req.method === 'GET') {
+      const q = new URL(req.url, 'http://localhost').searchParams;
+      const from = q.get('from') || null;
+      const to = q.get('to') || null;
+      return json(res, 200, await resumoDia({ from, to }));
     }
     if (p === '/api/admin/pedidos' && req.method === 'GET') {
       const q = new URL(req.url, 'http://localhost').searchParams;
@@ -438,7 +440,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (p === '/admin' || p === '/caixa' || p === '/cozinha') {
-      const recurso = p.slice(1); // admin | caixa | cozinha
+      const recurso = p.slice(1);
       try {
         await exigirAcesso(req, recurso);
       } catch (e) {
@@ -497,7 +499,7 @@ server.listen(PORT, async () => {
   try {
     const seed = await garantirStaffSeed();
     if (seed.created) {
-      console.log('👤 Staff inicial criado (admin / cozinha / caixa). Troque as senhas em produção.');
+      console.log('Staff inicial criado (admin / cozinha / caixa). Troque as senhas em produção.');
     }
   } catch (e) {
     console.error('Aviso: não foi possível garantir seed de staff:', e.message || e);
