@@ -1,0 +1,152 @@
+// Resumo do dia para o admin (faturamento, ticket, top produtos).
+const pool = require('./pool');
+
+/**
+ * @param {{ from?: string|null, to?: string|null }} [opts]
+ * from/to em YYYY-MM-DD (opcional). Default: hoje (timezone do servidor / DB).
+ */
+async function resumoDia(opts = {}) {
+  const from = opts.from || null;
+  const to = opts.to || null;
+
+  const rangeSql = from && to
+    ? { start: from, end: to }
+    : null;
+
+  const sessoesQ = rangeSql
+    ? await pool.query(
+        `SELECT id, valor_total, forma_pagamento, fechada_em, aberta_em
+         FROM mesa_sessoes
+         WHERE status = 'fechada'
+           AND fechada_em::date >= $1::date
+           AND fechada_em::date <= $2::date`,
+        [rangeSql.start, rangeSql.end]
+      )
+    : await pool.query(
+        `SELECT id, valor_total, forma_pagamento, fechada_em, aberta_em
+         FROM mesa_sessoes
+         WHERE status = 'fechada'
+           AND fechada_em::date = CURRENT_DATE`
+      );
+
+  const sessoes = sessoesQ.rows;
+  const faturamento = sessoes.reduce((s, r) => s + Number(r.valor_total || 0), 0);
+  const contasFechadas = sessoes.length;
+  const ticketMedio = contasFechadas ? faturamento / contasFechadas : 0;
+
+  const porForma = {};
+  for (const s of sessoes) {
+    const k = s.forma_pagamento || 'outro';
+    porForma[k] = (porForma[k] || 0) + Number(s.valor_total || 0);
+  }
+
+  const pedidosQ = rangeSql
+    ? await pool.query(
+        `SELECT status, COUNT(*)::int AS n
+         FROM pedidos
+         WHERE criado_em::date >= $1::date AND criado_em::date <= $2::date
+         GROUP BY status`,
+        [rangeSql.start, rangeSql.end]
+      )
+    : await pool.query(
+        `SELECT status, COUNT(*)::int AS n
+         FROM pedidos
+         WHERE criado_em::date = CURRENT_DATE
+         GROUP BY status`
+      );
+
+  const pedidosPorStatus = {
+    recebido: 0,
+    em_producao: 0,
+    concluido: 0,
+    entregue: 0,
+  };
+  let pedidosTotal = 0;
+  for (const r of pedidosQ.rows) {
+    pedidosPorStatus[r.status] = r.n;
+    pedidosTotal += r.n;
+  }
+
+  const { rows: mesaRows } = await pool.query(
+    `SELECT status, COUNT(*)::int AS n FROM mesas GROUP BY status`
+  );
+  const mesas = { livre: 0, ocupada: 0 };
+  for (const r of mesaRows) mesas[r.status] = r.n;
+
+  const { rows: abertas } = await pool.query(
+    `SELECT COUNT(*)::int AS n, COALESCE(SUM(valor_total), 0)::float AS total
+     FROM mesa_sessoes WHERE status = 'aberta'`
+  );
+  const emAberto = {
+    sessoes: abertas[0].n,
+    valorEntregue: Number(abertas[0].total || 0),
+  };
+
+  const topQ = rangeSql
+    ? await pool.query(
+        `SELECT pr.nome,
+                SUM(ip.quantidade)::int AS qtd,
+                SUM(
+                  ip.quantidade * (
+                    ip.preco_unitario + COALESCE(ad.total_ad, 0)
+                  )
+                )::float AS receita
+         FROM itens_pedido ip
+         JOIN produtos pr ON pr.id = ip.produto_id
+         JOIN pedidos p ON p.id = ip.pedido_id
+         LEFT JOIN (
+           SELECT item_pedido_id, SUM(preco_unitario) AS total_ad
+           FROM itens_pedido_adicionais
+           GROUP BY item_pedido_id
+         ) ad ON ad.item_pedido_id = ip.id
+         WHERE p.criado_em::date >= $1::date AND p.criado_em::date <= $2::date
+         GROUP BY pr.nome
+         ORDER BY qtd DESC
+         LIMIT 8`,
+        [rangeSql.start, rangeSql.end]
+      )
+    : await pool.query(
+        `SELECT pr.nome,
+                SUM(ip.quantidade)::int AS qtd,
+                SUM(
+                  ip.quantidade * (
+                    ip.preco_unitario + COALESCE(ad.total_ad, 0)
+                  )
+                )::float AS receita
+         FROM itens_pedido ip
+         JOIN produtos pr ON pr.id = ip.produto_id
+         JOIN pedidos p ON p.id = ip.pedido_id
+         LEFT JOIN (
+           SELECT item_pedido_id, SUM(preco_unitario) AS total_ad
+           FROM itens_pedido_adicionais
+           GROUP BY item_pedido_id
+         ) ad ON ad.item_pedido_id = ip.id
+         WHERE p.criado_em::date = CURRENT_DATE
+         GROUP BY pr.nome
+         ORDER BY qtd DESC
+         LIMIT 8`
+      );
+
+  const topProdutos = topQ.rows.map((r) => ({
+    nome: r.nome,
+    quantidade: r.qtd,
+    receita: Number(Number(r.receita || 0).toFixed(2)),
+  }));
+
+  return {
+    periodo: rangeSql
+      ? { from: rangeSql.start, to: rangeSql.end }
+      : { from: null, to: null, label: 'hoje' },
+    faturamento: Number(faturamento.toFixed(2)),
+    contasFechadas,
+    ticketMedio: Number(ticketMedio.toFixed(2)),
+    porFormaPagamento: porForma,
+    pedidosTotal,
+    pedidosPorStatus,
+    mesas,
+    emAberto,
+    topProdutos,
+  };
+}
+
+module.exports = { resumoDia };
