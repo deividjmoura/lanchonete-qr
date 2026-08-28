@@ -44,10 +44,12 @@ Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Cont
 | Garçom | Link pessoal + lock otimista na entrega | ✅ |
 | Caixa | Fecha sessão + forma de pagamento | ✅ |
 | Admin | Cardápio, QR, garçons, **painel de pedidos ativos** (histórico sob busca) | ✅ |
+| Auth com papéis | `admin` / `cozinha` / `caixa` + sessão no Postgres | ✅ |
 | Tempo real (SSE) | Atualiza filas e mesa sem refresh | ✅ |
 | Rate limit | Pedido + login | ✅ |
 | Segurança básica | UUID na mesa, headers, CSP, auth staff | ✅ |
 | Tema automático | Segue o sistema do celular | ✅ |
+| Mesa · personalizar | Adicionais, remoções, qtd e efeito no sanduíche | ✅ |
 
 ---
 
@@ -57,8 +59,6 @@ Foco: tornar o sistema **pronto para uso diário** em uma lanchonete real.
 
 | Prioridade | Item | Impacto | Estimativa |
 |:----------:|------|---------|:----------:|
-| 🔴 Alta | **Auth com papéis** (admin / cozinha / caixa) | Segurança e rastreio | Sprint 1 |
-| 🔴 Alta | **Sessão de staff no banco** (não só memória) | Sobrevive a deploy | Sprint 1 |
 | 🟠 Média | **Dashboard do dia** (faturamento, top produtos, ticket médio) | Visão do negócio | Sprint 2 |
 | 🟠 Média | **Estoque mínimo + esgotar produto** | Evita vender o que acabou | Sprint 3 |
 | 🟡 Baixa | Impressão de comanda na cozinha | Operação mais rápida | Sprint 4 |
@@ -69,10 +69,10 @@ Foco: tornar o sistema **pronto para uso diário** em uma lanchonete real.
 ```text
 Próximos passos sugeridos
 ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│  Sprint 1   │──▶│  Sprint 2   │──▶│  Sprint 3   │──▶│  Sprint 4   │
-│ Auth+papéis │   │  Dashboard  │   │   Estoque   │   │  Polimento  │
-│ sessão DB   │   │  relatórios │   │  esgotar    │   │ print/desc. │
-└─────────────┘   └─────────────┘   └─────────────┘   └─────────────┘
+│  Sprint 2   │──▶│  Sprint 3   │──▶│  Sprint 4   │
+│  Dashboard  │   │   Estoque   │   │  Polimento  │
+│  relatórios │   │  esgotar    │   │ print/desc. │
+└─────────────┘   └─────────────┘   └─────────────┘
 ```
 
 ---
@@ -146,9 +146,11 @@ npm start
 
 - Cardápio em **lousa** com seções expansíveis
 - **Check-in** com nome → mesa **ocupada** no admin
+- **Adicionar** rápido ou **Personalizar** (adicionais, remoções, quantidade, observação)
 - Dock inferior:
-  - **Sanduíche** → pedido (carrinho / enviar)
+  - **Sanduíche** → pedido (carrinho / enviar) com animação ao adicionar
   - **Sacola com $** → modal da conta (itens, status, total)
+- No carrinho: `−` / `+` para ajustar quantidade
 - Tema automático (claro/escuro conforme o sistema)
 
 ---
@@ -189,7 +191,7 @@ Telas protegidas: `/admin`, `/caixa`, `/cozinha`.
 - Auth staff com cookie HttpOnly · rate limit em pedido e login
 - Entrega com lock otimista · headers de segurança (CSP, HSTS em prod)
 
-> **Limitação atual:** senha compartilhada (`ADMIN_PASSWORD`) e sessão só em memória. Melhorar isso é o próximo passo prioritário.
+> **Staff:** usuários `admin` / `cozinha` / `caixa` no Postgres (seed na 1ª subida). Senha inicial: `STAFF_SEED_PASSWORD` ou `ADMIN_PASSWORD`.
 
 ---
 
@@ -213,7 +215,7 @@ Telas protegidas: `/admin`, `/caixa`, `/cozinha`.
 | Versão | Foco | Status |
 |--------|------|:------:|
 | **v2.0** | MVP Core (fluxo completo + Postgres + SSE) | ✅ |
-| **v2.1** | Auth com papéis + sessão persistente | 🔜 |
+| **v2.1** | Auth com papéis + sessão persistente | ✅ |
 | **v2.2** | Dashboard e relatórios do dia | ⬜ |
 | **v2.3** | Estoque mínimo + esgotar produto | ⬜ |
 | **v2.4** | Polimento (print, desconto, fotos) | ⬜ |
