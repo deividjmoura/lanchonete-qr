@@ -5,29 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Admin · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
-  <style>
-    .admin-tabs{display:flex;gap:8px;margin:18px 0 22px;flex-wrap:wrap}
-    .admin-tabs button{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:999px;padding:8px 16px;font-weight:600;cursor:pointer}
-    .admin-tabs button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-    .admin-section{display:none}
-    .admin-section.active{display:block}
-    .prod-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:14px 0;border-bottom:1px solid var(--line)}
-    .chip{font-size:.75rem;background:var(--chip-bg);border-radius:999px;padding:3px 10px;color:var(--muted)}
-    .chip.on{background:var(--success-soft);color:var(--success)}
-    .chip.off{background:var(--danger-soft);color:var(--danger)}
-    .edit-panel{background:var(--edit-panel-bg);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px}
-    .edit-panel .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .edit-panel .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-    .form-inline{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px}
-    .form-inline label{margin:0;display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted);font-weight:600}
-    .pedidos-kanban{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-    .pk-col{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px;min-height:120px}
-    .pk-col-head{display:flex;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
-    .pk-count{min-width:24px;height:24px;padding:0 8px;border-radius:999px;font-size:.75rem;font-weight:700;background:var(--badge-neutral-bg);display:inline-flex;align-items:center;justify-content:center}
-    .pk-card,.hist-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
-    @media (max-width:900px){.pedidos-kanban{grid-template-columns:1fr}}
-    @media (max-width:640px){.edit-panel .grid2{grid-template-columns:1fr}}
-  </style>
+  <!-- styles in /style.css -->
 </head>
 <body>
 <main class="wrap">
@@ -120,7 +98,7 @@
 document.getElementById('btnSair').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST'});}catch(e){}location.href='/login';});
 const host=location.origin;
 const br=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
-const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));};
+const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));};
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
 document.querySelectorAll('.admin-tabs button').forEach(btn=>{
   btn.addEventListener('click',()=>{
