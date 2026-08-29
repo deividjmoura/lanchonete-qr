@@ -1,6 +1,4 @@
 // CRUD de cardápio e listagem de mesas para o painel admin.
-// Tudo grava/lê Postgres. O admin.html antigo só listava QR estáticos;
-// este módulo alimenta as rotas /api/admin/* (ver plano, passo 6).
 const pool = require('./pool');
 
 class ErroAdmin extends Error {
@@ -9,10 +7,6 @@ class ErroAdmin extends Error {
     this.status = status;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Mesas
-// ---------------------------------------------------------------------------
 
 async function listMesas() {
   const { rows } = await pool.query(
@@ -35,16 +29,30 @@ async function listMesas() {
   }));
 }
 
-// ---------------------------------------------------------------------------
-// Cardápio completo (inclui produtos indisponíveis — diferente do público)
-// ---------------------------------------------------------------------------
+function mapProdutoRow(p) {
+  return {
+    id: p.id,
+    categoriaId: p.categoria_id,
+    nome: p.nome,
+    descricao: p.descricao,
+    preco: Number(p.preco),
+    fotoUrl: p.foto_url,
+    disponivel: p.disponivel,
+    pedePontoCarne: p.pede_ponto_carne,
+    controlaEstoque: Boolean(p.controla_estoque),
+    estoque: p.estoque != null ? Number(p.estoque) : null,
+    estoqueMinimo: Number(p.estoque_minimo || 0),
+    estoqueBaixo: Boolean(p.controla_estoque) && p.estoque != null && Number(p.estoque) <= Number(p.estoque_minimo || 0),
+  };
+}
 
 async function getCardapioAdmin() {
   const { rows: categorias } = await pool.query(
     'SELECT id, nome, ordem FROM categorias ORDER BY ordem, id'
   );
   const { rows: produtos } = await pool.query(
-    `SELECT id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne
+    `SELECT id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne,
+            controla_estoque, estoque, estoque_minimo
      FROM produtos ORDER BY id`
   );
   const { rows: adicionais } = await pool.query(
@@ -61,13 +69,7 @@ async function getCardapioAdmin() {
     produtos: produtos
       .filter((p) => p.categoria_id === cat.id)
       .map((p) => ({
-        id: p.id,
-        nome: p.nome,
-        descricao: p.descricao,
-        preco: Number(p.preco),
-        fotoUrl: p.foto_url,
-        disponivel: p.disponivel,
-        pedePontoCarne: p.pede_ponto_carne,
+        ...mapProdutoRow(p),
         adicionais: adicionais
           .filter((a) => a.produto_id === p.id)
           .map((a) => ({ id: a.id, nome: a.nome, preco: Number(a.preco) })),
@@ -77,10 +79,6 @@ async function getCardapioAdmin() {
       })),
   }));
 }
-
-// ---------------------------------------------------------------------------
-// Categorias
-// ---------------------------------------------------------------------------
 
 async function criarCategoria({ nome, ordem = 0 }) {
   const n = String(nome || '').trim();
@@ -116,10 +114,6 @@ async function atualizarCategoria(id, { nome, ordem }) {
   return rows[0];
 }
 
-// ---------------------------------------------------------------------------
-// Produtos
-// ---------------------------------------------------------------------------
-
 async function criarProduto(body) {
   const nome = String(body.nome || '').trim();
   const categoriaId = Number(body.categoriaId);
@@ -129,9 +123,9 @@ async function criarProduto(body) {
   if (Number.isNaN(preco) || preco < 0) throw new ErroAdmin(400, 'Preço inválido');
 
   const { rows } = await pool.query(
-    `INSERT INTO produtos (categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne`,
+    `INSERT INTO produtos (categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     RETURNING id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo`,
     [
       categoriaId,
       nome,
@@ -140,21 +134,12 @@ async function criarProduto(body) {
       body.fotoUrl || null,
       body.disponivel !== false,
       Boolean(body.pedePontoCarne),
+      Boolean(body.controlaEstoque || body.controla_estoque),
+      body.estoque != null && body.estoque !== '' ? Number(body.estoque) : null,
+      Number(body.estoqueMinimo ?? body.estoque_minimo ?? 0) || 0,
     ]
   );
-  const p = rows[0];
-  return {
-    id: p.id,
-    categoriaId: p.categoria_id,
-    nome: p.nome,
-    descricao: p.descricao,
-    preco: Number(p.preco),
-    fotoUrl: p.foto_url,
-    disponivel: p.disponivel,
-    pedePontoCarne: p.pede_ponto_carne,
-    adicionais: [],
-    removiveis: [],
-  };
+  return { ...mapProdutoRow(rows[0]), adicionais: [], removiveis: [] };
 }
 
 async function atualizarProduto(id, body) {
@@ -194,32 +179,29 @@ async function atualizarProduto(id, body) {
     campos.push(`categoria_id = $${i++}`);
     vals.push(Number(body.categoriaId));
   }
-
+  if (body.controlaEstoque !== undefined || body.controla_estoque !== undefined) {
+    campos.push(`controla_estoque = $${i++}`);
+    vals.push(Boolean(body.controlaEstoque ?? body.controla_estoque));
+  }
+  if (body.estoque !== undefined) {
+    campos.push(`estoque = $${i++}`);
+    vals.push(body.estoque === null || body.estoque === '' ? null : Number(body.estoque));
+  }
+  if (body.estoqueMinimo !== undefined || body.estoque_minimo !== undefined) {
+    campos.push(`estoque_minimo = $${i++}`);
+    vals.push(Number(body.estoqueMinimo ?? body.estoque_minimo ?? 0) || 0);
+  }
   if (!campos.length) throw new ErroAdmin(400, 'Nada para atualizar');
-  vals.push(id);
 
+  vals.push(id);
   const { rows } = await pool.query(
     `UPDATE produtos SET ${campos.join(', ')} WHERE id = $${i}
-     RETURNING id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne`,
+     RETURNING id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo`,
     vals
   );
   if (!rows[0]) throw new ErroAdmin(404, 'Produto não encontrado');
-  const p = rows[0];
-  return {
-    id: p.id,
-    categoriaId: p.categoria_id,
-    nome: p.nome,
-    descricao: p.descricao,
-    preco: Number(p.preco),
-    fotoUrl: p.foto_url,
-    disponivel: p.disponivel,
-    pedePontoCarne: p.pede_ponto_carne,
-  };
+  return mapProdutoRow(rows[0]);
 }
-
-// ---------------------------------------------------------------------------
-// Adicionais
-// ---------------------------------------------------------------------------
 
 async function criarAdicional(produtoId, { nome, preco }) {
   const n = String(nome || '').trim();
@@ -242,10 +224,6 @@ async function removerAdicional(id) {
   if (!rowCount) throw new ErroAdmin(404, 'Adicional não encontrado');
   return { ok: true };
 }
-
-// ---------------------------------------------------------------------------
-// Ingredientes removíveis
-// ---------------------------------------------------------------------------
 
 async function setRemoviveis(produtoId, ingredientes) {
   const lista = Array.isArray(ingredientes)
