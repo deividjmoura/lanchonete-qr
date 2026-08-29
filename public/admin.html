@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Admin · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
-  <!-- styles in /style.css -->
+  <link rel="stylesheet" href="/style-ops.css">
+  <!-- styles in /style.css + /style-ops.css -->
 </head>
 <body>
 <main class="wrap">
@@ -98,7 +99,7 @@
 document.getElementById('btnSair').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST'});}catch(e){}location.href='/login';});
 const host=location.origin;
 const br=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
-const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));};
+const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));};
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
 document.querySelectorAll('.admin-tabs button').forEach(btn=>{
   btn.addEventListener('click',()=>{
