@@ -48,7 +48,7 @@
     <div id="erro" class="login-error" role="alert" aria-live="assertive"></div>
     <p class="login-hint">Usuários iniciais após migrate: <code>admin</code>, <code>cozinha</code>, <code>caixa</code> (senha do seed / <code>ADMIN_PASSWORD</code>).</p>
   </section>
-  <a class="login-back" href="/login">← Login</a>
+  <a class="login-back" href="/">← Início</a>
 </div>
 
 <script src="/js/safe-dom.js"></script>
@@ -96,6 +96,19 @@ form.addEventListener('submit', async (e) => {
     btn.textContent = 'Entrar';
   }
 });
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : cur === 'light' ? 'dark' : (matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('lq-theme', next); } catch (_) {}
+}
+(function () {
+  try {
+    const t = localStorage.getItem('lq-theme');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+  } catch (_) {}
+})();
 </script>
 </body>
 </html>
