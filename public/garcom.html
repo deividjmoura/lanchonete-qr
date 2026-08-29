@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#111">
   <title>Garçom · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style-ops.css">
 </head>
 <body>
 <main class="wrap">
@@ -38,7 +39,7 @@ const esc = (s) => {
     return SafeDOM.escapeHtml(s);
   }
   return String(s ?? '').replace(/[&<>"']/g, (m) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+    '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#039;',
   }[m]));
 };
 function extrasHtml(item){
