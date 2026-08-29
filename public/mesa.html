@@ -1,1 +1,170 @@
-SEE_FILE
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1a1a">
+<title>Cardápio</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+body.board-page{background:#1c1c1c;min-height:100vh}
+body.board-page .board{max-width:560px;margin:0 auto;padding:20px 16px 130px}
+.board-header{text-align:center;margin-bottom:18px}
+.board-header .menu-title{font-family:"Special Elite",Kalam,cursive;font-size:clamp(2.4rem,10vw,3.4rem);color:#f0ebe0;letter-spacing:.12em;text-shadow:0 2px 0 rgba(0,0,0,.4);margin:0;line-height:1}
+.board-header .mesa-line{font-family:Kalam,cursive;color:#c8bfa8;font-size:1.05rem;margin-top:4px}
+.board-frame{border:2px solid rgba(240,235,224,.22);border-radius:8px;padding:8px 6px 16px;background:radial-gradient(ellipse at 20% 10%,rgba(255,255,255,.03),transparent 50%),linear-gradient(180deg,#222 0%,#1a1a1a 100%);box-shadow:inset 0 0 40px rgba(0,0,0,.35)}
+.chalk-cat{border-bottom:1px dashed rgba(240,235,224,.18)}
+.chalk-cat:last-child{border-bottom:0}
+.chalk-cat__head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 12px;border:0;background:transparent;cursor:pointer;text-align:left;font-family:Kalam,cursive;color:#f0ebe0;font-size:1.35rem;font-weight:700;letter-spacing:.04em}
+.chalk-cat__head:hover{color:#fff}
+.chalk-cat__head .chev{font-size:.9rem;opacity:.6;transition:transform .25s ease}
+.chalk-cat.open .chalk-cat__head .chev{transform:rotate(180deg)}
+.chalk-cat__body{display:none;padding:0 10px 16px}
+.chalk-cat.open .chalk-cat__body{display:block}
+.chalk-item{border:1px solid rgba(240,235,224,.12);border-radius:10px;padding:12px;margin-bottom:10px;background:rgba(255,255,255,.03)}
+.chalk-item h3{margin:0 0 4px;font-family:Kalam,cursive;color:#f5f0e6;font-size:1.15rem;font-weight:700}
+.chalk-item .desc{margin:0 0 10px;color:#a89f8c;font-size:.88rem;line-height:1.35}
+.chalk-item .row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.chalk-item .price{font-family:var(--font-mono);color:#f0d78c;font-weight:700;font-size:1rem}
+.chalk-item .btn{min-height:36px;padding:0 12px;font-size:.82rem;border-radius:999px}
+.chalk-item .btn.ghost{background:transparent;border:1px solid rgba(240,235,224,.35);color:#f0ebe0}
+.chalk-item .btn.primary{background:#c45c26;border-color:#c45c26;color:#fff}
+.chalk-item.has-photo{display:grid;grid-template-columns:88px 1fr;gap:12px;align-items:start}
+.chalk-item__photo{width:88px;height:88px;object-fit:cover;border-radius:10px;border:1px solid rgba(240,235,224,.15);background:rgba(0,0,0,.25)}
+.chalk-item.has-photo .chalk-body{min-width:0}
+.burger-dock{position:fixed!important;left:0;right:0;bottom:0;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;flex-direction:row;align-items:flex-end;justify-content:center;gap:28px;pointer-events:none;transform:none!important}
+.burger-dock .dock-item{display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:auto}
+.conta-btn{position:relative;width:56px;height:48px;border:0;background:transparent;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+.conta-btn .bag{width:40px;height:44px;position:relative}
+.conta-btn .bag-body{position:absolute;left:4px;right:4px;top:12px;bottom:0;background:linear-gradient(180deg,#d4a574 0%,#b8895a 55%,#9a7048 100%);border-radius:4px 4px 6px 6px}
+.conta-btn .bag-handle{position:absolute;left:10px;right:10px;top:2px;height:14px;border:3px solid #c9a06e;border-bottom:0;border-radius:10px 10px 0 0}
+.conta-btn .bag-dollar{position:absolute;left:0;right:0;top:18px;text-align:center;font-family:var(--font-mono),monospace;font-weight:800;font-size:1rem;color:#2d5a27}
+.conta-btn .badge-total{position:absolute;top:-4px;right:-8px;z-index:2;min-width:22px;height:22px;padding:0 5px;border-radius:999px;background:#16a34a;color:#fff;font-size:.65rem;font-weight:800;display:none;align-items:center;justify-content:center}
+.conta-btn .badge-total.show{display:inline-flex}
+.burger-btn{position:relative;width:72px;height:64px;border:0;background:transparent;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;filter:drop-shadow(0 6px 12px rgba(0,0,0,.45));transition:transform .2s ease}
+.burger-btn:active{transform:scale(.92)}
+.burger-btn .badge-count{position:absolute;top:-2px;right:-6px;z-index:2;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#c45c26;color:#fff;font-size:.7rem;font-weight:800;display:none;align-items:center;justify-content:center}
+.burger-btn .badge-count.show{display:inline-flex}
+.sand{width:56px;height:48px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.sand .bun-top{width:52px;height:16px;border-radius:22px 22px 6px 6px;background:linear-gradient(180deg,#f0c98a 0%,#e0a85e 55%,#c98a45 100%)}
+.sand .lettuce{width:56px;height:7px;border-radius:40% 60% 45% 55%;background:linear-gradient(90deg,#6bbf4e,#8fd66a 40%,#5aad3f)}
+.sand .tomato{width:46px;height:6px;border-radius:3px;background:linear-gradient(180deg,#ff5a4a,#d63a32)}
+.sand .cheese{width:50px;height:5px;background:linear-gradient(180deg,#ffd54a,#f0b429);clip-path:polygon(0 0,100% 0,92% 100%,8% 100%)}
+.sand .patty{width:48px;height:10px;border-radius:5px;background:linear-gradient(180deg,#6b3e2a,#3d2214 60%,#2a160e)}
+.sand .bun-bot{width:52px;height:10px;border-radius:5px 5px 14px 14px;background:linear-gradient(180deg,#e8b87a,#c98a45)}
+.chalk-item .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.qty-row{display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,.06);border-radius:999px;padding:4px 8px;border:1px solid rgba(240,235,224,.15)}
+.qty-row button{width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:#f0ebe0;font-size:1.2rem;font-weight:700;cursor:pointer}
+.qty-row span{min-width:1.5rem;text-align:center;font-weight:800;font-family:var(--font-mono)}
+.opt-group{margin-top:14px}
+.opt-group h3{margin:0 0 8px;font-size:.95rem;color:#c8bfa8;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.opt-chip{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:12px;border:1px solid rgba(240,235,224,.14);background:rgba(255,255,255,.04);cursor:pointer}
+.opt-chip input{width:18px;height:18px;accent-color:#c45c26}
+.opt-chip.on{border-color:rgba(196,92,38,.55);background:rgba(196,92,38,.12)}
+.opt-chip .opt-price{margin-left:auto;font-family:var(--font-mono);font-size:.85rem;color:#f0d78c}
+.cart-line-extra{display:block;color:#a89f8c;font-size:.8rem;margin-top:2px}
+.burger-hint{font-family:Kalam,cursive;font-size:.78rem;color:#c8bfa8}
+.modal-root{position:fixed;inset:0;z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px)}
+.modal-sheet{position:relative;z-index:1;width:min(100%,480px);max-height:min(92vh,720px);overflow:auto;background:#1f1f1f;color:#f0ebe0;border-radius:20px 20px 0 0;border:1px solid rgba(240,235,224,.15);border-bottom:0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px))}
+.modal-sheet .close{position:absolute;top:12px;right:12px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(240,235,224,.2);background:rgba(255,255,255,.06);font-size:1.4rem;color:#c8bfa8;cursor:pointer}
+.modal-sheet h2{margin:0 40px 6px 0;font-family:Kalam,cursive;font-size:1.4rem;color:#f0ebe0}
+.modal-sheet .muted{color:#a89f8c}
+.status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:.7rem;font-weight:700;text-transform:uppercase}
+.status-pill.recebido{background:rgba(59,130,246,.2);color:#93c5fd}
+.status-pill.em_producao{background:rgba(245,158,11,.2);color:#fcd34d}
+.status-pill.concluido{background:rgba(34,197,94,.2);color:#86efac}
+.status-pill.entregue{background:rgba(255,255,255,.08);color:#a89f8c}
+.pedido-block{border:1px solid rgba(240,235,224,.12);border-radius:14px;padding:14px;margin-bottom:12px;background:rgba(255,255,255,.04)}
+.pedido-item{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(240,235,224,.1);font-size:.9rem}
+.cart-total-row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(240,235,224,.15);font-weight:800;font-size:1.05rem;font-family:var(--font-mono);color:#f0d78c}
+.name-gate{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);padding:20px}
+.name-gate[hidden]{display:none!important}
+.name-gate__card{width:min(100%,360px);background:#1f1f1f;border:1px solid rgba(240,235,224,.2);border-radius:18px;padding:22px 18px;color:#f0ebe0}
+.toast-ok{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#16a34a;color:#fff;padding:14px 20px;border-radius:14px;font-weight:700;z-index:110;max-width:min(92vw,360px);text-align:center}
+</style>
+</head>
+<body class="board-page">
+<main class="board">
+<header class="board-header">
+<h1 class="menu-title">MENU</h1>
+<div class="mesa-line" id="mesaDesk">Cardápio</div>
+</header>
+<div class="board-frame"><div id="menu"></div></div>
+</main>
+<div class="burger-dock">
+<div class="dock-item">
+<button type="button" class="burger-btn" id="burgerBtn" onclick="togglePedir()" aria-label="Pedir">
+<span class="badge-count" id="cartBadge">0</span>
+<span class="sand" aria-hidden="true"><span class="bun-top"></span><span class="lettuce"></span><span class="tomato"></span><span class="cheese"></span><span class="patty"></span><span class="bun-bot"></span></span>
+</button>
+<span class="burger-hint">pedir</span>
+</div>
+<div class="dock-item">
+<button type="button" class="conta-btn" id="contaBtn" onclick="toggleConta()" aria-label="Total da mesa">
+<span class="badge-total" id="contaBadge">$</span>
+<span class="bag" aria-hidden="true"><span class="bag-handle"></span><span class="bag-body"></span><span class="bag-dollar">$</span></span>
+</button>
+<span class="burger-hint">total</span>
+</div>
+</div>
+<div id="nameGate" class="name-gate" hidden>
+<div class="name-gate__card" role="dialog" aria-modal="true">
+<h2>Como podemos te chamar?</h2>
+<p>Só o primeiro nome — a cozinha e o garçom usam para achar sua mesa.</p>
+<input id="clienteNomeInput" type="text" maxlength="80" placeholder="Ex.: Ana" autocomplete="nickname">
+<button type="button" class="btn primary" id="clienteNomeBtn">Continuar</button>
+</div>
+</div>
+<div id="modal"></div>
+<script src="/js/safe-dom.js"></script>
+<script src="/js/realtime.js"></script>
+<script>
+const token=location.pathname.split('/').filter(Boolean).pop()||'';
+const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+if(!UUID_RE.test(token)){document.body.innerHTML='<main class="wrap"><div class="panel"><h2>Mesa inválida</h2><p class="muted">Escaneie o QR Code da mesa.</p></div></main>';throw new Error('token inválido');}
+let categorias=[],produtos=[],cart=[],totalDevido=0,cartOpen=false,sessaoData=null,sessaoOpen=false,clienteNome='';
+function getClienteNome(){if(clienteNome)return clienteNome;try{clienteNome=sessionStorage.getItem('lq-cliente-nome-'+token)||'';}catch(_){}return clienteNome;}
+function setClienteNome(nome){clienteNome=String(nome||'').trim().slice(0,80);try{sessionStorage.setItem('lq-cliente-nome-'+token,clienteNome);}catch(_){}}
+function ensureClienteNome(){return new Promise((resolve)=>{if(getClienteNome())return resolve(getClienteNome());const gate=document.getElementById('nameGate');const input=document.getElementById('clienteNomeInput');const btn=document.getElementById('clienteNomeBtn');gate.hidden=false;setTimeout(()=>input.focus(),50);const done=()=>{const n=(input.value||'').trim();if(!n){input.focus();return;}setClienteNome(n);gate.hidden=true;fetch('/api/mesas/'+token+'/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clienteNome:n})}).catch(()=>{});resolve(n);};btn.addEventListener('click',done);input.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();done();}});});}
+const STATUS_LABEL={recebido:'Recebido',em_producao:'Na cozinha',concluido:'Pronto',entregue:'Entregue'};
+const br=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
+const esc=(s)=>{if(window.SafeDOM&&typeof SafeDOM.escapeHtml==='function')return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));};
+function cartCount(){return cart.reduce((s,i)=>s+i.qty,0);}
+function cartTotal(){return cart.reduce((s,i)=>s+itemTotal(i),0);}
+function updateCartPill(){const n=cartCount();const badge=document.getElementById('cartBadge');if(badge){badge.textContent=n;badge.classList.toggle('show',n>0);}const total=totalDevido||(sessaoData&&sessaoData.totalDevido)||0;const contaBadge=document.getElementById('contaBadge');if(contaBadge){contaBadge.textContent=total>0?'•':'$';contaBadge.classList.toggle('show',total>0||(sessaoData&&(sessaoData.pedidos||[]).length>0));}}
+function showToast(message,ms=1800){const toast=document.createElement('div');toast.className='toast-ok';toast.textContent=String(message??'');document.body.appendChild(toast);setTimeout(()=>toast.remove(),ms);}
+async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;totalDevido=s.totalDevido||0;document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen)openSessao();}catch(_){}}
+function openSessao(){sessaoOpen=true;cartOpen=false;const s=sessaoData||{pedidos:[],totalDevido:0,mesa:'—'};const pedidos=s.pedidos||[];const blocks=pedidos.length?pedidos.slice().reverse().map(p=>{const itens=(p.itens||[]).map(it=>`<div class="pedido-item"><div><b>${it.quantidade}× ${esc(it.nome)}</b></div><b>${br(it.totalLinha||0)}</b></div>`).join('');return `<div class="pedido-block"><div class="row" style="justify-content:space-between"><b>Pedido #${p.id}</b><span class="status-pill ${esc(p.status)}">${STATUS_LABEL[p.status]||p.status}</span></div>${itens}<div class="pedido-item"><span class="muted">Subtotal</span><b>${br(p.totalPedido||0)}</b></div></div>`;}).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Nenhum pedido ainda.</div>';document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2><div class="cart-total-row"><span>Total</span><span>${br(s.totalDevido||0)}</span></div>${blocks}</div></div>`;document.body.classList.add('modal-open');}
+function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
+function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}
+async function loadCardapio(){const r=await fetch('/api/cardapio');if(!r.ok){document.getElementById('menu').innerHTML='<div class="panel">Não foi possível carregar o cardápio.</div>';return;}categorias=await r.json();produtos=categorias.flatMap(c=>c.produtos.map(p=>({...p,categoriaNome:c.nome})));renderMenu();}
+function productNeedsCustom(p){return Boolean((p.adicionais&&p.adicionais.length)||(p.removiveis&&p.removiveis.length)||p.pedePontoCarne);}
+function renderMenu(){document.getElementById('menu').innerHTML=categorias.map((c,i)=>`
+<div class="chalk-cat${i===0?' open':''}" data-cat="${c.id}">
+<button type="button" class="chalk-cat__head" onclick="toggleCat(this)"><span>${esc(c.nome)}</span><span class="chev">▾</span></button>
+<div class="chalk-cat__body">${c.produtos.map(p=>{const custom=productNeedsCustom(p);const btns=custom?`<div class="actions"><button class="btn primary" type="button" onclick="quickAdd(${p.id})">Adicionar</button><button class="btn ghost" type="button" onclick="openCustomize(${p.id})">Personalizar</button></div>`:`<button class="btn primary" type="button" onclick="quickAdd(${p.id})">Adicionar</button>`;const foto=p.fotoUrl?`<img class="chalk-item__photo" src="${esc(p.fotoUrl)}" alt="" loading="lazy" onerror="this.remove()">`:'';return `<article class="chalk-item${p.fotoUrl?' has-photo':''}">${foto}<div class="chalk-body"><h3>${esc(p.nome)}</h3><p class="desc">${esc(p.descricao||'')}</p><div class="row"><span class="price">${br(p.preco)}</span>${btns}</div></div></article>`;}).join('')}</div></div>`).join('');}
+function toggleCat(btn){const cat=btn.closest('.chalk-cat');const wasOpen=cat.classList.contains('open');document.querySelectorAll('.chalk-cat.open').forEach(el=>el.classList.remove('open'));if(!wasOpen)cat.classList.add('open');}
+function bounceBurger(){const btn=document.getElementById('burgerBtn');if(!btn)return;btn.classList.remove('pop');void btn.offsetWidth;btn.classList.add('pop');}
+function quickAdd(id){const p=produtos.find(x=>x.id===id);if(!p)return;cart.push({key:crypto.randomUUID(),productId:id,qty:1,additions:[],removals:[],note:''});updateCartPill();bounceBurger();showToast(p.nome+' adicionado');}
+let customizeDraft=null;
+function openCustomize(id){const p=produtos.find(x=>x.id===id);if(!p)return;customizeDraft={productId:p.id,qty:1,additions:[],removals:[],note:''};renderCustomizeModal();}
+function renderCustomizeModal(){const p=produtos.find(x=>x.id===customizeDraft.productId);if(!p)return;const adds=Array.isArray(p.adicionais)?p.adicionais:[];const rems=Array.isArray(p.removiveis)?p.removiveis:[];const unit=p.preco+customizeDraft.additions.reduce((s,a)=>s+a.preco,0);const total=unit*customizeDraft.qty;const addsHtml=adds.length?`<div class="opt-group"><h3>Adicionais</h3>${adds.map(a=>{const on=customizeDraft.additions.some(x=>x.id===a.id);return `<label class="opt-chip${on?' on':''}"><input type="checkbox" ${on?'checked':''} onchange="toggleAdd(${a.id}, this.checked)"><span>${esc(a.nome)}</span><span class="opt-price">+ ${br(a.preco)}</span></label>`;}).join('')}</div>`:'';const remsHtml=rems.length?`<div class="opt-group"><h3>Remover</h3>${rems.map(r=>{const on=customizeDraft.removals.includes(r);return `<label class="opt-chip${on?' on':''}"><input type="checkbox" ${on?'checked':''} onchange="toggleRem('${String(r).replace(/'/g,"\\'")}', this.checked)"><span>Sem ${esc(r)}</span></label>`;}).join('')}</div>`:'';const noteHtml=`<div class="opt-group"><h3>Observação${p.pedePontoCarne?' / ponto da carne':''}</h3><input id="custNote" type="text" maxlength="200" placeholder="${p.pedePontoCarne?'Ex.: ao ponto':'Ex.: sem gelo'}" value="${esc(customizeDraft.note)}" oninput="customizeDraft.note=this.value" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(240,235,224,.2);background:rgba(0,0,0,.25);color:#f0ebe0"></div>`;document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>${esc(p.nome)}</h2><p class="muted" style="margin:0 0 12px">${br(p.preco)} · personalize</p><div class="qty-row" style="margin-bottom:8px"><button type="button" onclick="custQty(-1)">−</button><span>${customizeDraft.qty}</span><button type="button" onclick="custQty(1)">+</button></div>${addsHtml}${remsHtml}${noteHtml}<button class="btn primary" style="width:100%;margin-top:16px;min-height:48px" type="button" onclick="confirmCustomize()">Adicionar · ${br(total)}</button></div></div>`;document.body.classList.add('modal-open');cartOpen=false;sessaoOpen=false;}
+function custQty(d){if(!customizeDraft)return;customizeDraft.qty=Math.max(1,Math.min(20,customizeDraft.qty+d));renderCustomizeModal();}
+function toggleAdd(id,on){const p=produtos.find(x=>x.id===customizeDraft.productId);const a=(p.adicionais||[]).find(x=>x.id===id);if(!a)return;if(on){if(!customizeDraft.additions.some(x=>x.id===id))customizeDraft.additions.push({id:a.id,nome:a.nome,preco:Number(a.preco)});}else{customizeDraft.additions=customizeDraft.additions.filter(x=>x.id!==id);}renderCustomizeModal();}
+function toggleRem(nome,on){if(on){if(!customizeDraft.removals.includes(nome))customizeDraft.removals.push(nome);}else{customizeDraft.removals=customizeDraft.removals.filter(x=>x!==nome);}renderCustomizeModal();}
+function confirmCustomize(){if(!customizeDraft)return;const p=produtos.find(x=>x.id===customizeDraft.productId);cart.push({key:crypto.randomUUID(),productId:customizeDraft.productId,qty:customizeDraft.qty,additions:customizeDraft.additions.slice(),removals:customizeDraft.removals.slice(),note:(customizeDraft.note||'').trim().slice(0,200)});customizeDraft=null;updateCartPill();bounceBurger();closeModal();showToast((p?.nome||'Item')+' adicionado');}
+function closeModal(){document.getElementById('modal').innerHTML='';document.body.classList.remove('modal-open','conta-open','pedir-open');cartOpen=false;sessaoOpen=false;updateCartPill();}
+function itemTotal(i){const p=produtos.find(x=>x.id===i.productId);if(!p)return 0;return (p.preco+i.additions.reduce((s,a)=>s+a.preco,0))*i.qty;}
+function openCart(){cartOpen=true;const total=cartTotal();const lines=cart.length?cart.map(i=>{const p=produtos.find(x=>x.id===i.productId);const extras=[];if(i.additions&&i.additions.length)extras.push('<span class="com">+ '+i.additions.map(a=>esc(a.nome||a)).join(', ')+'</span>');if(i.removals&&i.removals.length)extras.push('<span class="sem">sem '+i.removals.map(esc).join(', ')+'</span>');if(i.note)extras.push(esc(i.note));const extraHtml=extras.length?'<span class="cart-line-extra">'+extras.join(' · ')+'</span>':'';return `<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(240,235,224,.1)"><div style="min-width:0"><b>${i.qty}× ${esc(p?.nome||'Item')}</b>${extraHtml}<br><small>${br(itemTotal(i))}</small></div><div class="qty-row"><button type="button" onclick="changeQty('${i.key}',-1)">−</button><span>${i.qty}</span><button type="button" onclick="changeQty('${i.key}',1)">+</button></div></div>`;}).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Carrinho vazio.</div>';document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Seu pedido</h2>${lines}${cart.length?`<div class="cart-total-row"><span>Total</span><span>${br(total)}</span></div><button class="btn primary" style="width:100%;margin-top:12px" type="button" id="btnSend" onclick="send()">Enviar pedido · ${br(total)}</button>`:''}</div></div>`;document.body.classList.add('modal-open');}
+function changeQty(key,d){const i=cart.find(x=>x.key===key);if(!i)return;i.qty+=d;if(i.qty<=0)cart=cart.filter(x=>x.key!==key);updateCartPill();if(cartOpen)openCart();}
+async function send(){await ensureClienteNome();if(!cart.length)return;const btn=document.getElementById('btnSend');if(btn){btn.disabled=true;btn.textContent='Enviando…';}const items=cart.map(i=>({productId:i.productId,qty:i.qty,additions:i.additions.map(a=>({id:a.id})),removals:i.removals,note:i.note}));try{const r=await fetch('/api/mesas/'+token+'/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clienteNome:getClienteNome(),items,note:''})});const o=await r.json();if(!r.ok){alert(o.error||'Não foi possível enviar');if(btn){btn.disabled=false;btn.textContent='Enviar pedido';}return;}cart=[];updateCartPill();closeModal();await loadSessao();showToast('Pedido #'+o.id+' enviado · '+br(o.total),3200);}catch(e){alert('Falha de rede');if(btn){btn.disabled=false;}}}
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeModal();});
+ensureClienteNome().then(()=>{loadSessao();loadCardapio();});
+if(window.LQRRealtime){LQRRealtime.connect(()=>loadSessao(),{fallbackMs:25000,debounceMs:200});}else{setInterval(loadSessao,8000);}
+</script>
+</body>
+</html>
