@@ -3,19 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#c2410c">
   <title>Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
-  </head>
+  <style>
+    .hero {
+      text-align: center;
+      padding: clamp(48px, 10vw, 80px) 24px;
+    }
+    .hero .logo-mark {
+      width: 64px; height: 64px; margin: 0 auto 20px;
+      border-radius: 16px; background: var(--primary); color: #fff;
+      display: grid; place-items: center; font-size: 1.75rem;
+      box-shadow: 0 8px 24px rgba(194, 65, 12, 0.25);
+    }
+    .hero h1 {
+      font-size: clamp(1.75rem, 5vw, 2.5rem);
+      margin-bottom: 12px;
+      letter-spacing: -0.04em;
+    }
+    .hero .lead {
+      max-width: 420px; margin: 0 auto 28px;
+      color: var(--muted); font-size: 1.05rem; line-height: 1.55;
+    }
+    .hero .nav { justify-content: center; }
+    .flow {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+      margin-top: 36px; font-size: 0.8rem; color: var(--muted); font-weight: 600;
+    }
+    .flow span {
+      padding: 6px 12px; border-radius: 999px;
+      background: var(--surface-2); border: 1px solid var(--line);
+    }
+  </style>
+</head>
 <body>
 <main class="wrap">
-  <section class="panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
-      <div class="brand">🍔 Lanchonete QR</div>
-</div>
-    <h1>Protótipo de pedidos por mesa</h1>
-    <p class="muted">Cliente lê o QR → escolhe → envia → cozinha recebe → pedido avança até ficar pronto.</p>
-    <div class="nav" position="center">
-      <a class="btn" href="/admin">Gerar QRs</a>
+  <section class="panel hero">
+    <div class="logo-mark" aria-hidden="true">🍔</div>
+    <div class="brand" style="justify-content:center;margin-bottom:8px">Lanchonete QR</div>
+    <h1>Pedidos por mesa, do QR à cozinha</h1>
+    <p class="lead">Cliente lê o QR → escolhe → envia → cozinha recebe → pedido avança até ficar pronto.</p>
+    <div class="nav">
+      <a class="btn primary" href="/login">Entrar na equipe</a>
+      <a class="btn" href="/admin">Admin</a>
+    </div>
+    <div class="flow">
+      <span>QR</span>
+      <span>→</span>
+      <span>Cardápio</span>
+      <span>→</span>
+      <span>Cozinha</span>
+      <span>→</span>
+      <span>Garçom</span>
+      <span>→</span>
+      <span>Caixa</span>
     </div>
   </section>
 </main>
