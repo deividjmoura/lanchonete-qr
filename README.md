@@ -12,33 +12,38 @@ Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Cont
 
 | Fase | Status |
 |------|:------:|
-| **MVP Core** (fluxo completo) | ✅ |
-| **Auth + papéis + sessão DB** | ✅ |
+| **MVP Core** | ✅ |
+| **Auth + papéis** | ✅ |
 | **Dashboard do dia** | ✅ |
 | **Relatório PDF + purge** | ✅ |
-| **Estoque / polimento** | 🟡 próximo |
+| **Estoque mínimo** | ✅ |
+| **Polimento** | 🟡 próximo |
 
-### ✅ Pronto
+### ✅ Pronto (destaques)
 
-| Módulo | Detalhe |
-|--------|---------|
-| Schema + migrations PostgreSQL | Neon / local |
-| Cardápio, pedidos, comanda acumulativa | Preços no servidor |
-| Cozinha · Garçom · Caixa | Filas + SSE |
-| Admin | Cardápio, QR, garçons, pedidos kanban, dashboard |
-| Auth com papéis | `admin` / `cozinha` / `caixa` |
-| Mesa · personalizar | Adicionais, remoções, animação |
-| Dashboard do dia | Faturamento, ticket, top produtos |
-| **Relatório PDF** | Por período → imprimir / salvar PDF |
-| **Purge de histórico** | Apaga sessões fechadas antigas (libera espaço) |
+- Cardápio, pedidos, cozinha, garçom, caixa + SSE
+- Admin: kanban, dashboard, relatório PDF, purge
+- Mesa: personalizar (adicionais, remoções, animação)
+- **Estoque opcional** por produto (controlar, mínimo, esgotar)
 
-### 🟡 Próxima fase
+---
 
-| Prioridade | Item |
-|:----------:|------|
-| Média | Estoque mínimo + esgotar produto |
-| Baixa | Impressão de comanda, desconto, fotos |
-| Depois | Gateway, delivery, multi-tenant |
+## 📦 Estoque (v2.4)
+
+No **Cardápio → Editar** produto:
+
+| Campo | Uso |
+|-------|-----|
+| **Controlar estoque** | Liga validação e baixa automática |
+| **Estoque atual** | Quantidade disponível |
+| **Mínimo** | Alerta ⚠️ no admin se `estoque ≤ mínimo` |
+| **Esgotar** | Zera estoque e marca indisponível |
+
+Pedidos: com controle ativo, valida quantidade e decrementa; zerar → indisponível. Cardápio público omite item sem estoque.
+
+```bash
+npm run db:migrate   # 0006_estoque.sql
+```
 
 ---
 
@@ -55,23 +60,16 @@ npm start
 ## 📊 Admin · Dashboard
 
 - KPIs do dia (SSE)
-- **Relatório de vendas (PDF):** De / Até → Gerar / imprimir PDF
-- **Limpar histórico:** data limite → prévia → apagar (só sessões **fechadas**)
+- Relatório PDF · Limpar histórico (sessões fechadas)
 
 ---
 
 ## 🔌 API (staff)
 
-- `GET /api/admin/dashboard`
-- `GET /api/admin/relatorio?from=&to=`
-- `POST /api/admin/historico/purge` body: `{ "before": "YYYY-MM-DD", "confirm": true }`
+- `GET /api/admin/dashboard` · `GET /api/admin/relatorio?from=&to=`
+- `POST /api/admin/historico/purge` `{ before, confirm }`
 - `GET /api/admin/pedidos?ativos=1` · `?from=&to=`
-
----
-
-## 📈 Capacidade
-
-Ver seção detalhada no histórico do README: ~25–40 conexões confortáveis; Neon Free 0,5 GB ~anos de operação típica com purge periódico.
+- Produtos: `controlaEstoque`, `estoque`, `estoqueMinimo` no PATCH/POST
 
 ---
 
@@ -79,10 +77,9 @@ Ver seção detalhada no histórico do README: ~25–40 conexões confortáveis;
 
 | Versão | Foco | Status |
 |--------|------|:------:|
-| v2.0–v2.2 | MVP + auth + dashboard | ✅ |
-| **v2.3** | Relatório PDF + purge | ✅ |
-| v2.4 | Estoque mínimo | ⬜ |
-| v2.5 | Polimento | ⬜ |
+| v2.0–v2.3 | MVP → PDF/purge | ✅ |
+| **v2.4** | Estoque mínimo | ✅ |
+| v2.5 | Polimento (print, desconto, fotos) | ⬜ |
 | v3 | Pagamentos / multi-loja | ⬜ |
 
 ---
