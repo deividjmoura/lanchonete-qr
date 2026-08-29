@@ -41,11 +41,11 @@
     </div>
   </div>
   <div class="admin-tabs">
-    <button type="button" class="active" data-tab="dashboard"><span class="tab-ico">📊</span>Dashboard</button>
-    <button type="button" data-tab="mesas"><span class="tab-ico">🪑</span>Mesas</button>
-    <button type="button" data-tab="cardapio"><span class="tab-ico">🍔</span>Cardápio</button>
-    <button type="button" data-tab="garcons"><span class="tab-ico">🧑‍🍳</span>Garçons</button>
-    <button type="button" data-tab="pedidos"><span class="tab-ico">📋</span>Pedidos</button>
+    <button type="button" class="active" data-tab="dashboard">📊 Dashboard</button>
+    <button type="button" data-tab="mesas">🪑 Mesas</button>
+    <button type="button" data-tab="cardapio">🍔 Cardápio</button>
+    <button type="button" data-tab="garcons">🧑‍🍳 Garçons</button>
+    <button type="button" data-tab="pedidos">📋 Pedidos</button>
   </div>
   <section id="sec-dashboard" class="admin-section active">
     <div class="panel">
@@ -120,7 +120,7 @@
 document.getElementById('btnSair').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST'});}catch(e){}location.href='/login';});
 const host=location.origin;
 const br=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
-const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));};
+const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));};
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
 document.querySelectorAll('.admin-tabs button').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -136,7 +136,6 @@ document.querySelectorAll('.admin-tabs button').forEach(btn=>{
     if(t==='pedidos')loadPedidosBoard();
   });
 });
-const FORMAS_PT={dinheiro:'Dinheiro',pix:'PIX',cartao_debito:'Débito',cartao_credito:'Crédito',outro:'Outro'};
 async function loadDashboard(){
   const kpi=document.getElementById('kpiGrid'),top=document.getElementById('topProdutos'),ops=document.getElementById('dashOps');
   if(!kpi)return;
