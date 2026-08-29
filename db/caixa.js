@@ -1,5 +1,6 @@
 // Caixa: listar sessões abertas e fechar conta (forma de pagamento).
 // valor_total em mesa_sessoes só conta pedidos já "entregue" — ver plano §1.
+// v2.6: desconto e taxa_servico em R$ no fechamento → valor_cobrado.
 const pool = require('./pool');
 
 const FORMAS = new Set(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']);
@@ -31,6 +32,13 @@ function montarItensComExtras(itensRows, addByItem, remByItem) {
       subtotal: Number(((precoUnitario + totalAdicionais) * item.quantidade).toFixed(2)),
     };
   });
+}
+
+function parseMoney(v) {
+  if (v === undefined || v === null || v === '') return 0;
+  const n = Number(String(v).replace(',', '.'));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Number(n.toFixed(2));
 }
 
 async function listSessoesAbertas() {
@@ -140,7 +148,7 @@ async function listSessoesAbertas() {
   });
 }
 
-// Fecha a sessão: grava forma de pagamento, libera a mesa.
+// Fecha a sessão: grava forma de pagamento, desconto/taxa, libera a mesa.
 // Bloqueia se ainda houver pedidos não entregues (cozinha/garçom).
 async function fecharSessao(sessaoId, body) {
   const forma = String(body.formaPagamento || body.forma_pagamento || '')
@@ -151,6 +159,15 @@ async function fecharSessao(sessaoId, body) {
       400,
       'Forma de pagamento inválida. Use: dinheiro, pix, cartao_debito ou cartao_credito'
     );
+  }
+
+  const desconto = parseMoney(body.desconto);
+  const taxaServico = parseMoney(body.taxaServico ?? body.taxa_servico);
+  if (desconto === null) {
+    throw new ErroCaixa(400, 'Desconto inválido');
+  }
+  if (taxaServico === null) {
+    throw new ErroCaixa(400, 'Taxa de serviço inválida');
   }
 
   const client = await pool.connect();
@@ -183,14 +200,27 @@ async function fecharSessao(sessaoId, body) {
       );
     }
 
+    const valorTotal = Number(sessao.valor_total);
+    if (desconto > valorTotal + 0.001) {
+      throw new ErroCaixa(400, 'Desconto não pode ser maior que o total da conta');
+    }
+    const valorCobrado = Number((valorTotal - desconto + taxaServico).toFixed(2));
+    if (valorCobrado < 0) {
+      throw new ErroCaixa(400, 'Valor cobrado inválido');
+    }
+
     const { rows: updated } = await client.query(
       `UPDATE mesa_sessoes
        SET status = 'fechada',
            fechada_em = now(),
-           forma_pagamento = $1
-       WHERE id = $2
-       RETURNING id, valor_total, forma_pagamento, fechada_em, aberta_em`,
-      [forma, sessaoId]
+           forma_pagamento = $1,
+           desconto = $2,
+           taxa_servico = $3,
+           valor_cobrado = $4
+       WHERE id = $5
+       RETURNING id, valor_total, desconto, taxa_servico, valor_cobrado,
+                 forma_pagamento, fechada_em, aberta_em`,
+      [forma, desconto, taxaServico, valorCobrado, sessaoId]
     );
 
     await client.query("UPDATE mesas SET status = 'livre' WHERE id = $1", [sessao.mesa_id]);
@@ -202,6 +232,9 @@ async function fecharSessao(sessaoId, body) {
       id: row.id,
       mesa: sessao.mesa,
       valorTotal: Number(row.valor_total),
+      desconto: Number(row.desconto),
+      taxaServico: Number(row.taxa_servico),
+      valorCobrado: Number(row.valor_cobrado),
       formaPagamento: row.forma_pagamento,
       abertaEm: row.aberta_em,
       fechadaEm: row.fechada_em,
