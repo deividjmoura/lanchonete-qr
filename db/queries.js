@@ -51,7 +51,7 @@ async function getOuAbrirSessao(client, mesaId) {
 // do pedido (nunca confiar em preço/adicional/remoção vindos do cliente).
 async function getProdutoComRegras(client, produtoId) {
   const { rows } = await client.query(
-    'SELECT id, nome, preco, disponivel, pede_ponto_carne FROM produtos WHERE id = $1',
+    'SELECT id, nome, preco, disponivel, pede_ponto_carne, controla_estoque, estoque FROM produtos WHERE id = $1',
     [produtoId]
   );
   if (!rows[0]) return null;
