@@ -57,12 +57,13 @@ const {
   listPedidosRecentes,
 } = require('./db/garcons');
 const { resumoDia } = require('./db/dashboard');
+const { relatorioVendas } = require('./db/relatorio');
+const { purgeHistorico, ErroPurge } = require('./db/purge');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 128 * 1024);
 
-/** IP do cliente; em produção usa o primeiro hop de X-Forwarded-For. */
 function clientIp(req) {
   if (process.env.NODE_ENV === 'production') {
     const xff = req.headers['x-forwarded-for'];
@@ -355,6 +356,30 @@ const server = http.createServer(async (req, res) => {
       const from = q.get('from') || null;
       const to = q.get('to') || null;
       return json(res, 200, await resumoDia({ from, to }));
+    }
+    if (p === '/api/admin/relatorio' && req.method === 'GET') {
+      try {
+        const q = new URL(req.url, 'http://localhost').searchParams;
+        const from = q.get('from');
+        const to = q.get('to');
+        return json(res, 200, await relatorioVendas({ from, to }));
+      } catch (e) {
+        if (e.status) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/historico/purge' && req.method === 'POST') {
+      try {
+        const b = await body(req);
+        return json(res, 200, await purgeHistorico({
+          before: b.before,
+          confirm: b.confirm === true,
+          dryRun: b.dryRun === true,
+        }));
+      } catch (e) {
+        if (e instanceof ErroPurge || e.status) return json(res, e.status || 400, { error: e.message });
+        throw e;
+      }
     }
     if (p === '/api/admin/pedidos' && req.method === 'GET') {
       const q = new URL(req.url, 'http://localhost').searchParams;
