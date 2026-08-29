@@ -11,6 +11,7 @@ Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Cont
 [![Vanilla JS](https://img.shields.io/badge/Frontend-Vanilla-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](#)
 [![SSE](https://img.shields.io/badge/Realtime-SSE-0EA5E9?style=for-the-badge)](#)
 [![Status](https://img.shields.io/badge/Projeto-90%25-22c55e?style=for-the-badge)](#-progresso-do-projeto)
+[![Próximo](https://img.shields.io/badge/Próximo-v2.6_Polimento-f59e0b?style=for-the-badge)](#-próxima-fase--v26-polimento)
 
 ---
 
@@ -55,30 +56,59 @@ Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Cont
 
 ---
 
-### 🟡 O que ainda falta (próxima fase)
+## 🎯 Próxima fase — v2.6 Polimento
 
-Foco: polimento para uso diário e escala.
+Foco atual: deixar o sistema **pronto para o dia a dia** sem abrir frentes grandes de pagamento ainda.
 
-| Prioridade | Item | Impacto | Estimativa |
-|:----------:|------|---------|:----------:|
-| 🟠 Média | Impressão de comanda na cozinha | Operação mais rápida | Sprint 5 |
-| 🟠 Média | Desconto / taxa de serviço no caixa | Flexibilidade na conta | Sprint 5 |
-| 🟡 Baixa | Upload de foto dos produtos | Cardápio mais apetitoso | Sprint 5 |
-| 🟡 Baixa | Aposentar rotas legadas e `data/db.json` | Código mais limpo | Sprint 5 |
-| ⚪ Depois | Gateway de pagamento, delivery, multi-tenant | Escala | v3 |
+| Prioridade | Item | Impacto |
+|:----------:|------|---------|
+| 🔴 Alta | **Impressão de comanda** na cozinha | Operação mais rápida, menos erro |
+| 🔴 Alta | **Desconto / taxa de serviço** no caixa | Flexibilidade na conta |
+| 🟠 Média | **Fotos dos produtos** no cardápio | Cardápio mais apetitoso |
+| 🟠 Média | **Limpeza legada** — aposentar rotas antigas e `data/db.json` | Código mais limpo e seguro |
 
 ```text
-Linha do tempo
-┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐
-│  v2.0   │─▶│  v2.1   │─▶│  v2.2   │─▶│  v2.3   │─▶│  v2.4   │─▶│  v2.5   │
-│ MVP Core│  │  Auth   │  │Dashboard│  │PDF/purge│  │ Estoque │  │ UI DS v2│
-│   ✅    │  │   ✅    │  │   ✅    │  │   ✅    │  │   ✅    │  │   ✅    │
-└─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘
-                                                                    │
-                                                                    ▼
-                                                              v2.6 polimento
-                                                              v3  escala
+Agora                          Depois
+┌─────────────────────┐        ┌─────────────────────┐
+│  v2.6  Polimento    │   ──▶  │  Pagamento avançado │
+│  print · desconto   │        │  divisão · PIX mesa │
+│  fotos · limpeza    │        │  multi-convidado    │
+└─────────────────────┘        └─────────────────────┘
 ```
+
+---
+
+## 💡 Ideias futuras — pagamento e divisão de conta
+
+> **Não entram no v2.6.** Registradas aqui para não perder o desenho quando formos implementar (pós-polimento / v2.7+ ou v3).
+
+### Contexto
+
+Uma mesa pode ter **várias pessoas** (ex.: dois casais) pedindo no mesmo QR. A comanda continua **uma sessão por mesa**, mas o fechamento precisa permitir rachar a conta.
+
+### Direção acordada (rascunho)
+
+| Tema | Ideia |
+|------|--------|
+| **Onde dividir** | Preferência: **só no caixa** no primeiro momento — menos complexidade no celular do cliente |
+| **Nomes nos pedidos** | Manter / reforçar “quem pediu” para o caixa ver consumo por pessoa (“Ana R$… / Bruno R$…”) e facilitar o “cada um o seu” |
+| **Fechamento em partes** | No caixa: pagar tudo · dividir igual (N partes) · valores manuais · várias formas (PIX + cartão + dinheiro) na mesma conta |
+| **Saldo da sessão** | Sessão só fecha quando a soma dos pagamentos parciais cobre o total (ou override do caixa) |
+| **Preferência do cliente** (depois) | Após enviar pedido: “pagar na mesa” vs “ir ao caixa”; se mesa → PIX / cartão / dinheiro |
+| **PIX na mesa** (depois) | QR + botão WhatsApp com mensagem pronta (pedido #, valor, data/hora, **local/unidade**) e comprovante compartilhado; confirmação pelo staff |
+| **Multi-unidade** | Nome do local e WhatsApp/chave PIX por unidade na mensagem de comprovante |
+
+### Por que divisão no caixa primeiro
+
+- Resolve o rachar na prática sem UI complexa no cliente
+- Evita estados “metade paga no app, metade no caixa” cedo demais
+- Combina bem com **desconto / taxa** do v2.6 no mesmo lugar (caixa)
+
+### Fora de escopo por enquanto
+
+- Gateway Pix com confirmação automática (webhook)
+- Divisão item a item no app do cliente
+- Delivery / multi-loja completo
 
 ---
 
@@ -265,13 +295,15 @@ Telas protegidas: `/admin`, `/caixa`, `/cozinha`.
 | **v2.3** | Relatório PDF + purge de histórico | ✅ |
 | **v2.4** | Estoque mínimo + esgotar produto | ✅ |
 | **v2.5** | Design System v2 (redesign visual completo) | ✅ |
-| **v2.6** | Polimento (print, desconto, fotos, limpeza legada) | ⬜ |
-| **v3** | Pagamentos, delivery, multi-loja | ⬜ |
+| **v2.6** | **Polimento** — print, desconto, fotos, limpeza legada | 🟡 próximo |
+| **v2.7+** | Pagamento avançado — divisão no caixa, nomes, PIX mesa / WhatsApp | ⬜ |
+| **v3** | Gateway de pagamento, delivery, multi-loja | ⬜ |
 
 ### Changelog recente
 
 | Data | Mudança |
 |------|---------|
+| 2026-08-29 | Roadmap: v2.6 polimento como próximo; ideias de pagamento/divisão documentadas |
 | 2026-08-29 | **v2.5** — Design System centralizado, identidade operacional + cardápio gastronômico |
 | 2026-08-29 | **v2.4** — Estoque mínimo, controlar/esgotar no admin |
 | 2026-08-29 | **v2.3** — Relatório PDF e purge de sessões fechadas |
