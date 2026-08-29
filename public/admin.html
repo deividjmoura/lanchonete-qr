@@ -6,7 +6,12 @@
   <title>Admin · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
-  <!-- styles in /style.css + /style-ops.css -->
+  <style>
+    .prod-row{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+    .prod-row:last-child{border-bottom:0}
+    .prod-thumb{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line);flex-shrink:0;background:var(--surface-2)}
+    .prod-thumb-lg{max-width:160px;max-height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+  </style>
 </head>
 <body>
 <main class="wrap">
@@ -72,8 +77,11 @@
     <div class="panel" style="margin-bottom:18px"><h2>Novo produto</h2>
       <div class="form-inline"><div><label>Categoria</label><select id="prodCat"></select></div><div><label>Nome</label><input id="prodNome"></div>
       <div><label>Preço</label><input id="prodPreco" type="number" step="0.01" min="0" style="width:100px"></div>
+      <div><label>URL da foto</label><input id="prodFoto" type="url" placeholder="https://…" style="min-width:180px"></div>
       <div><label><input type="checkbox" id="prodPonto"> Ponto</label></div>
-      <button class="btn primary" type="button" onclick="criarProd()">Adicionar</button></div></div>
+      <button class="btn primary" type="button" onclick="criarProd()">Adicionar</button></div>
+      <p class="muted" style="margin:10px 0 0;font-size:.85rem">Foto: link público (https) ou caminho em <code>/public</code> (ex.: <code>/uploads/xburguer.jpg</code>).</p>
+    </div>
     <div id="cardapio"></div>
   </section>
   <section id="sec-garcons" class="admin-section"><div class="panel"><h2>Garçons</h2>
@@ -99,7 +107,7 @@
 document.getElementById('btnSair').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST'});}catch(e){}location.href='/login';});
 const host=location.origin;
 const br=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
-const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));};
+const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));};
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
 document.querySelectorAll('.admin-tabs button').forEach(btn=>{
   btn.addEventListener('click',()=>{
