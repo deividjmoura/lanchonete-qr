@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#c2410c">
 <title>Acompanhamento</title>
 <link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/style-ops.css">
 </head>
 <body>
 <header class="mobile-header">
@@ -19,7 +20,7 @@
 </header>
 <main class="wrap tracking" id="app">Carregando pedido...</main>
 <script>
-const id=Number(location.pathname.split('/').pop()),br=n=>'R$ '+Number(n).toFixed(2).replace('.',','),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const id=Number(location.pathname.split('/').pop()),br=n=>'R$ '+Number(n).toFixed(2).replace('.',','),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));
 const steps=[['PENDING','Pedido recebido','Recebemos seu pedido e ele já está na fila.'],['PREPARING','Na cozinha','A cozinha está preparando seu pedido.'],['READY','Pronto para entregar','Seu pedido ficou pronto. Chame o atendente ou aguarde a entrega.'],['DELIVERED','Entregue','Bom apetite! Esperamos que tenha gostado.']];
 async function load(){
  const r=await fetch('/api/orders/'+id);if(!r.ok){document.getElementById('app').innerHTML='<div class="panel"><h2>Pedido não encontrado</h2></div>';return}
