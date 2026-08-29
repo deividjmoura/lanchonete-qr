@@ -26,6 +26,7 @@
     .pk-count{min-width:24px;height:24px;padding:0 8px;border-radius:999px;font-size:.75rem;font-weight:700;background:var(--badge-neutral-bg);display:inline-flex;align-items:center;justify-content:center}
     .pk-card,.hist-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
     @media (max-width:900px){.pedidos-kanban{grid-template-columns:1fr}}
+    @media (max-width:640px){.edit-panel .grid2{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -128,7 +129,7 @@ document.querySelectorAll('.admin-tabs button').forEach(btn=>{
     btn.classList.add('active');
     const t=btn.dataset.tab;
     document.getElementById('sec-'+t).classList.add('active');
-    if(t==='dashboard')loadDashboard();
+    if(t==='dashboard'){if(typeof defaultRelDates==='function')defaultRelDates();loadDashboard();}
     if(t==='mesas')loadMesas();
     if(t==='cardapio')loadCardapio();
     if(t==='garcons')loadGarcons();
@@ -172,31 +173,6 @@ async function loadCardapio(){
     const prods=cat.produtos.length?cat.produtos.map(p=>renderProduto(p)).join(''):'<p class="muted">Nenhum produto.</p>';
     return '<div class="panel" style="margin-bottom:16px"><h2 style="margin:0">'+esc(cat.nome)+'</h2>'+prods+'</div>';
   }).join('');
-}
-function renderProduto(p){
-  const status=p.disponivel?'<span class="chip on">disponível</span>':'<span class="chip off">indisponível</span>';
-  return '<div class="prod-row"><div><strong>'+esc(p.nome)+'</strong> · '+br(p.preco)+'<div style="margin-top:6px">'+status+'</div></div>'+
-    '<div><button class="btn" type="button" onclick="toggleDisp('+p.id+','+(!p.disponivel)+')">'+(p.disponivel?'Pausar':'Ativar')+'</button></div></div>';
-}
-async function criarCat(){
-  const nome=document.getElementById('catNome').value.trim();const ordem=Number(document.getElementById('catOrdem').value)||0;
-  if(!nome)return toast('Nome');
-  const r=await fetch('/api/admin/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome,ordem})});
-  const d=await r.json();if(!r.ok)return toast(d.error||'Erro');
-  document.getElementById('catNome').value='';toast('OK');loadCardapio();
-}
-async function criarProd(){
-  const categoriaId=Number(document.getElementById('prodCat').value);const nome=document.getElementById('prodNome').value.trim();
-  const preco=Number(document.getElementById('prodPreco').value);const pedePontoCarne=document.getElementById('prodPonto').checked;
-  if(!nome||Number.isNaN(preco))return toast('Nome e preço');
-  const r=await fetch('/api/admin/produtos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({categoriaId,nome,preco,pedePontoCarne})});
-  const d=await r.json();if(!r.ok)return toast(d.error||'Erro');
-  document.getElementById('prodNome').value='';document.getElementById('prodPreco').value='';toast('OK');loadCardapio();
-}
-async function toggleDisp(id,disponivel){
-  const r=await fetch('/api/admin/produtos/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({disponivel})});
-  if(!r.ok){const d=await r.json();return toast(d.error||'Erro');}
-  toast(disponivel?'Ativado':'Pausado');loadCardapio();
 }
 async function loadGarcons(){
   const list=await(await fetch('/api/admin/garcons')).json();
@@ -244,5 +220,6 @@ loadDashboard();loadMesas();loadCardapio();loadGarcons();loadPedidosBoard();
 if(window.LQRRealtime){LQRRealtime.connect(()=>{loadPedidosBoard();loadMesas();loadDashboard();},{fallbackMs:25000,debounceMs:200});}
 else if(typeof EventSource!=='undefined'){const es=new EventSource('/api/events');es.addEventListener('update',()=>{loadPedidosBoard();loadMesas();loadDashboard();});}
 </script>
+<script src="/js/admin-cardapio.js"></script>
 </body>
 </html>
