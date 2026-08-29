@@ -7,7 +7,7 @@
   <title>Cozinha · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
-  </head>
+</head>
 <body>
 <main class="wrap">
   <div class="top">
@@ -75,28 +75,28 @@ function ageClass(min) {
 function extrasHtml(item) {
   const parts = [];
   if (item.ponto_carne && PONTO[item.ponto_carne]) {
-    parts.push(`<span class=\"ponto\">Ponto: ${PONTO[item.ponto_carne]}</span>`);
+    parts.push(`<span class="ponto">Ponto: ${PONTO[item.ponto_carne]}</span>`);
   }
   const adds = Array.isArray(item.adicionais) ? item.adicionais : [];
   if (adds.length) {
-    parts.push(`<span class=\"com\">+ ${adds.map((a) => a.nome).join(', ')}</span>`);
+    parts.push(`<span class="com">+ ${adds.map((a) => a.nome).join(', ')}</span>`);
   }
   const rems = Array.isArray(item.remocoes) ? item.remocoes : [];
   if (rems.length) {
-    parts.push(`<span class=\"sem\">sem ${rems.join(', ')}</span>`);
+    parts.push(`<span class="sem">sem ${rems.join(', ')}</span>`);
   }
   if (item.observacao) {
     parts.push(`Obs.: ${esc(item.observacao)}`);
   }
-  return parts.length ? `<small class=\"item-extra\">${parts.join(' · ')}</small>` : '';
+  return parts.length ? `<small class="item-extra">${parts.join(' · ')}</small>` : '';
 }
 
 const esc = (s) => {
   if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
     return SafeDOM.escapeHtml(s);
   }
-  return String(s ?? '').replace(/[&<>\"']/g, (m) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#039;',
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#039;',
   }[m]));
 };
 
@@ -107,32 +107,32 @@ function card(p) {
   const itens = (p.itens || [])
     .map(
       (i) =>
-        `<div class=\"row\">
+        `<div class="row">
           <span><b>${i.quantidade}×</b> ${esc(i.nome)}${extrasHtml(i)}</span>
         </div>`
     )
     .join('');
 
-  return `<article class=\"order ${p.status === 'recebido' ? 'new' : ''}\" data-id=\"${p.id}\">
-    <div class=\"row\">
+  return `<article class="order ${p.status === 'recebido' ? 'new' : ''}" data-id="${p.id}">
+    <div class="row">
       <div>
-        <div class=\"big\">Mesa ${p.mesa}</div>
-        ${p.cliente_nome ? `<div class=\"muted\">Cliente: <b>${esc(p.cliente_nome)}</b></div>` : ''}
-        <div class=\"meta-row\">
-          <span class=\"badge ${p.status}\">${LABELS[p.status] || p.status}</span>
-          <span class=\"age ${ageClass(min)}\">${min === 0 ? 'agora' : min + ' min'}</span>
+        <div class="big">Mesa ${p.mesa}</div>
+        ${p.cliente_nome ? `<div class="muted">Cliente: <b>${esc(p.cliente_nome)}</b></div>` : ''}
+        <div class="meta-row">
+          <span class="badge ${p.status}">${LABELS[p.status] || p.status}</span>
+          <span class="age ${ageClass(min)}">${min === 0 ? 'agora' : min + ' min'}</span>
         </div>
       </div>
       <b>#${p.id}</b>
     </div>
     <hr>
-    ${itens || '<p class=\"muted\">Sem itens</p>'}
+    ${itens || '<p class="muted">Sem itens</p>'}
     ${p.observacao_geral ? `<p><b>Obs. geral:</b> ${esc(p.observacao_geral)}</p>` : ''}
-    <p class=\"muted\">${fmtHora(p.criado_em)}</p>
-    <div class=\"nav\">
+    <p class="muted">${fmtHora(p.criado_em)}</p>
+    <div class="nav">
       ${
         proximo
-          ? `<button class=\"btn primary\" data-advance=\"${p.id}\" data-status=\"${proximo}\">${acao}</button>`
+          ? `<button class="btn primary" data-advance="${p.id}" data-status="${proximo}">${acao}</button>`
           : ''
       }
     </div>
@@ -177,7 +177,7 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   const root = document.getElementById('orders');
   if (!pedidos.length) {
     root.innerHTML =
-      '<div class=\"panel empty-state\"><div class=\"big\">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
+      '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
   } else {
     root.innerHTML = pedidos.map(card).join('');
   }
@@ -186,18 +186,18 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
 async function avancar(id, status) {
   if (advancing) return;
   advancing = true;
-  const btn = document.querySelector(`[data-advance=\"${id}\"]`);
+  const btn = document.querySelector(`[data-advance="${id}"]`);
   if (btn) {
     btn.disabled = true;
     btn.textContent = '…';
   }
-  const art = document.querySelector(`article[data-id=\"${id}\"]`);
+  const art = document.querySelector(`article[data-id="${id}"]`);
   if (art && status === 'concluido') art.remove();
   else if (art && status === 'em_producao') {
     const badge = art.querySelector('.badge');
     if (badge) { badge.className = 'badge em_producao'; badge.textContent = LABELS.em_producao; }
     const nav = art.querySelector('.nav');
-    if (nav) nav.innerHTML = `<button class=\"btn primary\" data-advance=\"${id}\" data-status=\"concluido\">${ACAO.em_producao}</button>`;
+    if (nav) nav.innerHTML = `<button class="btn primary" data-advance="${id}" data-status="concluido">${ACAO.em_producao}</button>`;
   }
   try {
     const res = await fetch(`/api/pedidos/${id}/status`, {
