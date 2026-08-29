@@ -1,6 +1,4 @@
-// Criação de pedido, avanço de status e leitura de sessão/fila da cozinha —
-// tudo lendo/gravando Postgres. Ver plano, seção 2 (máquina de estados) e
-// seção 6 (nunca confiar em preço/regra vinda do cliente).
+// Criação de pedido, avanço de status e leitura de sessão/fila da cozinha.
 const pool = require('./pool');
 const { TRANSICOES, getMesaPorToken, getOuAbrirSessao, getProdutoComRegras } = require('./queries');
 
@@ -11,10 +9,6 @@ class ErroPedido extends Error {
   }
 }
 
-// Cria um pedido pra mesa identificada pelo token. Abre a sessão da mesa se
-// for o primeiro pedido da visita, ou usa a sessão aberta existente.
-// Cada item é revalidado contra o banco: preço, disponibilidade, adicionais
-// e remoções permitidas, e se o produto pede ponto da carne.
 async function criarPedido(token, body) {
   const itensInput = Array.isArray(body.items) ? body.items : [];
   if (!itensInput.length) throw new ErroPedido(400, 'O pedido está vazio');
@@ -52,11 +46,16 @@ async function criarPedido(token, body) {
     for (const item of itensInput) {
       const produtoId = Number(item.productId ?? item.id);
       const produto = await getProdutoComRegras(client, produtoId);
-      // Produto inexistente/indisponível: ignora o item silenciosamente,
-      // mesmo comportamento do server.js antigo com o menu em JSON.
       if (!produto || !produto.disponivel) continue;
 
       const quantidade = Math.max(1, Math.min(99, Number(item.qty) || 1));
+
+      if (produto.controla_estoque) {
+        const disp = produto.estoque == null ? 0 : Number(produto.estoque);
+        if (disp < quantidade) {
+          throw new ErroPedido(400, `Estoque insuficiente para "${produto.nome}" (disponível: ${disp})`);
+        }
+      }
 
       const adicionaisSelecionados = Array.isArray(item.additions) ? item.additions : [];
       const adicionaisValidos = [];
@@ -98,6 +97,20 @@ async function criarPedido(token, body) {
         );
       }
 
+      if (produto.controla_estoque) {
+        const { rowCount } = await client.query(
+          `UPDATE produtos
+           SET estoque = estoque - $1,
+               disponivel = CASE WHEN estoque - $1 <= 0 THEN false ELSE disponivel END
+           WHERE id = $2 AND controla_estoque = true AND estoque >= $1`,
+          [quantidade, produto.id]
+        );
+        if (!rowCount) {
+          throw new ErroPedido(409, `Estoque de "${produto.nome}" esgotou durante o pedido`);
+        }
+        produto.estoque = Number(produto.estoque) - quantidade;
+      }
+
       const precoAdicionais = adicionaisValidos.reduce((s, a) => s + Number(a.preco), 0);
       const unitTotal = Number(produto.preco) + precoAdicionais;
       total += unitTotal * quantidade;
@@ -132,17 +145,13 @@ async function criarPedido(token, body) {
       total: Number(total.toFixed(2)),
     };
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (_) { /* sem transação em aberto */ }
+    try { await client.query('ROLLBACK'); } catch (_) {}
     throw err;
   } finally {
     client.release();
   }
 }
 
-// Avança o status do pedido em UM passo (recebido -> em_producao ->
-// concluido -> entregue). Não deixa pular etapa. Ao chegar em "entregue",
-// soma o valor do pedido em mesa_sessoes.valor_total (é o momento em que o
-// plano define que o valor "entra na conta da mesa" — ver seção 1 do plano).
 async function avancarStatus(pedidoId, novoStatus) {
   const client = await pool.connect();
   try {
@@ -187,17 +196,13 @@ async function avancarStatus(pedidoId, novoStatus) {
     await client.query('COMMIT');
     return { id: pedidoId, status: novoStatus };
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (_) { /* sem transação em aberto */ }
+    try { await client.query('ROLLBACK'); } catch (_) {}
     throw err;
   } finally {
     client.release();
   }
 }
 
-// Status + pedidos + total devido da sessão aberta da mesa. totalDevido soma
-// TODOS os pedidos da sessão (qualquer status) — é "quanto o cliente já
-// pediu", diferente de mesa_sessoes.valor_total (que só conta o que foi
-// confirmado "entregue", usado pelo caixa no passo 7 do plano).
 async function getSessao(token) {
   const client = await pool.connect();
   try {
@@ -316,7 +321,6 @@ async function getSessao(token) {
   }
 }
 
-/** Anexa adicionais/remoções a uma lista de itens (1–2 queries em lote). */
 async function anexarExtrasAosItens(itens) {
   if (!itens.length) return itens;
   const itemIds = itens.map((i) => i.id);
@@ -352,16 +356,6 @@ async function anexarExtrasAosItens(itens) {
   return itens;
 }
 
-async function carregarItensPedido(pedidoId) {
-  const { rows: itens } = await pool.query(
-    `SELECT ip.id, pr.nome, ip.quantidade, ip.ponto_carne, ip.observacao
-     FROM itens_pedido ip JOIN produtos pr ON pr.id = ip.produto_id
-     WHERE ip.pedido_id = $1`,
-    [pedidoId]
-  );
-  return anexarExtrasAosItens(itens);
-}
-
 async function listarPedidosPorStatus(statuses) {
   const { rows: pedidos } = await pool.query(
     `SELECT p.id, p.status, p.criado_em, p.observacao_geral, p.cliente_nome, p.garcom_nome,
@@ -394,19 +388,14 @@ async function listarPedidosPorStatus(statuses) {
   return pedidos.map((p) => ({ ...p, itens: byPedido.get(p.id) || [] }));
 }
 
-// Fila da cozinha: pedidos recebido/em_producao, mais antigo primeiro.
 async function getFilaCozinha() {
   return listarPedidosPorStatus(['recebido', 'em_producao']);
 }
 
-// Fila do garçom: pedidos concluídos pela cozinha, prontos para entregar.
-// Ao marcar entregue via avancarStatus, o valor soma em mesa_sessoes.valor_total.
 async function getFilaGarcom() {
   return listarPedidosPorStatus(['concluido']);
 }
 
-
-/** Check-in do cliente: abre sessão (se preciso) e grava o nome. */
 async function checkinCliente(token, body) {
   const nome = String(body.clienteNome || body.cliente_nome || body.nome || '')
     .trim()
