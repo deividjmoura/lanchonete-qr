@@ -36,6 +36,7 @@
 <div id="printArea" aria-hidden="true"></div>
 <script src="/js/safe-dom.js"></script>
 <script src="/js/realtime.js"></script>
+<script src="/js/voz-ops.js"></script>
 <script>
 const path = location.pathname.split('/').filter(Boolean);
 const garcomToken = path[path.length - 1];
@@ -188,6 +189,13 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
       'ok'
     );
     beepPronto();
+    // Voz engraçada: só número da mesa
+    if (window.anunciarGarcom) {
+      const mesasUnicas = [...new Set(chegaram.map((p) => p.mesa))];
+      for (const mesa of mesasUnicas) {
+        anunciarGarcom({ mesa });
+      }
+    }
   }
   primeiroLoad = false;
 

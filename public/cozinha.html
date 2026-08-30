@@ -43,6 +43,7 @@
 
 <script src="/js/safe-dom.js"></script>
 <script src="/js/realtime.js"></script>
+<script src="/js/voz-ops.js"></script>
 
 <script>
 const LABELS = {
@@ -306,6 +307,12 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
         : `${chegaram.length} pedidos novos · Mesas ${mesas}`
     );
     beepNovo();
+    // Voz: mesa + nome do cliente (um anúncio por pedido novo)
+    if (window.anunciarCozinha) {
+      for (const p of chegaram) {
+        anunciarCozinha({ mesa: p.mesa, clienteNome: p.cliente_nome || p.clienteNome || '' });
+      }
+    }
   }
   primeiroLoad = false;
 
