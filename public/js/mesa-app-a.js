@@ -27,12 +27,12 @@ function cartTotal(){return cart.reduce((s,i)=>s+itemTotal(i),0);}
 function updateCartPill(){const n=cartCount();const badge=document.getElementById('cartBadge');if(badge){badge.textContent=n;badge.classList.toggle('show',n>0);}const total=totalDevido||(sessaoData&&sessaoData.totalDevido)||0;const contaBadge=document.getElementById('contaBadge');if(contaBadge){contaBadge.textContent=total>0?'•':'$';contaBadge.classList.toggle('show',total>0||(sessaoData&&(sessaoData.pedidos||[]).length>0));}}
 function showToast(message,ms=1800){const toast=document.getElementById('toast');if(!toast)return;toast.textContent=message;toast.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>toast.classList.remove('show'),ms);}
 function bounceBurger(){const btn=document.getElementById('burgerBtn');if(!btn)return;btn.classList.remove('pop');void btn.offsetWidth;btn.classList.add('pop');clearTimeout(bounceBurger._t);bounceBurger._t=setTimeout(()=>btn.classList.remove('pop'),600);}
-function productNeedsCustom(p){return !!(p.pedePontoCarne||(p.adicionais&&p.adicionais.length)||(p.removiveis&&p.removiveis.length));}
+function productNeedsCustom(p){return !!((p.adicionais&&p.adicionais.length)||(p.removiveis&&p.removiveis.length));}
 function productIsEscolha(p,catNome){
   if(!p||!(p.adicionais&&p.adicionais.length))return false;
   const cat=String(catNome||p._catNome||'').toLowerCase();
   if(/bebida|drink|refri|suco|agua|cerveja|energ/.test(cat))return true;
-  return !p.pedePontoCarne&&!(p.removiveis&&p.removiveis.length);
+  return !(p.removiveis&&p.removiveis.length);
 }
 function itemKey(productId,additions,removals,note){return productId+'|'+[...additions].map(a=>a.id).sort().join(',')+'|'+(removals||[]).slice().sort().join(',')+'|'+(note||'');}
 function itemTotal(i){const p=produtos.find(x=>x.id===i.productId);if(!p)return 0;const add=i.additions.reduce((s,a)=>s+Number(a.preco||0),0);return (Number(p.preco)+add)*i.qty;}

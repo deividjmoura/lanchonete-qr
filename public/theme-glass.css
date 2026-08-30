@@ -31,9 +31,9 @@ html {
   --line-strong: rgba(255, 255, 255, 0.16);
   --border: var(--line);
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --text: #f7f4ef;
-  --text-secondary: #e0d9cf;
-  --muted: #b0a89c;
+  --text: #fffcf7;
+  --text-secondary: #f0ebe3;
+  --muted: #d4cdc3;
   --primary: #f97316;
   --primary-hover: #fb923c;
   --primary-active: #ea580c;
@@ -89,22 +89,23 @@ html {
 .foto-upload-box,
 .empty-state,
 article.panel {
-  background: rgba(16, 14, 12, 0.42) !important;
-  backdrop-filter: blur(20px) saturate(1.3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.3);
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(18, 16, 14, 0.55) !important;
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
   box-shadow: 0 10px 36px rgba(0, 0, 0, 0.32) !important;
   border-radius: 18px !important;
   color: var(--text);
 }
 
+/* Sem hover que altera transparência — só leve realce de borda */
 .panel:hover,
 .kpi-card:hover,
 .sessao-fold:hover,
 .order-card:hover {
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.38) !important;
-  background: rgba(18, 16, 14, 0.50) !important;
+  border-color: rgba(255, 255, 255, 0.20) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.36) !important;
+  background: rgba(18, 16, 14, 0.55) !important;
 }
 
 /* Topo / nav */
@@ -186,12 +187,12 @@ textarea::placeholder {
 
 /* Kanban / lista */
 .pk-col {
-  background: rgba(16, 14, 12, 0.26) !important;
+  background: rgba(18, 16, 14, 0.50) !important;
 }
 
 .pedidos-kanban .pk-card,
 .hist-card {
-  background: rgba(28, 26, 24, 0.32) !important;
+  background: rgba(22, 20, 18, 0.52) !important;
 }
 
 /* Modal */
@@ -422,7 +423,7 @@ body .login-lock {
 
 /* KPI accent — sutil, sem mancha vertical */
 .kpi-card.accent {
-  background: rgba(16, 14, 12, 0.42) !important;
+  background: rgba(18, 16, 14, 0.55) !important;
   border-color: rgba(249, 115, 22, 0.28) !important;
 }
 
@@ -628,12 +629,12 @@ body .login-lock {
   border-color: transparent !important;
 }
 .inner-glass {
-  background: rgba(16, 14, 12, 0.42) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(18, 16, 14, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
   box-shadow: 0 10px 36px rgba(0, 0, 0, 0.32) !important;
   border-radius: 18px !important;
-  backdrop-filter: blur(20px) saturate(1.3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
   padding: 18px 16px !important;
 }
 .dash-head {
@@ -759,7 +760,7 @@ body .login-lock {
   text-align: left;
   padding: 18px 16px !important;
   border-radius: 16px !important;
-  background: rgba(16, 14, 12, 0.42) !important;
+  background: rgba(18, 16, 14, 0.55) !important;
   min-height: 100px;
   height: auto !important;
 }
@@ -789,7 +790,7 @@ body .login-lock {
   text-transform: none !important;
   letter-spacing: 0 !important;
   font-size: 0.78rem !important;
-  opacity: 0.8;
+  opacity: 0.92;
   font-weight: 500;
 }
 .kpi-value {
@@ -800,7 +801,7 @@ body .login-lock {
 }
 .kpi-hint {
   font-size: 0.72rem !important;
-  opacity: 0.7;
+  opacity: 0.85;
   margin-top: 4px;
 }
 .card-title {
@@ -1088,4 +1089,38 @@ body.board-page .conta-btn .bag {
   .wrap {
     width: calc(100% - 20px) !important;
   }
+}
+
+
+/* Contraste de texto — admin legível */
+body.page-admin,
+body.page-caixa,
+body.page-cozinha,
+body.page-garcom {
+  color: #fffcf7 !important;
+}
+body.page-admin .muted,
+body.page-caixa .muted,
+body.page-cozinha .muted,
+body.page-garcom .muted,
+.muted {
+  color: rgba(255, 252, 247, 0.78) !important;
+}
+body.page-admin label,
+body.page-admin .kpi-label,
+body.page-admin .ops-row span {
+  color: rgba(255, 252, 247, 0.88) !important;
+}
+body.page-admin h2,
+body.page-admin h3,
+body.page-admin .dash-title,
+body.page-admin .card-title {
+  color: #fff !important;
+}
+body.page-admin .kpi-value,
+body.page-admin .kpi-hint {
+  color: #fff !important;
+}
+body.page-admin .kpi-hint {
+  opacity: 0.85 !important;
 }
