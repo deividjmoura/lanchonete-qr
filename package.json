@@ -7,7 +7,8 @@
     "start": "node server.js",
     "qr": "python3 generate_qr.py",
     "db:migrate": "node db/migrate.js",
-    "db:seed": "node db/seed.js"
+    "db:seed": "node db/seed.js",
+    "test:smoke": "node scripts/smoke.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

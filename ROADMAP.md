@@ -21,17 +21,18 @@ v2.5 ████████████████████  Desconto / ta
 v2.6 ████████████████████  PIX mesa + caixa        ✅
 v2.6+████████████████████  Escolher (bebidas)      ✅
 v2.7 ████████████████████  Divisão de conta        ✅
+v2.8 ████████████████████  PIX multi-aviso + alertas ops ✅
 v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · delivery      ⬜
 ```
 
-**Barra do v2:** `██████████████████░░` ~**90%**
+**Barra do v2:** `████████████████████` ~**95%**
 
 ---
 
-## ✅ Feito (v2.0 → v2.7)
+## ✅ Feito (v2.0 → v2.8)
 
 ### Fundação
-- [x] PostgreSQL no **Neon** + migrations (`0001` … `0009`)
+- [x] PostgreSQL no **Neon** + migrations (`0001` … `0010`)
 - [x] Seed (mesas, cardápio, adicionais, removíveis)
 - [x] Token **UUID** por mesa (QR opaco)
 - [x] Sessão de mesa acumulativa (`mesa_sessoes`)
@@ -49,6 +50,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Auth por papel (admin / cozinha / caixa)
 - [x] Rate limit em pedido e login
 - [x] Preço sempre recalculado no servidor
+- [x] Sessões de staff **persistentes** no Postgres (`staff_sessoes`)
 
 ### Gestão
 - [x] Painel de pedidos **kanban** (só ativos; histórico sob busca)
@@ -57,13 +59,14 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Controle de estoque (baixa automática)
 - [x] Fotos de produto + CSP
 
-### Pagamento PIX (v2.6)
+### Pagamento PIX (v2.6 → v2.8)
 - [x] QR / copia-e-cola na **mesa** e no **caixa**
 - [x] `PIX_CHAVE` / `PIX_NOME` / `PIX_CIDADE` no `.env`
 - [x] Normalização CPF/CNPJ/telefone/nome/cidade (EMV)
-- [x] Botão **Já paguei no PIX** → avisa o caixa
-- [x] Caixa: badge + toast + beep + destaque + PIX pré-selecionado
-- [x] Bloco de pagamento **sempre** na conta da mesa (explica se total 0 ou PIX off)
+- [x] Botão **Já paguei no PIX** → avisa o caixa (sem baixar valor sozinho)
+- [x] Vários avisos na mesma mesa (divisão entre pagantes)
+- [x] Caixa: badge + toast + beep a cada novo aviso + PIX pré-selecionado
+- [x] Bloco de pagamento **sempre** na conta da mesa
 
 ### Divisão de conta (v2.7)
 - [x] Migration `sessao_pagamentos` + API `POST /api/caixa/sessoes/:id/pagamentos`
@@ -71,6 +74,13 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] UX no caixa: painel **Divisão de conta**, valor/pessoa, badge pago/restante
 - [x] Ao **Fechar conta**, o restante é quitado automaticamente
 - [ ] *(futuro)* divisão por item · divisão na tela da mesa
+
+### Alertas operacionais (v2.8)
+- [x] Cozinha: toast + beep quando chega pedido `recebido`
+- [x] Garçom: toast + beep quando pedido fica `concluido`
+
+### Qualidade
+- [x] Smoke test automatizado (`npm run test:smoke`) — mesa → cozinha → garçom → PIX ×2 → parcial → fechar
 
 ---
 
@@ -80,7 +90,6 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Cardápio mesa e admin: categorias **recolhidas** (acordeão; uma aberta por vez)
 - [ ] Revisar impressão de comanda (cozinha/garçom) se necessário
 - [ ] Aposentar restos legados (`data/db.json` = só seed de referência)
-- [ ] Testes de fumaça: mesa → cozinha → garçom → parciais → PIX → fechar
 
 ### v3 — Gateway · delivery
 - [ ] Gateway PIX (confirmação automática)
@@ -98,6 +107,8 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Multi-loja | Um banco, vários pontos |
 | App garçom PWA | Offline leve + push |
 | Variantes nativas no admin | Hoje bebidas usam adicionais + UX Escolher |
+| CRM básico | Cliente recorrente (telefone) + cupom simples |
+| Multi-idioma | Cardápio dinâmico — esforço baixo, turismo |
 | **Menu / sidebar de navegação** | Admin e ops: lateral com seções; mesa: chips/âncoras de categoria fixas no topo para cardápio grande |
 
 ---
@@ -111,9 +122,11 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Tempo real | SSE (`LQRRealtime`) |
 | PIX | Estático EMV (sem gateway por enquanto) |
 | Bebidas / tamanhos | Adicionais + botão **Escolher** (rádio) |
+| Auth staff | Cookie httpOnly + tabela `staff_sessoes` |
 | Commits | Conventional Commits |
 | Docs | README visual + ROADMAP; atualizar após cada feature |
 | UI mesa | Shell HTML + CSS/JS em módulos |
+| Testes | Smoke HTTP (`scripts/smoke.js`) |
 
 ---
 
