@@ -291,10 +291,21 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (p === '/api/config/pix' && req.method === 'GET') {
+      let chave = String(process.env.PIX_CHAVE || '').trim();
+      if (chave.includes('@')) {
+        chave = chave.toLowerCase();
+      } else if (chave.startsWith('+')) {
+        chave = chave.replace(/\s/g, '');
+      } else if (chave) {
+        const digits = chave.replace(/\D/g, '');
+        if (digits.length === 11 || digits.length === 14) chave = digits; // CPF / CNPJ
+        else if (digits.startsWith('55') && digits.length >= 12 && digits.length <= 13) chave = '+' + digits;
+        else if (digits.length === 10) chave = '+55' + digits;
+      }
       return json(res, 200, {
-        chave: process.env.PIX_CHAVE || '',
-        nome: process.env.PIX_NOME || 'LANCHONETE',
-        cidade: process.env.PIX_CIDADE || 'BRASIL',
+        chave,
+        nome: (process.env.PIX_NOME || 'LANCHONETE').trim().slice(0, 25) || 'LANCHONETE',
+        cidade: (process.env.PIX_CIDADE || 'BRASIL').trim().slice(0, 15) || 'BRASIL',
       });
     }
 

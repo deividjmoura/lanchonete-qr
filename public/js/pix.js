@@ -20,13 +20,27 @@
   const LQRPix = {
     config: { chave: '', nome: 'LANCHONETE', cidade: 'BRASIL' },
 
+    /** CPF/CNPJ: só dígitos. Telefone: +55… E-mail/EVP: trim. */
+    normalizarChave(chave) {
+      const s = String(chave || '').trim();
+      if (!s) return '';
+      if (s.includes('@')) return s.toLowerCase();
+      if (s.startsWith('+')) return s.replace(/\s/g, '');
+      const digits = s.replace(/\D/g, '');
+      if (digits.length === 11 || digits.length === 14) return digits; // CPF / CNPJ
+      if (digits.startsWith('55') && digits.length >= 12 && digits.length <= 13) return '+' + digits;
+      if (digits.length === 10) return '+55' + digits; // fixo DDD+número
+      // chave aleatória (UUID) ou já no formato certo
+      return s;
+    },
+
     async loadConfig() {
       try {
         const r = await fetch('/api/config/pix');
         if (r.ok) {
           const d = await r.json();
           this.config = {
-            chave: String(d.chave || '').trim(),
+            chave: this.normalizarChave(d.chave),
             nome: String(d.nome || 'LANCHONETE').trim().slice(0, 25) || 'LANCHONETE',
             cidade: String(d.cidade || 'BRASIL').trim().slice(0, 15) || 'BRASIL',
           };
