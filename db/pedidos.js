@@ -239,6 +239,8 @@ async function getSessao(token) {
         pixInformadoEm: sessao.pix_informado_em || null,
         pedidos: [],
         totalDevido: 0,
+        valorPago: 0,
+        valorRestante: 0,
       };
     }
 
@@ -307,7 +309,7 @@ async function getSessao(token) {
       itensByPedido.get(item.pedido_id).push(packed);
     }
 
-    // totalDevido = só pedidos entregues (alinha com valor_total da sessão / caixa / PIX)
+    // totalDevido = só pedidos entregues (alinha com valor_total da sessão / caixa)
     let totalDevido = 0;
     const pedidosComItens = pedidos.map((p) => {
       const itens = itensByPedido.get(p.id) || [];
@@ -315,6 +317,15 @@ async function getSessao(token) {
       if (p.status === 'entregue') totalDevido += totalPedido;
       return { ...p, itens, totalPedido: Number(totalPedido.toFixed(2)) };
     });
+    totalDevido = Number(totalDevido.toFixed(2));
+
+    const { rows: pagRows } = await client.query(
+      `SELECT COALESCE(SUM(valor), 0)::float AS pago
+       FROM sessao_pagamentos WHERE sessao_id = $1`,
+      [sessao.id]
+    );
+    const valorPago = Number(Number(pagRows[0].pago || 0).toFixed(2));
+    const valorRestante = Number(Math.max(0, totalDevido - valorPago).toFixed(2));
 
     return {
       mesa: mesa.numero,
@@ -324,7 +335,9 @@ async function getSessao(token) {
       clienteNome: sessao.cliente_nome || null,
       pixInformadoEm: sessao.pix_informado_em || null,
       pedidos: pedidosComItens,
-      totalDevido: Number(totalDevido.toFixed(2)),
+      totalDevido,
+      valorPago,
+      valorRestante,
     };
   } finally {
     client.release();
