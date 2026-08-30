@@ -1,6 +1,4 @@
-// Caixa: listar sessões abertas e fechar conta (forma de pagamento).
-// valor_total em mesa_sessoes só conta pedidos já "entregue" — ver plano §1.
-// v2.6: desconto e taxa_servico em R$ no fechamento → valor_cobrado.
+// Caixa: sessões abertas, pagamentos parciais (divisão) e fechamento.
 const pool = require('./pool');
 
 const FORMAS = new Set(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']);
@@ -12,7 +10,6 @@ class ErroCaixa extends Error {
   }
 }
 
-/** Monta itens com extras e subtotal a partir de rows já buscadas em lote. */
 function montarItensComExtras(itensRows, addByItem, remByItem) {
   return itensRows.map((item) => {
     const adicionais = addByItem.get(item.id) || [];
@@ -59,6 +56,25 @@ async function listSessoesAbertas() {
      ORDER BY criado_em`,
     [sessaoIds]
   );
+
+  const { rows: pagRows } = await pool.query(
+    `SELECT id, sessao_id, valor, forma_pagamento, criado_em
+     FROM sessao_pagamentos
+     WHERE sessao_id = ANY($1::int[])
+     ORDER BY criado_em`,
+    [sessaoIds]
+  ).catch(() => ({ rows: [] }));
+
+  const pagBySessao = new Map();
+  for (const p of pagRows) {
+    if (!pagBySessao.has(p.sessao_id)) pagBySessao.set(p.sessao_id, []);
+    pagBySessao.get(p.sessao_id).push({
+      id: p.id,
+      valor: Number(p.valor),
+      formaPagamento: p.forma_pagamento,
+      criadoEm: p.criado_em,
+    });
+  }
 
   const entregueIds = pedidos.filter((p) => p.status === 'entregue').map((p) => p.id);
   let itensRows = [];
@@ -135,12 +151,19 @@ async function listSessoesAbertas() {
         pendentes += 1;
       }
     }
+    const pagamentos = pagBySessao.get(s.id) || [];
+    const valorPago = Number(pagamentos.reduce((acc, p) => acc + p.valor, 0).toFixed(2));
+    const valorTotal = Number(s.valor_total);
+    const valorRestante = Number(Math.max(0, valorTotal - valorPago).toFixed(2));
     return {
       id: s.id,
       mesa: s.mesa,
       mesaId: s.mesa_id,
       abertaEm: s.aberta_em,
-      valorTotal: Number(s.valor_total),
+      valorTotal,
+      valorPago,
+      valorRestante,
+      pagamentos,
       pixInformadoEm: s.pix_informado_em || null,
       pedidosEntregues: entregues,
       pedidosPendentes: pendentes,
@@ -149,8 +172,81 @@ async function listSessoesAbertas() {
   });
 }
 
-// Fecha a sessão: grava forma de pagamento, desconto/taxa, libera a mesa.
-// Bloqueia se ainda houver pedidos não entregues (cozinha/garçom).
+/** Registra pagamento parcial (divisão de conta). Não fecha a sessão. */
+async function registrarPagamento(sessaoId, body) {
+  const forma = String(body.formaPagamento || body.forma_pagamento || '')
+    .trim()
+    .toLowerCase();
+  if (!FORMAS.has(forma)) {
+    throw new ErroCaixa(
+      400,
+      'Forma de pagamento inválida. Use: dinheiro, pix, cartao_debito ou cartao_credito'
+    );
+  }
+  const valor = parseMoney(body.valor);
+  if (valor === null || valor <= 0) {
+    throw new ErroCaixa(400, 'Informe um valor de pagamento maior que zero');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT s.id, s.status, s.valor_total, m.numero AS mesa
+       FROM mesa_sessoes s
+       JOIN mesas m ON m.id = s.mesa_id
+       WHERE s.id = $1
+       FOR UPDATE`,
+      [sessaoId]
+    );
+    const sessao = rows[0];
+    if (!sessao) throw new ErroCaixa(404, 'Sessão não encontrada');
+    if (sessao.status !== 'aberta') throw new ErroCaixa(409, 'Sessão já está fechada');
+
+    const { rows: sumRows } = await client.query(
+      `SELECT COALESCE(SUM(valor), 0)::float AS pago
+       FROM sessao_pagamentos WHERE sessao_id = $1`,
+      [sessaoId]
+    );
+    const jaPago = Number(sumRows[0].pago);
+    const total = Number(sessao.valor_total);
+    const restante = Number(Math.max(0, total - jaPago).toFixed(2));
+    if (valor > restante + 0.009) {
+      throw new ErroCaixa(400, `Valor maior que o restante (R$ ${restante.toFixed(2).replace('.', ',')})`);
+    }
+
+    const { rows: ins } = await client.query(
+      `INSERT INTO sessao_pagamentos (sessao_id, valor, forma_pagamento)
+       VALUES ($1, $2, $3)
+       RETURNING id, valor, forma_pagamento, criado_em`,
+      [sessaoId, valor, forma]
+    );
+    await client.query('COMMIT');
+
+    const valorPago = Number((jaPago + valor).toFixed(2));
+    return {
+      ok: true,
+      mesa: sessao.mesa,
+      pagamento: {
+        id: ins[0].id,
+        valor: Number(ins[0].valor),
+        formaPagamento: ins[0].forma_pagamento,
+        criadoEm: ins[0].criado_em,
+      },
+      valorTotal: total,
+      valorPago,
+      valorRestante: Number(Math.max(0, total - valorPago).toFixed(2)),
+    };
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function fecharSessao(sessaoId, body) {
   const forma = String(body.formaPagamento || body.forma_pagamento || '')
     .trim()
@@ -164,12 +260,8 @@ async function fecharSessao(sessaoId, body) {
 
   const desconto = parseMoney(body.desconto);
   const taxaServico = parseMoney(body.taxaServico ?? body.taxa_servico);
-  if (desconto === null) {
-    throw new ErroCaixa(400, 'Desconto inválido');
-  }
-  if (taxaServico === null) {
-    throw new ErroCaixa(400, 'Taxa de serviço inválida');
-  }
+  if (desconto === null) throw new ErroCaixa(400, 'Desconto inválido');
+  if (taxaServico === null) throw new ErroCaixa(400, 'Taxa de serviço inválida');
 
   const client = await pool.connect();
   try {
@@ -185,9 +277,7 @@ async function fecharSessao(sessaoId, body) {
     );
     const sessao = rows[0];
     if (!sessao) throw new ErroCaixa(404, 'Sessão não encontrada');
-    if (sessao.status !== 'aberta') {
-      throw new ErroCaixa(409, 'Sessão já está fechada');
-    }
+    if (sessao.status !== 'aberta') throw new ErroCaixa(409, 'Sessão já está fechada');
 
     const { rows: pendentes } = await client.query(
       `SELECT COUNT(*)::int AS n FROM pedidos
@@ -206,8 +296,22 @@ async function fecharSessao(sessaoId, body) {
       throw new ErroCaixa(400, 'Desconto não pode ser maior que o total da conta');
     }
     const valorCobrado = Number((valorTotal - desconto + taxaServico).toFixed(2));
-    if (valorCobrado < 0) {
-      throw new ErroCaixa(400, 'Valor cobrado inválido');
+    if (valorCobrado < 0) throw new ErroCaixa(400, 'Valor cobrado inválido');
+
+    const { rows: sumRows } = await client.query(
+      `SELECT COALESCE(SUM(valor), 0)::float AS pago
+       FROM sessao_pagamentos WHERE sessao_id = $1`,
+      [sessaoId]
+    );
+    let valorPago = Number(sumRows[0].pago);
+    const falta = Number((valorCobrado - valorPago).toFixed(2));
+    if (falta > 0.009) {
+      await client.query(
+        `INSERT INTO sessao_pagamentos (sessao_id, valor, forma_pagamento)
+         VALUES ($1, $2, $3)`,
+        [sessaoId, falta, forma]
+      );
+      valorPago = Number((valorPago + falta).toFixed(2));
     }
 
     const { rows: updated } = await client.query(
@@ -225,7 +329,6 @@ async function fecharSessao(sessaoId, body) {
     );
 
     await client.query("UPDATE mesas SET status = 'livre' WHERE id = $1", [sessao.mesa_id]);
-
     await client.query('COMMIT');
 
     const row = updated[0];
@@ -236,6 +339,7 @@ async function fecharSessao(sessaoId, body) {
       desconto: Number(row.desconto),
       taxaServico: Number(row.taxa_servico),
       valorCobrado: Number(row.valor_cobrado),
+      valorPago,
       formaPagamento: row.forma_pagamento,
       abertaEm: row.aberta_em,
       fechadaEm: row.fechada_em,
@@ -244,13 +348,17 @@ async function fecharSessao(sessaoId, body) {
   } catch (err) {
     try {
       await client.query('ROLLBACK');
-    } catch (_) {
-      /* sem transação */
-    }
+    } catch (_) {}
     throw err;
   } finally {
     client.release();
   }
 }
 
-module.exports = { listSessoesAbertas, fecharSessao, ErroCaixa, FORMAS };
+module.exports = {
+  listSessoesAbertas,
+  registrarPagamento,
+  fecharSessao,
+  ErroCaixa,
+  FORMAS,
+};
