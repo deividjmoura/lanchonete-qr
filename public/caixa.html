@@ -8,10 +8,15 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
   <style>
-    .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow);padding:0}
-    details.sessao-fold > summary{padding:14px 16px}
-    details.sessao-fold .order-body{padding:0 16px 16px;border-top:1px solid var(--line);padding-top:12px}
-    details.sessao-fold .order-sum-meta .badge{font-size:.75rem}
+    .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow);padding:0;overflow:hidden}
+    .sessao-fold > .sessao-sum{padding:14px 16px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;user-select:none;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
+    .sessao-fold > .sessao-sum:hover{background:var(--surface-2)}
+    .sessao-fold > .sessao-sum::after{content:"▾";opacity:.45;font-size:.85rem;flex:0 0 auto}
+    .sessao-fold.open > .sessao-sum::after{content:"▴"}
+    .sessao-fold .order-body{display:none;padding:0 16px 16px;border-top:1px solid var(--line);padding-top:12px}
+    .sessao-fold.open .order-body{display:block}
+    .sessao-fold .order-sum-meta .badge{font-size:.75rem}
+    details.pedido{margin-top:10px}
     .sessao-card.blocked{opacity:.88}
     .sessao-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
     .valor-big{font-size:1.65rem;font-weight:800;font-family:var(--font-mono)}
@@ -140,6 +145,19 @@ function refreshPix(id, valor) {
   if (ta) ta.value = montarPixCopiaCola(valor);
   if (label) label.textContent = 'PIX · ' + money(valor) + ' · ' + pixNome();
 }
+
+window.__caixaOpenIds = window.__caixaOpenIds || new Set();
+function toggleSessaoCard(id) {
+  id = String(id);
+  const art = document.querySelector('.sessao-fold[data-id="' + id + '"]');
+  if (!art) return;
+  const open = art.classList.toggle('open');
+  const btn = art.querySelector('[data-toggle-sessao]');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) window.__caixaOpenIds.add(id);
+  else window.__caixaOpenIds.delete(id);
+}
+
 function card(s) {
   const valorPago = Number(s.valorPago || 0);
   const valorRestante = Number(
@@ -163,9 +181,9 @@ function card(s) {
     : '';
   const pixOk = window.LQRPix && LQRPix.disponivel();
   const nPed = (s.pedidosEntregues || []).length;
-  const openByDefault = false; // cards sempre recolhidos; usuário expande
-  return `<details class="sessao-fold sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pago="${valorPago}" data-restante="${valorRestante}" data-pix="${s.pixInformadoEm ? '1' : '0'}" ${openByDefault ? 'open' : ''}>
-    <summary>
+  const isOpen = window.__caixaOpenIds && window.__caixaOpenIds.has(String(s.id));
+  return `<article class="sessao-fold sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}${isOpen ? ' open' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pago="${valorPago}" data-restante="${valorRestante}" data-pix="${s.pixInformadoEm ? '1' : '0'}">
+    <button type="button" class="sessao-sum" data-toggle-sessao="${s.id}" aria-expanded="${isOpen ? 'true' : 'false'}">
       <div class="order-sum-left">
         <div class="big">Mesa ${s.mesa}</div>
         <div class="order-sum-meta">
@@ -177,7 +195,7 @@ function card(s) {
       <div class="order-sum-right"><div class="valor-big">${money(valorRestante > 0.009 && valorPago > 0.009 ? valorRestante : s.valorTotal)}</div>
         <div class="muted" style="font-size:.75rem">${valorPago > 0.009 ? 'a cobrar' : 'total'}</div>
       </div>
-    </summary>
+    </button>
     <div class="order-body">
       <div class="muted" style="font-size:.85rem;margin-bottom:8px">Aberta em ${fmtHora(s.abertaEm)}</div>
       ${pedidosHtml || '<p class="muted">Nenhum pedido entregue ainda.</p>'}
@@ -198,7 +216,7 @@ function card(s) {
         <button class="btn primary btn-text-icon" data-close="${s.id}" ${s.podeFechar ? '' : 'disabled title="Aguarde pedidos em andamento"'}><span class="ico">✓</span> Fechar</button>
       </div>
     </div>
-  </details>`;
+  </article>`;
 }
 function toast(msg, kind) {
   const el = document.getElementById('toast');
@@ -345,6 +363,12 @@ document.getElementById('lista').addEventListener('change', (ev) => {
   syncPixBox(input.name.replace('pay-', ''));
 });
 document.getElementById('lista').addEventListener('click', (ev) => {
+  const toggleBtn = ev.target.closest('[data-toggle-sessao]');
+  if (toggleBtn) {
+    ev.preventDefault();
+    toggleSessaoCard(toggleBtn.getAttribute('data-toggle-sessao'));
+    return;
+  }
   const copyBtn = ev.target.closest('[data-copy-pix]');
   if (copyBtn) {
     const ta = document.getElementById('pix-payload-' + copyBtn.dataset.copyPix);
