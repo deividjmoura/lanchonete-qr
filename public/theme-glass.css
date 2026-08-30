@@ -256,19 +256,22 @@ body.board-page .burger-dock .dock-item {
 }
 body.board-page .burger-dock .burger-btn,
 body.board-page .burger-dock .conta-btn {
-  background: rgba(22, 20, 18, 0.22) !important;
-  backdrop-filter: blur(18px) saturate(1.25);
-  -webkit-backdrop-filter: blur(18px) saturate(1.25);
-  border: none !important;                 /* remove borda */
-  border-radius: 22px !important;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
-  width: 80px !important;
-  height: 80px !important;
-  padding: 10px !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 4px !important;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
 }
 body.board-page .burger-dock .conta-btn {
-  width: 72px !important;
-  height: 72px !important;
+  width: auto !important;
+  height: auto !important;
 }
 body.board-page .burger-hint {
   font-family: Inter, system-ui, sans-serif !important;
@@ -276,27 +279,46 @@ body.board-page .burger-hint {
   font-weight: 600;
   color: rgba(245, 242, 238, 0.95) !important;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
-  background: rgba(12, 10, 9, 0.32);
-  backdrop-filter: blur(10px);
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: none !important;                 /* remove borda do hint também */
+  background: transparent !important;
+  backdrop-filter: none !important;
+  padding: 2px 4px;
+  border-radius: 0;
+  border: none !important;
 }
 
 /* ========== Mesa (cliente) ========== */
 /* fundo mesa: ver body.board-page no bloco de fundos por área */
 
+body.board-page .board-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+body.board-page .mesa-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+body.board-page .mesa-logo {
+  width: 56px !important;
+  height: 56px !important;
+  flex-shrink: 0;
+}
 body.board-page .board-header .menu-title {
   font-family: Inter, system-ui, sans-serif;
   font-weight: 800;
   letter-spacing: 0.18em;
   color: #fff;
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+  margin: 0;
+  font-size: 1.6rem;
 }
-
 body.board-page .board-header .mesa-line {
   font-family: Inter, system-ui, sans-serif;
   color: rgba(245, 242, 238, 0.75);
+  margin-top: 2px;
 }
 
 body.board-page .board-frame {
@@ -586,7 +608,8 @@ body .login-lock {
 }
 
 /* ========== Dashboard layout ========== */
-/* Shell transparente — só agrupa, sem “caixa” */
+/* Shell transparente — só agrupa, sem “caixa” e sem hover */
+.panel.glass-shell,
 .glass-shell {
   padding: 0 !important;
   margin: 0 !important;
@@ -596,6 +619,13 @@ body .login-lock {
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+.panel.glass-shell:hover,
+.glass-shell:hover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
 }
 .inner-glass {
   background: rgba(16, 14, 12, 0.42) !important;
