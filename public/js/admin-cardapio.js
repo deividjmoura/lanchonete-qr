@@ -45,10 +45,12 @@ function renderProduto(p) {
     '<div class="actions"><button class="btn primary" type="button" onclick="salvarProd(' + p.id + ')">Salvar</button>' +
     '<button class="btn" type="button" style="border-color:var(--danger);color:var(--danger)" onclick="esgotarProd(' + p.id + ')">Esgotar</button>' +
     '<button class="btn" type="button" onclick="toggleEdit(' + p.id + ')">Cancelar</button></div><hr>' +
-    '<h3 style="font-size:1rem;margin-bottom:8px">Adicionais</h3><div id="adds-' + p.id + '">' + addRows + '</div>' +
-    '<div class="form-inline"><input id="add-nome-' + p.id + '" placeholder="Nome do adicional">' +
+    '<h3 style="font-size:1rem;margin-bottom:8px">Adicionais / opções</h3>' +
+    '<p class="muted" style="font-size:.8rem;margin:0 0 8px">Em <b>Bebidas / Drinks / Sucos</b>: cadastre sabores ou tamanhos aqui (ex.: Coca-Cola, Maracujá). Sem removíveis e sem ponto de carne → o cliente vê <b>Escolher</b> (uma opção). Em lanches: extras multi (Bacon +2,50).</p>' +
+    '<div id="adds-' + p.id + '">' + addRows + '</div>' +
+    '<div class="form-inline"><input id="add-nome-' + p.id + '" placeholder="Ex.: Coca-Cola ou Bacon extra">' +
     '<input id="add-preco-' + p.id + '" type="number" step="0.01" min="0" placeholder="Preço" style="width:90px">' +
-    '<button class="btn primary" type="button" onclick="addAdd(' + p.id + ')">+ Adicional</button></div><hr>' +
+    '<button class="btn primary" type="button" onclick="addAdd(' + p.id + ')">+ Opção</button></div><hr>' +
     '<h3 style="font-size:1rem;margin-bottom:8px">Ingredientes removíveis</h3>' +
     '<input id="rems-' + p.id + '" value="' + esc((p.removiveis || []).join(', ')) + '" placeholder="queijo, alface, tomate">' +
     '<div class="actions"><button class="btn primary" type="button" onclick="salvarRems(' + p.id + ')">Salvar removíveis</button></div>' +
