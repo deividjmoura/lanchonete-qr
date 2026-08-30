@@ -1,4 +1,4 @@
-// Criação de pedido, avanço de status e leitura de sessão/fila da cozinha.
+// Criação de pedido, avanço de status, cancelar/editar (cliente) e leitura de sessão/fila.
 const pool = require('./pool');
 const { TRANSICOES, getMesaPorToken, getOuAbrirSessao, getProdutoComRegras } = require('./queries');
 
@@ -7,6 +7,120 @@ class ErroPedido extends Error {
     super(message);
     this.status = status;
   }
+}
+
+async function restaurarEstoqueDoPedido(client, pedidoId) {
+  const { rows: itens } = await client.query(
+    `SELECT ip.produto_id, ip.quantidade, pr.controla_estoque
+     FROM itens_pedido ip
+     JOIN produtos pr ON pr.id = ip.produto_id
+     WHERE ip.pedido_id = $1`,
+    [pedidoId]
+  );
+  for (const it of itens) {
+    if (!it.controla_estoque) continue;
+    await client.query(
+      `UPDATE produtos
+       SET estoque = COALESCE(estoque, 0) + $1,
+           disponivel = true
+       WHERE id = $2 AND controla_estoque = true`,
+      [it.quantidade, it.produto_id]
+    );
+  }
+}
+
+async function gravarItensPedido(client, pedidoId, itensInput) {
+  const itensGravados = [];
+  let total = 0;
+
+  for (const item of itensInput) {
+    const produtoId = Number(item.productId ?? item.id);
+    const produto = await getProdutoComRegras(client, produtoId);
+    if (!produto || !produto.disponivel) continue;
+
+    const quantidade = Math.max(1, Math.min(99, Number(item.qty) || 1));
+
+    if (produto.controla_estoque) {
+      const disp = produto.estoque == null ? 0 : Number(produto.estoque);
+      if (disp < quantidade) {
+        throw new ErroPedido(400, `Estoque insuficiente para "${produto.nome}" (disponível: ${disp})`);
+      }
+    }
+
+    const adicionaisSelecionados = Array.isArray(item.additions) ? item.additions : [];
+    const adicionaisValidos = [];
+    for (const a of adicionaisSelecionados) {
+      const permitido = produto.adicionaisPermitidos.find((x) => x.id === Number(a.id));
+      if (permitido) adicionaisValidos.push(permitido);
+    }
+
+    const remocoesSolicitadas = Array.isArray(item.removals) ? item.removals : [];
+    const remocoesValidas = [
+      ...new Set(remocoesSolicitadas.filter((r) => produto.removiveisPermitidos.includes(r))),
+    ];
+
+    const pontoCarne =
+      produto.pede_ponto_carne && ['MAL_PASSADO', 'AO_PONTO', 'BEM_PASSADO'].includes(item.meatPoint)
+        ? item.meatPoint
+        : null;
+
+    const observacao = String(item.note || '').trim().slice(0, 300) || null;
+
+    const { rows: itemRows } = await client.query(
+      `INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario, ponto_carne, observacao)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [pedidoId, produto.id, quantidade, produto.preco, pontoCarne, observacao]
+    );
+    const itemId = itemRows[0].id;
+
+    for (const a of adicionaisValidos) {
+      await client.query(
+        `INSERT INTO itens_pedido_adicionais (item_pedido_id, adicional_id, preco_unitario)
+         VALUES ($1, $2, $3)`,
+        [itemId, a.id, a.preco]
+      );
+    }
+    for (const ingrediente of remocoesValidas) {
+      await client.query(
+        `INSERT INTO itens_pedido_remocoes (item_pedido_id, ingrediente) VALUES ($1, $2)`,
+        [itemId, ingrediente]
+      );
+    }
+
+    if (produto.controla_estoque) {
+      const { rowCount } = await client.query(
+        `UPDATE produtos
+         SET estoque = estoque - $1,
+             disponivel = CASE WHEN estoque - $1 <= 0 THEN false ELSE disponivel END
+         WHERE id = $2 AND controla_estoque = true AND estoque >= $1`,
+        [quantidade, produto.id]
+      );
+      if (!rowCount) {
+        throw new ErroPedido(409, `Estoque de "${produto.nome}" esgotou durante o pedido`);
+      }
+      produto.estoque = Number(produto.estoque) - quantidade;
+    }
+
+    const precoAdicionais = adicionaisValidos.reduce((s, a) => s + Number(a.preco), 0);
+    const unitTotal = Number(produto.preco) + precoAdicionais;
+    total += unitTotal * quantidade;
+
+    itensGravados.push({
+      id: itemId,
+      produtoId: produto.id,
+      nome: produto.nome,
+      quantidade,
+      precoUnitario: Number(produto.preco),
+      adicionais: adicionaisValidos.map((a) => ({ id: a.id, nome: a.nome, preco: Number(a.preco) })),
+      removals: remocoesValidas,
+      pontoCarne,
+      observacao,
+      unitTotal: Number(unitTotal.toFixed(2)),
+    });
+  }
+
+  if (!itensGravados.length) throw new ErroPedido(400, 'Nenhum item válido no pedido');
+  return { itensGravados, total: Number(total.toFixed(2)) };
 }
 
 async function criarPedido(token, body) {
@@ -35,108 +149,17 @@ async function criarPedido(token, body) {
     const observacaoGeral = String(body.note || '').trim().slice(0, 500) || null;
     const { rows: pedidoRows } = await client.query(
       `INSERT INTO pedidos (sessao_id, observacao_geral, cliente_nome)
-       VALUES ($1, $2, $3) RETURNING id, status, criado_em, cliente_nome`,
+       VALUES ($1, $2, $3) RETURNING id, status, criado_em, cliente_nome, editado_em`,
       [sessaoId, observacaoGeral, clienteNome]
     );
     const pedido = pedidoRows[0];
 
-    // Novo pedido após "Já paguei no PIX": limpa o aviso para o caixa/mesa
-    // (a conta mudou — cliente pode pagar de novo o restante)
     await client.query(
       `UPDATE mesa_sessoes SET pix_informado_em = NULL WHERE id = $1`,
       [sessaoId]
     );
 
-    const itensGravados = [];
-    let total = 0;
-
-    for (const item of itensInput) {
-      const produtoId = Number(item.productId ?? item.id);
-      const produto = await getProdutoComRegras(client, produtoId);
-      if (!produto || !produto.disponivel) continue;
-
-      const quantidade = Math.max(1, Math.min(99, Number(item.qty) || 1));
-
-      if (produto.controla_estoque) {
-        const disp = produto.estoque == null ? 0 : Number(produto.estoque);
-        if (disp < quantidade) {
-          throw new ErroPedido(400, `Estoque insuficiente para "${produto.nome}" (disponível: ${disp})`);
-        }
-      }
-
-      const adicionaisSelecionados = Array.isArray(item.additions) ? item.additions : [];
-      const adicionaisValidos = [];
-      for (const a of adicionaisSelecionados) {
-        const permitido = produto.adicionaisPermitidos.find((x) => x.id === Number(a.id));
-        if (permitido) adicionaisValidos.push(permitido);
-      }
-
-      const remocoesSolicitadas = Array.isArray(item.removals) ? item.removals : [];
-      const remocoesValidas = [
-        ...new Set(remocoesSolicitadas.filter((r) => produto.removiveisPermitidos.includes(r))),
-      ];
-
-      const pontoCarne =
-        produto.pede_ponto_carne && ['MAL_PASSADO', 'AO_PONTO', 'BEM_PASSADO'].includes(item.meatPoint)
-          ? item.meatPoint
-          : null;
-
-      const observacao = String(item.note || '').trim().slice(0, 300) || null;
-
-      const { rows: itemRows } = await client.query(
-        `INSERT INTO itens_pedido (pedido_id, produto_id, quantidade, preco_unitario, ponto_carne, observacao)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [pedido.id, produto.id, quantidade, produto.preco, pontoCarne, observacao]
-      );
-      const itemId = itemRows[0].id;
-
-      for (const a of adicionaisValidos) {
-        await client.query(
-          `INSERT INTO itens_pedido_adicionais (item_pedido_id, adicional_id, preco_unitario)
-           VALUES ($1, $2, $3)`,
-          [itemId, a.id, a.preco]
-        );
-      }
-      for (const ingrediente of remocoesValidas) {
-        await client.query(
-          `INSERT INTO itens_pedido_remocoes (item_pedido_id, ingrediente) VALUES ($1, $2)`,
-          [itemId, ingrediente]
-        );
-      }
-
-      if (produto.controla_estoque) {
-        const { rowCount } = await client.query(
-          `UPDATE produtos
-           SET estoque = estoque - $1,
-               disponivel = CASE WHEN estoque - $1 <= 0 THEN false ELSE disponivel END
-           WHERE id = $2 AND controla_estoque = true AND estoque >= $1`,
-          [quantidade, produto.id]
-        );
-        if (!rowCount) {
-          throw new ErroPedido(409, `Estoque de "${produto.nome}" esgotou durante o pedido`);
-        }
-        produto.estoque = Number(produto.estoque) - quantidade;
-      }
-
-      const precoAdicionais = adicionaisValidos.reduce((s, a) => s + Number(a.preco), 0);
-      const unitTotal = Number(produto.preco) + precoAdicionais;
-      total += unitTotal * quantidade;
-
-      itensGravados.push({
-        id: itemId,
-        produtoId: produto.id,
-        nome: produto.nome,
-        quantidade,
-        precoUnitario: Number(produto.preco),
-        adicionais: adicionaisValidos.map((a) => ({ id: a.id, nome: a.nome, preco: Number(a.preco) })),
-        removals: remocoesValidas,
-        pontoCarne,
-        observacao,
-        unitTotal: Number(unitTotal.toFixed(2)),
-      });
-    }
-
-    if (!itensGravados.length) throw new ErroPedido(400, 'Nenhum item válido no pedido');
+    const { itensGravados, total } = await gravarItensPedido(client, pedido.id, itensInput);
 
     await client.query('COMMIT');
 
@@ -146,13 +169,150 @@ async function criarPedido(token, body) {
       mesa: mesa.numero,
       status: pedido.status,
       criadoEm: pedido.criado_em,
+      editadoEm: pedido.editado_em || null,
       clienteNome: pedido.cliente_nome || clienteNome,
       observacaoGeral,
       itens: itensGravados,
-      total: Number(total.toFixed(2)),
+      total,
     };
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (_) {}
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/** Cliente cancela pedido só enquanto status = recebido (ainda não em preparo). */
+async function cancelarPedidoCliente(token, pedidoId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const mesa = await getMesaPorToken(client, token);
+    if (!mesa) throw new ErroPedido(404, 'Mesa não encontrada');
+
+    const { rows } = await client.query(
+      `SELECT p.id, p.status, p.sessao_id
+       FROM pedidos p
+       JOIN mesa_sessoes s ON s.id = p.sessao_id
+       WHERE p.id = $1 AND s.mesa_id = $2 AND s.status = 'aberta'
+       FOR UPDATE OF p`,
+      [Number(pedidoId), mesa.id]
+    );
+    const pedido = rows[0];
+    if (!pedido) throw new ErroPedido(404, 'Pedido não encontrado nesta mesa');
+    if (pedido.status !== 'recebido') {
+      throw new ErroPedido(
+        409,
+        'Só é possível cancelar enquanto o pedido ainda não entrou em preparo na cozinha'
+      );
+    }
+
+    await restaurarEstoqueDoPedido(client, pedido.id);
+
+    await client.query(
+      `DELETE FROM itens_pedido_adicionais
+       WHERE item_pedido_id IN (SELECT id FROM itens_pedido WHERE pedido_id = $1)`,
+      [pedido.id]
+    );
+    await client.query(
+      `DELETE FROM itens_pedido_remocoes
+       WHERE item_pedido_id IN (SELECT id FROM itens_pedido WHERE pedido_id = $1)`,
+      [pedido.id]
+    );
+    await client.query(`DELETE FROM itens_pedido WHERE pedido_id = $1`, [pedido.id]);
+    await client.query(`DELETE FROM pedidos WHERE id = $1`, [pedido.id]);
+
+    await client.query('COMMIT');
+    return { ok: true, id: pedido.id, cancelado: true, mesa: mesa.numero };
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/** Cliente edita itens do pedido só enquanto status = recebido. Marca editado_em. */
+async function editarPedidoCliente(token, pedidoId, body) {
+  const itensInput = Array.isArray(body.items) ? body.items : [];
+  if (!itensInput.length) throw new ErroPedido(400, 'O pedido editado está vazio — cancele se quiser remover');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const mesa = await getMesaPorToken(client, token);
+    if (!mesa) throw new ErroPedido(404, 'Mesa não encontrada');
+
+    const { rows } = await client.query(
+      `SELECT p.id, p.status, p.sessao_id, p.cliente_nome, p.observacao_geral
+       FROM pedidos p
+       JOIN mesa_sessoes s ON s.id = p.sessao_id
+       WHERE p.id = $1 AND s.mesa_id = $2 AND s.status = 'aberta'
+       FOR UPDATE OF p`,
+      [Number(pedidoId), mesa.id]
+    );
+    const pedido = rows[0];
+    if (!pedido) throw new ErroPedido(404, 'Pedido não encontrado nesta mesa');
+    if (pedido.status !== 'recebido') {
+      throw new ErroPedido(
+        409,
+        'Só é possível editar enquanto o pedido ainda não entrou em preparo na cozinha'
+      );
+    }
+
+    await restaurarEstoqueDoPedido(client, pedido.id);
+
+    await client.query(
+      `DELETE FROM itens_pedido_adicionais
+       WHERE item_pedido_id IN (SELECT id FROM itens_pedido WHERE pedido_id = $1)`,
+      [pedido.id]
+    );
+    await client.query(
+      `DELETE FROM itens_pedido_remocoes
+       WHERE item_pedido_id IN (SELECT id FROM itens_pedido WHERE pedido_id = $1)`,
+      [pedido.id]
+    );
+    await client.query(`DELETE FROM itens_pedido WHERE pedido_id = $1`, [pedido.id]);
+
+    const observacaoGeral =
+      body.note !== undefined
+        ? String(body.note || '').trim().slice(0, 500) || null
+        : pedido.observacao_geral;
+
+    const { itensGravados, total } = await gravarItensPedido(client, pedido.id, itensInput);
+
+    const { rows: updated } = await client.query(
+      `UPDATE pedidos
+       SET editado_em = now(),
+           observacao_geral = $2
+       WHERE id = $1
+       RETURNING id, status, criado_em, editado_em, cliente_nome, observacao_geral`,
+      [pedido.id, observacaoGeral]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      id: updated[0].id,
+      status: updated[0].status,
+      criadoEm: updated[0].criado_em,
+      editadoEm: updated[0].editado_em,
+      clienteNome: updated[0].cliente_nome,
+      observacaoGeral: updated[0].observacao_geral,
+      mesa: mesa.numero,
+      itens: itensGravados,
+      total,
+      editado: true,
+    };
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
     throw err;
   } finally {
     client.release();
@@ -203,7 +363,9 @@ async function avancarStatus(pedidoId, novoStatus) {
     await client.query('COMMIT');
     return { id: pedidoId, status: novoStatus };
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (_) {}
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
     throw err;
   } finally {
     client.release();
@@ -221,10 +383,11 @@ async function getSessao(token) {
       [mesa.id]
     );
     const sessao = sessaoRows[0];
-    if (!sessao) return { mesa: mesa.numero, sessaoAberta: false, pedidos: [], totalDevido: 0, clienteNome: null };
+    if (!sessao)
+      return { mesa: mesa.numero, sessaoAberta: false, pedidos: [], totalDevido: 0, clienteNome: null };
 
     const { rows: pedidos } = await client.query(
-      `SELECT id, status, criado_em, observacao_geral, cliente_nome, garcom_nome, claimed_at
+      `SELECT id, status, criado_em, observacao_geral, cliente_nome, garcom_nome, claimed_at, editado_em
        FROM pedidos
        WHERE sessao_id = $1 ORDER BY criado_em`,
       [sessao.id]
@@ -246,7 +409,7 @@ async function getSessao(token) {
 
     const ids = pedidos.map((p) => p.id);
     const { rows: itensRows } = await client.query(
-      `SELECT ip.id, ip.pedido_id, pr.nome, ip.quantidade, ip.preco_unitario, ip.ponto_carne, ip.observacao
+      `SELECT ip.id, ip.pedido_id, pr.nome, ip.quantidade, ip.preco_unitario, ip.ponto_carne, ip.observacao, ip.produto_id
        FROM itens_pedido ip
        JOIN produtos pr ON pr.id = ip.produto_id
        WHERE ip.pedido_id = ANY($1::int[])
@@ -260,7 +423,7 @@ async function getSessao(token) {
     if (itemIds.length) {
       const [adRes, remRes] = await Promise.all([
         client.query(
-          `SELECT ipa.item_pedido_id, a.nome, ipa.preco_unitario
+          `SELECT ipa.item_pedido_id, a.id AS adicional_id, a.nome, ipa.preco_unitario
            FROM itens_pedido_adicionais ipa
            JOIN adicionais a ON a.id = ipa.adicional_id
            WHERE ipa.item_pedido_id = ANY($1::int[])`,
@@ -280,7 +443,11 @@ async function getSessao(token) {
     const addByItem = new Map();
     for (const a of adRows) {
       if (!addByItem.has(a.item_pedido_id)) addByItem.set(a.item_pedido_id, []);
-      addByItem.get(a.item_pedido_id).push({ nome: a.nome, preco: Number(a.preco_unitario) });
+      addByItem.get(a.item_pedido_id).push({
+        id: a.adicional_id,
+        nome: a.nome,
+        preco: Number(a.preco_unitario),
+      });
     }
     const remByItem = new Map();
     for (const r of remRows) {
@@ -296,6 +463,7 @@ async function getSessao(token) {
       const linha = (Number(item.preco_unitario) + totalAdicionais) * item.quantidade;
       const packed = {
         id: item.id,
+        produtoId: item.produto_id,
         nome: item.nome,
         quantidade: item.quantidade,
         preco_unitario: item.preco_unitario,
@@ -309,13 +477,18 @@ async function getSessao(token) {
       itensByPedido.get(item.pedido_id).push(packed);
     }
 
-    // totalDevido = só pedidos entregues (alinha com valor_total da sessão / caixa)
     let totalDevido = 0;
     const pedidosComItens = pedidos.map((p) => {
       const itens = itensByPedido.get(p.id) || [];
       const totalPedido = itens.reduce((sum, i) => sum + i.totalLinha, 0);
       if (p.status === 'entregue') totalDevido += totalPedido;
-      return { ...p, itens, totalPedido: Number(totalPedido.toFixed(2)) };
+      return {
+        ...p,
+        editadoEm: p.editado_em || null,
+        itens,
+        totalPedido: Number(totalPedido.toFixed(2)),
+        podeEditar: p.status === 'recebido',
+      };
     });
     totalDevido = Number(totalDevido.toFixed(2));
 
@@ -382,7 +555,7 @@ async function anexarExtrasAosItens(itens) {
 async function listarPedidosPorStatus(statuses) {
   const { rows: pedidos } = await pool.query(
     `SELECT p.id, p.status, p.criado_em, p.observacao_geral, p.cliente_nome, p.garcom_nome,
-            m.numero AS mesa
+            p.editado_em, m.numero AS mesa
      FROM pedidos p
      JOIN mesa_sessoes s ON s.id = p.sessao_id
      JOIN mesas m ON m.id = s.mesa_id
@@ -408,7 +581,11 @@ async function listarPedidosPorStatus(statuses) {
     if (!byPedido.has(item.pedido_id)) byPedido.set(item.pedido_id, []);
     byPedido.get(item.pedido_id).push(item);
   }
-  return pedidos.map((p) => ({ ...p, itens: byPedido.get(p.id) || [] }));
+  return pedidos.map((p) => ({
+    ...p,
+    editadoEm: p.editado_em || null,
+    itens: byPedido.get(p.id) || [],
+  }));
 }
 
 async function getFilaCozinha() {
@@ -431,14 +608,13 @@ async function checkinCliente(token, body) {
     const mesa = await getMesaPorToken(client, token);
     if (!mesa) throw new ErroPedido(404, 'Mesa não encontrada');
     const sessaoId = await getOuAbrirSessao(client, mesa.id);
-    await client.query(
-      `UPDATE mesa_sessoes SET cliente_nome = $2 WHERE id = $1`,
-      [sessaoId, nome]
-    );
+    await client.query(`UPDATE mesa_sessoes SET cliente_nome = $2 WHERE id = $1`, [sessaoId, nome]);
     await client.query('COMMIT');
     return { ok: true, mesa: mesa.numero, sessaoId, clienteNome: nome };
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (_) {}
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
     throw err;
   } finally {
     client.release();
@@ -452,5 +628,7 @@ module.exports = {
   getFilaCozinha,
   getFilaGarcom,
   checkinCliente,
+  cancelarPedidoCliente,
+  editarPedidoCliente,
   ErroPedido,
 };
