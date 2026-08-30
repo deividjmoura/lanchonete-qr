@@ -210,7 +210,7 @@ async function getSessao(token) {
     if (!mesa) throw new ErroPedido(404, 'Mesa não encontrada');
 
     const { rows: sessaoRows } = await client.query(
-      "SELECT id, aberta_em, cliente_nome FROM mesa_sessoes WHERE mesa_id = $1 AND status = 'aberta'",
+      "SELECT id, aberta_em, cliente_nome, pix_informado_em FROM mesa_sessoes WHERE mesa_id = $1 AND status = 'aberta'",
       [mesa.id]
     );
     const sessao = sessaoRows[0];
@@ -229,6 +229,7 @@ async function getSessao(token) {
         sessaoId: sessao.id,
         abertaEm: sessao.aberta_em,
         clienteNome: sessao.cliente_nome || null,
+        pixInformadoEm: sessao.pix_informado_em || null,
         pedidos: [],
         totalDevido: 0,
       };
@@ -313,6 +314,7 @@ async function getSessao(token) {
       sessaoId: sessao.id,
       abertaEm: sessao.aberta_em,
       clienteNome: sessao.cliente_nome || null,
+      pixInformadoEm: sessao.pix_informado_em || null,
       pedidos: pedidosComItens,
       totalDevido: Number(totalDevido.toFixed(2)),
     };
