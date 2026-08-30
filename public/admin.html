@@ -366,7 +366,13 @@ async function loadPedidosBoard(){
   for(const p of list){if(by[p.status])by[p.status].push(p);}
   if(statsEl)statsEl.innerHTML=list.length?'<span class="badge">'+list.length+' ativo(s)</span>':'<span class="badge">Fila limpa</span>';
   if(!list.length){el.innerHTML='<div class="empty-state-big" style="grid-column:1/-1"><span class="big-ico" aria-hidden="true">✅</span><span class="empty-title">Nenhum pedido em andamento</span><span class="empty-sub">Aproveite o momento de calmaria!</span></div>';return;}
-  el.innerHTML=STATUS_COLS.map(col=>{const items=by[col.key]||[];return '<div class="pk-col"><div class="pk-col-head"><h3 style="margin:0;font-size:.95rem">'+col.icon+' '+col.label+'</h3><span class="pk-count">'+items.length+'</span></div>'+(items.length?items.map(pedidoCardAtivo).join(''):'<div class="empty-col"><span class="big-ico" aria-hidden="true">—</span>Vazio</div>')+'</div>';}).join('');
+  el.innerHTML=STATUS_COLS.map(col=>{
+    const items=by[col.key]||[];
+    const body=items.length
+      ? items.map(pedidoCardAtivo).join('')
+      : '<div class="empty-col"><span class="big-ico" aria-hidden="true">—</span>Vazio</div>';
+    return '<div class="pk-col"><div class="pk-col-head"><h3 style="margin:0;font-size:.95rem">'+col.icon+' '+col.label+'</h3><span class="pk-count">'+items.length+'</span></div><div class="pk-col-body">'+body+'</div></div>';
+  }).join('');
 }
 async function buscarHistorico(){
   const from=document.getElementById('histFrom').value,to=document.getElementById('histTo').value,el=document.getElementById('pedidosHistorico');

@@ -988,6 +988,35 @@ body.board-page .conta-btn .bag {
 .pk-col {
   align-self: start;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 340px; /* ~4 pedidos; acima disso rola */
+}
+.pk-col-head {
+  flex: 0 0 auto;
+}
+.pk-col-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+.pk-col-body::-webkit-scrollbar {
+  width: 6px;
+}
+.pk-col-body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+.pk-col-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+.pk-col-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.38);
 }
 .pk-card {
   align-self: start;
