@@ -22,17 +22,18 @@ v2.6 ████████████████████  PIX mesa + ca
 v2.6+████████████████████  Escolher (bebidas)      ✅
 v2.7 ████████████████████  Divisão de conta        ✅
 v2.8 ████████████████████  PIX multi-aviso + alertas ops ✅
+v2.9 ████████████████████  Voz · upload WebP · UX  ✅
 v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · delivery      ⬜
 ```
 
-**Barra do v2:** `████████████████████` ~**95%**
+**Barra do v2:** `████████████████████` **100%** (polimento contínuo à parte)
 
 ---
 
-## ✅ Feito (v2.0 → v2.8)
+## ✅ Feito (v2.0 → v2.9)
 
 ### Fundação
-- [x] PostgreSQL no **Neon** + migrations (`0001` … `0010`)
+- [x] PostgreSQL no **Neon** + migrations (`0001` … `0011`)
 - [x] Seed (mesas, cardápio, adicionais, removíveis)
 - [x] Token **UUID** por mesa (QR opaco)
 - [x] Sessão de mesa acumulativa (`mesa_sessoes`)
@@ -43,7 +44,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Cozinha: fila `recebido` → `em_producao` → `concluido`
 - [x] Garçom: `concluido` → `entregue` (soma no total da sessão)
 - [x] Caixa: fechar conta, formas de pagamento, desconto / taxa
-- [x] Admin: CRUD cardápio, mesas/QR, garçons
+- [x] Admin: CRUD cardápio (criar, editar, pausar, **excluir**), mesas/QR, garçons
 
 ### Tempo real & segurança
 - [x] **SSE** (`GET /api/events`) + fallback
@@ -75,9 +76,21 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Ao **Fechar conta**, o restante é quitado automaticamente
 - [ ] *(futuro)* divisão por item · divisão na tela da mesa
 
-### Alertas operacionais (v2.8)
+### Alertas operacionais (v2.8 → v2.9)
 - [x] Cozinha: toast + beep quando chega pedido `recebido`
 - [x] Garçom: toast + beep quando pedido fica `concluido`
+- [x] **Voz (Web Speech API)** — cozinha: mesa + nome do cliente; garçom: frases engraçadas só com nº da mesa; caixa: anúncio de PIX
+
+### Fotos leves (v2.9)
+- [x] Upload de arquivo no admin (**Escolher arquivo** / **Upload**)
+- [x] Link https também otimizado no servidor
+- [x] **sharp**: max ~480px, WebP ~q72 → `public/uploads/`
+- [x] Banco guarda só o path (`/uploads/….webp`)
+
+### UX cards / acordeão (v2.9)
+- [x] Cozinha, mesa (conta), caixa: cards **recolhidos** por padrão
+- [x] Caixa: acordeão por mesa independente (sem `<details>` aninhados bugados)
+- [x] Admin cardápio: categorias recolhidas; várias podem ficar abertas
 
 ### Qualidade
 - [x] Smoke test automatizado (`npm run test:smoke`) — mesa → cozinha → garçom → PIX ×2 → parcial → fechar
@@ -86,10 +99,10 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 
 ## ⬜ Próximo
 
-### Polimento contínuo
-- [x] Cardápio mesa e admin: categorias **recolhidas** (acordeão; uma aberta por vez)
+### Polimento residual
 - [ ] Revisar impressão de comanda (cozinha/garçom) se necessário
 - [ ] Aposentar restos legados (`data/db.json` = só seed de referência)
+- [ ] Limpeza de arquivos órfãos em `/uploads` ao excluir produto (opcional)
 
 ### v3 — Gateway · delivery
 - [ ] Gateway PIX (confirmação automática)
@@ -109,7 +122,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Variantes nativas no admin | Hoje bebidas usam adicionais + UX Escolher |
 | CRM básico | Cliente recorrente (telefone) + cupom simples |
 | Multi-idioma | Cardápio dinâmico — esforço baixo, turismo |
-| **Menu / sidebar de navegação** | Admin e ops: lateral com seções; mesa: chips/âncoras de categoria fixas no topo para cardápio grande |
+| **Menu / sidebar de navegação** | Admin e ops: lateral com seções; mesa: chips/âncoras de categoria |
 
 ---
 
@@ -121,6 +134,8 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Banco | PostgreSQL (Neon free-tier) |
 | Tempo real | SSE (`LQRRealtime`) |
 | PIX | Estático EMV (sem gateway por enquanto) |
+| Fotos | sharp → WebP em disco; path no Postgres |
+| Voz ops | Web Speech API (`voz-ops.js`) |
 | Bebidas / tamanhos | Adicionais + botão **Escolher** (rádio) |
 | Auth staff | Cookie httpOnly + tabela `staff_sessoes` |
 | Commits | Conventional Commits |
@@ -133,12 +148,12 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 ## 📈 Capacidade (referência)
 
 - **Simultâneos:** dezenas de mesas com pouco delay; centenas exigem cuidado com SSE e CU-hours do Neon
-- **Storage free (~0,5 GB):** use **purge** no admin + relatório PDF antes de apagar histórico
+- **Storage free (~0,5 GB):** use **purge** no admin + relatório PDF antes de apagar histórico; fotos já entram leves em WebP
 
 ---
 
 <div align="center">
 
-**Lanchonete QR** · em evolução 🍔
+**Lanchonete QR** · v2 completo · em evolução 🍔
 
 </div>

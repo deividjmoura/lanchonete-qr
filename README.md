@@ -7,7 +7,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Neon](https://img.shields.io/badge/Neon-00E599?style=for-the-badge&logo=neon&logoColor=black)](https://neon.tech/)
-[![License](https://img.shields.io/badge/status-v2.7%20divisão-green?style=for-the-badge)](./ROADMAP.md)
+[![License](https://img.shields.io/badge/status-v2.9%20completo-green?style=for-the-badge)](./ROADMAP.md)
 
 </div>
 
@@ -37,16 +37,16 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 |:------:|:------:|
 | 🗄️ Postgres + Neon | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 📱 Mesa (QR + cardápio + Escolher) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
-| 👨‍🍳 Cozinha · 🏃 Garçom | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
-| 💵 Caixa · Auth · SSE | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
-| 📦 Estoque · Dashboard | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
-| 💠 PIX (QR + aviso) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
-| ✂️ Divisão de conta | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
+| 👨‍🍳 Cozinha · 🏃 Garçom · 🔊 voz | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
+| 💵 Caixa · Auth · SSE · divisão | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
+| 📦 Estoque · Dashboard · PDF/purge | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
+| 💠 PIX (QR + aviso multi) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
+| 📷 Fotos WebP (upload + link) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 🚀 Gateway · Delivery | ![todo](https://img.shields.io/badge/planejado-f59e0b?style=flat-square) |
 
 **Visão geral**
 
-`██████████████████░░` **~90%** do roadmap v2 · próximo: gateway / delivery
+`████████████████████` **v2 completo** · próximo: gateway / delivery (v3)
 
 📌 Detalhes → **[ROADMAP.md](./ROADMAP.md)**
 
@@ -71,7 +71,7 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 </div>
 
 <p align="center">
-  <b>Node.js</b> (HTTP nativo) · <b>PostgreSQL</b> (Neon) · <b>SSE</b> em tempo real · <b>PIX</b> estático (EMV)
+  <b>Node.js</b> (HTTP nativo) · <b>PostgreSQL</b> (Neon) · <b>SSE</b> · <b>PIX</b> EMV · <b>sharp</b> (WebP) · <b>Web Speech</b> (voz)
 </p>
 
 ---
@@ -80,12 +80,28 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 
 | Papel | Rota | O que faz |
 |:-----:|:-----|:----------|
-| 👤 Cliente | `/mesa/:token` | Cardápio, **Escolher** (bebidas), personalizar, carrinho, conta + PIX |
-| 👨‍🍳 Cozinha | `/cozinha` | Fila `recebido` → `em_producao` → `concluido` |
-| 🏃 Garçom | `/garcom/:token` | Entrega `concluido` → `entregue` |
-| 💵 Caixa | `/caixa` | Fecha conta, **divisão** (parciais), desconto/taxa, PIX, alerta SSE |
-| ⚙️ Admin | `/admin` | Cardápio, mesas/QR, dashboard, relatório, purge |
+| 👤 Cliente | `/mesa/:token` | Cardápio, **Escolher**, personalizar, carrinho, conta + PIX |
+| 👨‍🍳 Cozinha | `/cozinha` | Fila + **alerta de voz** (mesa + cliente) |
+| 🏃 Garçom | `/garcom/:token` | Entrega + **voz engraçada** (nº da mesa) |
+| 💵 Caixa | `/caixa` | Fecha conta, **divisão**, desconto/taxa, PIX, alerta |
+| ⚙️ Admin | `/admin` | Cardápio (CRUD + **upload foto**), mesas, dashboard, relatório |
 | 🔐 Login | `/login` | Auth por papel (admin / cozinha / caixa) |
+
+---
+
+## 📷 Fotos no cardápio (admin)
+
+1. Aba **Cardápio** → **Novo produto** ou **Editar** um item  
+2. **Escolher arquivo** (upload) **ou** colar um link https  
+3. A imagem é otimizada no servidor (**~480px**, **WebP**) e salva em `/uploads`  
+4. No banco fica só o caminho (`/uploads/….webp`) — leve no celular e no storage  
+
+```http
+POST /api/admin/upload-foto
+Body: { "data": "data:image/jpeg;base64,…" }  // ou { "url": "https://…" }
+```
+
+> Requer `npm install` (dependência **sharp**). Pasta `public/uploads/` precisa ser gravável.
 
 ---
 
@@ -95,7 +111,7 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 |-----------------|--------|----------------|
 | Simples | **Adicionar** | Sem opções extras |
 | Lanche com extras | **Adicionar** + **Personalizar** | Adicionais (multi) + removíveis |
-| Bebida / tamanho / sabor | **Escolher** | Categoria *Bebidas* (ou só adicionais, sem remoção) → **uma** opção (rádio) |
+| Bebida / tamanho / sabor | **Escolher** | Categoria *Bebidas* (ou só adicionais) → **uma** opção (rádio) |
 
 Ex.: produto `Coca-Cola` + adicionais `Lata`, `600ml`, `2L` → o cliente toca **Escolher** e marca um tamanho.
 
@@ -133,9 +149,9 @@ PIX_CIDADE=PENHA SC
 
 | Onde | Ação |
 |------|------|
-| **Mesa → Total** | Bloco de pagamento sempre visível; QR quando há total (pedidos entregues) |
+| **Mesa → Total** | Bloco de pagamento sempre visível; QR quando há total |
 | **Mesa** | Copiar código + **Já paguei no PIX** avisa o caixa |
-| **Caixa** | Toast + beep + badge · fecha a sessão |
+| **Caixa** | Toast + beep + voz · fecha a sessão |
 
 A conta **não** fecha sozinha — o caixa confirma.
 
@@ -148,19 +164,27 @@ POST /api/mesas/:token/pix-informado
 
 ## ✂️ Divisão de conta (caixa)
 
-No painel de cada sessão aberta:
-
-1. Informe **N pessoas** → **Usar valor/pessoa** (preenche o valor parcial)
-2. Escolha a forma de pagamento → **Registrar pagamento**
-3. Repita quantas vezes precisar; o badge mostra **pago / restante**
-4. Ao **Fechar conta**, o que ainda faltar é quitado com a forma escolhida
+1. Informe **N pessoas** → **Usar valor/pessoa**  
+2. Escolha a forma → **Registrar pagamento**  
+3. Repita; o badge mostra **pago / restante**  
+4. Ao **Fechar conta**, o que faltar é quitado  
 
 ```http
 POST /api/caixa/sessoes/:id/pagamentos
 Body: { "valor": 25.50, "formaPagamento": "pix" }
 ```
 
-> Desconto e taxa de serviço continuam sobre o **total** da sessão; o restante a cobrar no fechamento já desconta os parciais.
+---
+
+## 🔊 Alertas de voz
+
+| Tela | Quando | Conteúdo |
+|------|--------|----------|
+| Cozinha | Pedido novo | Mesa + nome do cliente |
+| Garçom | Pedido pronto | Só nº da mesa (tom leve) |
+| Caixa | PIX informado | Mesa + forma |
+
+Usa a **Web Speech API** do navegador (`public/js/voz-ops.js`). No primeiro toque na página a voz “desbloqueia”.
 
 ---
 
@@ -169,8 +193,8 @@ Body: { "valor": 25.50, "formaPagamento": "pix" }
 ```text
 lanchonete-qr/
 ├── server.js
-├── db/
-├── public/
+├── db/           # Postgres, admin, foto (sharp), pedidos…
+├── public/       # HTML/CSS/JS + uploads/
 ├── ROADMAP.md
 └── .env.example
 ```
@@ -183,8 +207,8 @@ Detalhes em **[ROADMAP.md](./ROADMAP.md)**.
 
 | Agora | Depois |
 |:-----:|:------:|
-| ✅ PIX + Escolher + **divisão de conta** | ⬜ Gateway PIX |
-| ✅ Estoque · dashboard · PDF/purge | ⬜ Delivery · multi-loja |
+| ✅ **v2.9** — voz, fotos WebP, exclusão, UX cards | ⬜ Gateway PIX |
+| ✅ PIX · divisão · estoque · dashboard | ⬜ Delivery · multi-loja |
 
 ---
 

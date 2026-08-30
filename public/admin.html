@@ -84,14 +84,18 @@
       <div><label>Preço</label><input id="prodPreco" type="number" step="0.01" min="0" style="width:100px"></div>
       <div><label><input type="checkbox" id="prodPonto"> Ponto</label></div>
       <button class="btn primary" type="button" onclick="criarProd()">Adicionar</button></div>
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
-        <label style="font-weight:600;font-size:.85rem">Foto (opcional)</label>
-        <div class="form-inline" style="margin-top:8px">
-          <input id="prodFotoFile" type="file" accept="image/*" style="max-width:220px">
-          <input id="prodFoto" type="url" placeholder="ou cole um link https://…" style="min-width:200px;flex:1">
-          <button class="btn" type="button" id="btnOtimizarFotoNovo" onclick="otimizarFotoNovo()">Otimizar foto</button>
+      <div class="foto-upload-box" style="margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:12px;background:var(--surface-2)">
+        <label style="font-weight:700;font-size:.9rem">📷 Foto do produto (opcional)</label>
+        <div class="form-inline" style="margin-top:10px;align-items:center">
+          <input id="prodFotoFile" type="file" accept="image/*" hidden onchange="onFotoFileNovo()">
+          <button class="btn primary" type="button" onclick="document.getElementById('prodFotoFile').click()">Escolher arquivo</button>
+          <span class="muted" id="prodFotoFileName" style="font-size:.85rem"></span>
         </div>
-        <p class="muted" style="margin:8px 0 0;font-size:.8rem">Upload ou link: a imagem é redimensionada (~480px) e salva em WebP leve em <code>/uploads</code>. Só o caminho fica no banco.</p>
+        <div class="form-inline" style="margin-top:10px">
+          <input id="prodFoto" type="url" placeholder="ou cole um link https://…" style="min-width:200px;flex:1">
+          <button class="btn" type="button" id="btnOtimizarFotoNovo" onclick="otimizarFotoNovo()">Otimizar link</button>
+        </div>
+        <p class="muted" style="margin:10px 0 0;font-size:.8rem">Arquivo ou link → redimensiona (~480px), grava WebP em <code>/uploads</code>. Só o caminho fica no banco.</p>
         <div id="prodFotoPreview" style="margin-top:10px"></div>
         <input type="hidden" id="prodFotoFinal" value="">
       </div>

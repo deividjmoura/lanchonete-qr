@@ -33,10 +33,12 @@ function renderProduto(p) {
     '<div style="margin-top:10px"><label>Descrição</label><textarea id="e-desc-' + p.id + '">' + esc(p.descricao || '') + '</textarea></div>' +
     '<div style="margin-top:10px"><label>Foto</label>' +
     '<input id="e-foto-' + p.id + '" type="url" placeholder="https://… ou /uploads/….webp" value="' + esc(p.fotoUrl || '') + '">' +
-    '<div class="form-inline" style="margin-top:8px">' +
-    '<input id="e-foto-file-' + p.id + '" type="file" accept="image/*" style="max-width:200px">' +
-    '<button class="btn" type="button" onclick="otimizarFotoEdit(' + p.id + ')">Otimizar e aplicar</button></div>' +
-    '<p class="muted" style="margin:4px 0 0;font-size:.8rem">Upload ou link → WebP leve (~480px) em /uploads. Só o caminho fica no banco.</p></div>' +
+    '<div class="form-inline" style="margin-top:8px;align-items:center">' +
+    '<input id="e-foto-file-' + p.id + '" type="file" accept="image/*" hidden onchange="onFotoFileEdit(' + p.id + ')">' +
+    '<button class="btn primary" type="button" onclick="document.getElementById(\'e-foto-file-' + p.id + '\').click()">📷 Upload</button>' +
+    '<button class="btn" type="button" onclick="otimizarFotoEdit(' + p.id + ')">Otimizar link</button>' +
+    '<span class="muted" id="e-foto-name-' + p.id + '" style="font-size:.8rem"></span></div>' +
+    '<p class="muted" style="margin:4px 0 0;font-size:.8rem">Upload ou link → WebP leve (~480px) em /uploads.</p></div>' +
     (p.fotoUrl ? '<div style="margin-top:8px"><img src="' + esc(p.fotoUrl) + '" alt="" class="prod-thumb-lg" loading="lazy" onerror="this.style.display=\'none\'"></div>' : '') +
     '<div class="form-inline" style="margin-top:10px">' +
     '<label><input type="checkbox" id="e-disp-' + p.id + '"' + (p.disponivel ? ' checked' : '') + '> Disponível</label>' +
@@ -239,3 +241,107 @@ async function excluirProd(id) {
   toast('Produto excluído');
   loadCardapio();
 }
+
+/** Lê arquivo local → data URL base64 (para enviar ao servidor). */
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve(null);
+    if (!file.type || !file.type.startsWith('image/')) {
+      return reject(new Error('Selecione uma imagem'));
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      return reject(new Error('Imagem maior que 6 MB'));
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Falha ao ler o arquivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** POST /api/admin/upload-foto → { fotoUrl, bytes } */
+async function uploadFotoOtimizada({ file, url }) {
+  const body = {};
+  if (file) {
+    body.data = await fileToDataUrl(file);
+  } else if (url) {
+    body.url = String(url).trim();
+  } else {
+    throw new Error('Informe um arquivo ou um link');
+  }
+  const r = await fetch('/api/admin/upload-foto', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Erro ao otimizar foto');
+  return data;
+}
+
+function mostrarPreviewFoto(url, bytes) {
+  const preview = document.getElementById('prodFotoPreview');
+  if (!preview) return;
+  const kb = bytes != null ? ' · ' + Math.round(bytes / 1024) + ' KB' : '';
+  preview.innerHTML =
+    '<img src="' + esc(url) + '" alt="" class="prod-thumb-lg" loading="lazy">' +
+    '<p class="muted" style="margin:6px 0 0;font-size:.8rem">Salva: ' + esc(url) + kb + '</p>';
+}
+
+async function otimizarFotoNovo() {
+  const fileEl = document.getElementById('prodFotoFile');
+  const urlEl = document.getElementById('prodFoto');
+  const finalEl = document.getElementById('prodFotoFinal');
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  const url = urlEl ? urlEl.value.trim() : '';
+  if (!file && !url) return toast('Escolha um arquivo ou cole um link');
+  try {
+    toast('Otimizando foto…');
+    const out = await uploadFotoOtimizada({ file: file || null, url: file ? null : url });
+    if (finalEl) finalEl.value = out.fotoUrl;
+    if (urlEl) urlEl.value = out.fotoUrl;
+    mostrarPreviewFoto(out.fotoUrl, out.bytes);
+    toast('Foto otimizada (' + Math.round((out.bytes || 0) / 1024) + ' KB)');
+  } catch (e) {
+    toast(e.message || 'Erro na foto');
+  }
+}
+
+/** Ao escolher arquivo no formulário de novo produto, otimiza na hora. */
+async function onFotoFileNovo() {
+  const fileEl = document.getElementById('prodFotoFile');
+  const nameEl = document.getElementById('prodFotoFileName');
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  if (nameEl) nameEl.textContent = file ? file.name : '';
+  if (!file) return;
+  await otimizarFotoNovo();
+}
+
+async function otimizarFotoEdit(id) {
+  const fileEl = document.getElementById('e-foto-file-' + id);
+  const urlEl = document.getElementById('e-foto-' + id);
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  const url = urlEl ? urlEl.value.trim() : '';
+  if (!file && !url) return toast('Escolha um arquivo ou informe um link');
+  if (!file && url.startsWith('/uploads/') && /\.webp$/i.test(url)) {
+    return toast('Foto já otimizada localmente');
+  }
+  try {
+    toast('Otimizando foto…');
+    const out = await uploadFotoOtimizada({ file: file || null, url: file ? null : url });
+    if (urlEl) urlEl.value = out.fotoUrl;
+    toast('Foto otimizada · clique em Salvar (' + Math.round((out.bytes || 0) / 1024) + ' KB)');
+  } catch (e) {
+    toast(e.message || 'Erro na foto');
+  }
+}
+
+async function onFotoFileEdit(id) {
+  const fileEl = document.getElementById('e-foto-file-' + id);
+  const nameEl = document.getElementById('e-foto-name-' + id);
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  if (nameEl) nameEl.textContent = file ? file.name : '';
+  if (!file) return;
+  await otimizarFotoEdit(id);
+}
+
