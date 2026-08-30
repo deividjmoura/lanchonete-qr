@@ -43,7 +43,7 @@ function parseMoney(v) {
 
 async function listSessoesAbertas() {
   const { rows: sessoes } = await pool.query(
-    `SELECT s.id, s.aberta_em, s.valor_total, m.id AS mesa_id, m.numero AS mesa
+    `SELECT s.id, s.aberta_em, s.valor_total, s.pix_informado_em, m.id AS mesa_id, m.numero AS mesa
      FROM mesa_sessoes s
      JOIN mesas m ON m.id = s.mesa_id
      WHERE s.status = 'aberta'
@@ -141,6 +141,7 @@ async function listSessoesAbertas() {
       mesaId: s.mesa_id,
       abertaEm: s.aberta_em,
       valorTotal: Number(s.valor_total),
+      pixInformadoEm: s.pix_informado_em || null,
       pedidosEntregues: entregues,
       pedidosPendentes: pendentes,
       podeFechar: pendentes === 0,
