@@ -108,13 +108,35 @@ function imprimirPedido(id) {
   window.addEventListener('afterprint', after);
   setTimeout(() => window.print(), 50);
 }
-function toast(msg,kind){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(kind||'');clearTimeout(toast._t);toast._t=setTimeout(()=>{el.className='toast'},2400)}
+function toast(msg,kind){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(kind||'');clearTimeout(toast._t);toast._t=setTimeout(()=>{el.className='toast'},2800)}
+
+function beepPronto() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 523;
+    g.gain.value = 0.09;
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    setTimeout(() => { try { o.frequency.value = 659; } catch (_) {} }, 140);
+    setTimeout(() => { try { o.frequency.value = 784; } catch (_) {} }, 280);
+    setTimeout(() => { try { o.stop(); ctx.close(); } catch (_) {} }, 420);
+  } catch (_) {}
+}
+
 async function loadMe(){
   const res=await fetch('/api/garcom/'+garcomToken+'/me');
   if(!res.ok){document.body.innerHTML='<main class="wrap"><div class="panel"><h2>Link inválido</h2><p class="muted">Peça um novo link ao admin.</p></div></main>';throw new Error('unauth')}
   me=await res.json();
   document.getElementById('who').textContent=me.nome+' · só pedidos prontos para entregar';
 }
+
+const vistosPronto = new Set();
+let primeiroLoad = true;
+
 const load = (window.LQRRealtime && LQRRealtime.createLoader
   ? LQRRealtime.createLoader
   : (fn) => {
@@ -131,6 +153,30 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   if (!res.ok) throw new Error('fail');
   const pedidos = await res.json();
   window.__lastPedidos = pedidos;
+
+  const idsAtivos = new Set(pedidos.map((p) => p.id));
+  const chegaram = [];
+  for (const p of pedidos) {
+    if (!vistosPronto.has(p.id)) {
+      vistosPronto.add(p.id);
+      if (!primeiroLoad) chegaram.push(p);
+    }
+  }
+  for (const id of [...vistosPronto]) {
+    if (!idsAtivos.has(id)) vistosPronto.delete(id);
+  }
+  if (chegaram.length) {
+    const mesas = [...new Set(chegaram.map((p) => p.mesa))].join(', ');
+    toast(
+      chegaram.length === 1
+        ? `Pedido pronto · Mesa ${mesas} · #${chegaram[0].id}`
+        : `${chegaram.length} pedidos prontos · Mesas ${mesas}`,
+      'ok'
+    );
+    beepPronto();
+  }
+  primeiroLoad = false;
+
   document.getElementById('stats').textContent = pedidos.length
     ? `${pedidos.length} pronto(s) para entregar`
     : 'Nenhum pedido aguardando entrega';

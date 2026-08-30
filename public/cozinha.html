@@ -225,10 +225,37 @@ function toast(msg, isErr) {
   clearTimeout(toast._t);
   toast._t = setTimeout(() => {
     el.className = 'toast';
-  }, 2200);
+  }, 2800);
+}
+
+function beepNovo() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = 660;
+    g.gain.value = 0.07;
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    setTimeout(() => {
+      try {
+        o.frequency.value = 880;
+      } catch (_) {}
+    }, 120);
+    setTimeout(() => {
+      try {
+        o.stop();
+        ctx.close();
+      } catch (_) {}
+    }, 280);
+  } catch (_) {}
 }
 
 let advancing = false;
+const vistosRecebido = new Set();
+let primeiroLoad = true;
 
 const load = (window.LQRRealtime && LQRRealtime.createLoader
   ? LQRRealtime.createLoader
@@ -248,10 +275,32 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   const pedidos = await res.json();
   pedidosCache = pedidos;
 
-  const novos = pedidos.filter((p) => p.status === 'recebido').length;
+  const novos = pedidos.filter((p) => p.status === 'recebido');
+  const idsAtivos = new Set(pedidos.map((p) => p.id));
+  const chegaram = [];
+  for (const p of novos) {
+    if (!vistosRecebido.has(p.id)) {
+      vistosRecebido.add(p.id);
+      if (!primeiroLoad) chegaram.push(p);
+    }
+  }
+  for (const id of [...vistosRecebido]) {
+    if (!idsAtivos.has(id)) vistosRecebido.delete(id);
+  }
+  if (chegaram.length) {
+    const mesas = [...new Set(chegaram.map((p) => p.mesa))].join(', ');
+    toast(
+      chegaram.length === 1
+        ? `Pedido novo · Mesa ${mesas} · #${chegaram[0].id}`
+        : `${chegaram.length} pedidos novos · Mesas ${mesas}`
+    );
+    beepNovo();
+  }
+  primeiroLoad = false;
+
   const prep = pedidos.filter((p) => p.status === 'em_producao').length;
   document.getElementById('stats').textContent = pedidos.length
-    ? `${pedidos.length} na fila · ${novos} novo(s) · ${prep} em produção`
+    ? `${pedidos.length} na fila · ${novos.length} novo(s) · ${prep} em produção`
     : 'Fila vazia';
 
   const root = document.getElementById('orders');
