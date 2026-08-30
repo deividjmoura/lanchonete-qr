@@ -42,20 +42,25 @@
       <button type="button" data-tab="funcoes">Funções</button>
     </div>
     <div class="nav glass-actions">
-      <a class="btn btn-ghost" href="/caixa"><span class="ico-line">◇</span> Caixa</a>
-      <a class="btn btn-ghost" href="/cozinha"><span class="ico-line">◎</span> Cozinha</a>
-      <a class="btn btn-ghost" href="/"><span class="ico-line">⌂</span> Início</a>
-      <button class="btn btn-ghost" id="btnSair" type="button"><span class="ico-line">→</span> Sair</button>
+      <a class="btn btn-ghost" href="/caixa"><span class="ico-line" aria-hidden="true">💰</span>Caixa</a>
+      <a class="btn btn-ghost" href="/cozinha"><span class="ico-line" aria-hidden="true">🍽</span>Cozinha</a>
+      <a class="btn btn-ghost" href="/"><span class="ico-line" aria-hidden="true">🏠</span>Início</a>
+      <button class="btn btn-ghost" id="btnSair" type="button"><span class="ico-line" aria-hidden="true">↪</span>Sair</button>
     </div>
   </div>
   <section id="sec-dashboard" class="admin-section active">
     <div class="panel glass-shell">
       <div class="dash-head">
         <div>
-          <h2 class="dash-title"><span class="ico-cal" aria-hidden="true"></span> Dashboard do dia</h2>
-          <p class="muted dash-sub" id="dashSub">Visão geral da operação hoje</p>
+          <h2 class="dash-title">Dashboard do dia</h2>
+          <p class="muted dash-sub" id="dashSub">
+            <span class="date-badge" id="dashDateBadge">Hoje</span>
+          </p>
         </div>
-        <button class="btn btn-ghost" type="button" onclick="loadDashboard();loadPedidosBoard()">Atualizar</button>
+        <div class="dash-head-actions">
+          <span class="live-pill" id="livePill"><span class="dot-live"></span> Atualizado agora</span>
+          <button class="btn btn-ghost btn-refresh" type="button" onclick="loadDashboard();loadPedidosBoard()">Atualizar</button>
+        </div>
       </div>
       <div class="dash-top-grid">
         <div class="panel dash-pedidos inner-glass">
@@ -182,8 +187,10 @@ async function loadDashboard(){
     const d=await(await fetch('/api/admin/dashboard')).json();
     const brl=n=>'R$ '+Number(n||0).toFixed(2).replace('.',',');
     const hoje=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
-    const sub=document.getElementById('dashSub');
-    if(sub)sub.textContent='Visão geral da operação hoje · '+hoje;
+    const badge=document.getElementById('dashDateBadge');
+    if(badge)badge.textContent='Hoje, '+hoje;
+    const live=document.getElementById('livePill');
+    if(live)live.innerHTML='<span class="dot-live"></span> Atualizado agora';
     const mesasTot=(d.mesas&&(d.mesas.total||((d.mesas.ocupada||0)+(d.mesas.livre||0))))||0;
     const ocup=(d.mesas&&d.mesas.ocupada)||0;
     kpi.innerHTML=`<div class="kpi-card accent"><div class="kpi-icon kpi-i-fat"></div><div class="kpi-label">Faturamento</div><div class="kpi-value">${brl(d.faturamento)}</div><div class="kpi-hint">${d.contasFechadas||0} conta(s)</div></div>
