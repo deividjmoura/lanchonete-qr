@@ -22,15 +22,15 @@ body {
 [data-theme="light"],
 html {
   --bg: transparent;
-  --bg-elevated: rgba(22, 20, 18, 0.45);
-  --surface: rgba(28, 26, 24, 0.34);
-  --surface-2: rgba(36, 32, 28, 0.5);
-  --surface-3: rgba(48, 42, 36, 0.55);
-  --surface-elevated: rgba(32, 28, 24, 0.65);
-  --line: rgba(255, 255, 255, 0.12);
-  --line-strong: rgba(255, 255, 255, 0.2);
+  --bg-elevated: rgba(22, 20, 18, 0.28);
+  --surface: rgba(28, 26, 24, 0.20);
+  --surface-2: rgba(36, 32, 28, 0.28);
+  --surface-3: rgba(48, 42, 36, 0.32);
+  --surface-elevated: rgba(32, 28, 24, 0.38);
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.16);
   --border: var(--line);
-  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.06);
   --text: #f7f4ef;
   --text-secondary: #e0d9cf;
   --muted: #b0a89c;
@@ -68,11 +68,11 @@ html {
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.45);
-  --glass-blur: 24px;
-  --glass-border: 1px solid rgba(255, 255, 255, 0.14);
+  --glass-blur: 26px;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.10);
 }
 
-/* Superfícies em vidro */
+/* Superfícies em vidro — mais transparentes (cards "soltos") */
 .panel,
 .kpi-card,
 .order,
@@ -89,11 +89,11 @@ html {
 .foto-upload-box,
 .empty-state,
 article.panel {
-  background: rgba(22, 20, 18, 0.32) !important;
-  backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.2);
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.2);
-  border: var(--glass-border) !important;
-  box-shadow: var(--shadow) !important;
+  background: rgba(22, 20, 18, 0.18) !important;
+  backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(1.25);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28) !important;
   color: var(--text);
 }
 
@@ -101,8 +101,9 @@ article.panel {
 .kpi-card:hover,
 .sessao-fold:hover,
 .order-card:hover {
-  border-color: rgba(255, 255, 255, 0.22) !important;
-  box-shadow: var(--shadow-md) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35) !important;
+  background: rgba(22, 20, 18, 0.24) !important;
 }
 
 /* Topo / nav */
@@ -254,31 +255,31 @@ body.board-page .burger-dock .dock-item {
 }
 body.board-page .burger-dock .burger-btn,
 body.board-page .burger-dock .conta-btn {
-  background: rgba(22, 20, 18, 0.45) !important;
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
-  width: 72px !important;
-  height: 72px !important;
-  padding: 8px !important;
+  background: rgba(22, 20, 18, 0.22) !important;
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  border: none !important;                 /* remove borda */
+  border-radius: 22px !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+  width: 80px !important;
+  height: 80px !important;
+  padding: 10px !important;
 }
 body.board-page .burger-dock .conta-btn {
-  width: 64px !important;
-  height: 64px !important;
+  width: 72px !important;
+  height: 72px !important;
 }
 body.board-page .burger-hint {
   font-family: Inter, system-ui, sans-serif !important;
-  font-size: 0.75rem !important;
+  font-size: 0.78rem !important;
   font-weight: 600;
-  color: rgba(245, 242, 238, 0.92) !important;
+  color: rgba(245, 242, 238, 0.95) !important;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
-  background: rgba(12, 10, 9, 0.4);
-  backdrop-filter: blur(8px);
-  padding: 3px 10px;
+  background: rgba(12, 10, 9, 0.32);
+  backdrop-filter: blur(10px);
+  padding: 4px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: none !important;                 /* remove borda do hint também */
 }
 
 /* ========== Mesa (cliente) ========== */
@@ -523,15 +524,23 @@ body .login-lock {
 }
 
 /* ========== Dashboard layout ========== */
+/* Shell totalmente transparente — cards parecem soltos no fundo */
 .glass-shell {
-  padding: 20px 18px 22px !important;
-  border-radius: 22px !important;
+  padding: 12px 8px 16px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 .inner-glass {
-  background: rgba(12, 10, 9, 0.22) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: none !important;
+  background: rgba(12, 10, 9, 0.16) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22) !important;
   border-radius: 16px !important;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
 }
 .dash-head {
   display: flex;
@@ -603,24 +612,24 @@ body .login-lock {
 }
 .kpi-card {
   text-align: left;
-  padding: 16px 14px !important;
-  border-radius: 16px !important;
-  background: rgba(12, 10, 9, 0.26) !important;
+  padding: 18px 16px !important;
+  border-radius: 18px !important;
+  background: rgba(12, 10, 9, 0.16) !important;
 }
 .kpi-card .kpi-icon {
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
-  margin-bottom: 12px;
-  background: rgba(255, 255, 255, 0.1);
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.12);
   position: relative;
 }
 .kpi-card .kpi-icon::after {
   content: '';
   position: absolute;
-  inset: 14px;
-  border: 2.5px solid currentColor;
-  border-radius: 7px;
+  inset: 15px;
+  border: 2.8px solid currentColor;
+  border-radius: 8px;
   opacity: 0.95;
 }
 .kpi-i-fat {
@@ -811,7 +820,17 @@ main {
 }
 .logo-star { display: none; }
 
-/* Ícones de título um pouco maiores */
-.ico-cal::before { width: 22px !important; height: 22px !important; }
-.ico-fire::before, .ico-gear::before { font-size: 1.15rem !important; }
-.dot-live { width: 10px !important; height: 10px !important; }
+/* Ícones de título maiores e mais próximos do visual de referência */
+.ico-cal::before { width: 26px !important; height: 26px !important; }
+.ico-fire::before, .ico-gear::before { font-size: 1.35rem !important; }
+.dot-live { width: 11px !important; height: 11px !important; }
+
+/* Ícones do dock (cliente) um pouco maiores */
+body.board-page .burger-btn .sand {
+  transform: scale(1.12);
+  transform-origin: center;
+}
+body.board-page .conta-btn .bag {
+  transform: scale(1.15);
+  transform-origin: center;
+}
