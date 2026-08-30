@@ -63,13 +63,6 @@ const {
 const { resumoDia } = require('./db/dashboard');
 const { relatorioVendas } = require('./db/relatorio');
 const { purgeHistorico, ErroPurge } = require('./db/purge');
-const {
-  tokenDisponivel: pagbankAtivo,
-  criarCobrancaPix,
-  processarWebhookPagBank,
-  statusCobranca,
-  ErroPagBank,
-} = require('./db/pagseguro');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -338,53 +331,7 @@ const server = http.createServer(async (req, res) => {
       let cidade = String(process.env.PIX_CIDADE || 'BRASIL').trim().toUpperCase();
       cidade = cidade.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       cidade = cidade.replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 15) || 'BRASIL';
-      return json(res, 200, {
-        chave,
-        nome,
-        cidade,
-        gateway: pagbankAtivo() ? 'pagbank' : 'estatico',
-        gatewayAtivo: pagbankAtivo(),
-      });
-    }
-
-    // Webhook PagBank (sem auth de staff — validamos order_id interno)
-    if (p === '/api/webhooks/pagbank' && req.method === 'POST') {
-      try {
-        const b = await body(req);
-        const out = await processarWebhookPagBank(b);
-        if (out.paid) {
-          broadcast('update', {
-            type: 'pix_pago_gateway',
-            sessaoId: out.sessaoId,
-            valor: out.valor,
-            orderId: out.orderId,
-          });
-        }
-        return json(res, 200, { received: true, ...out });
-      } catch (e) {
-        console.error('webhook pagbank', e);
-        return json(res, 500, { error: e.message || 'webhook error' });
-      }
-    }
-
-    if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pix-cobranca$/)) && req.method === 'POST') {
-      try {
-        const out = await criarCobrancaPix(m[1], await body(req));
-        broadcast('update', { type: 'pix_cobranca_criada', mesaToken: m[1], sessaoId: out.sessaoId });
-        return json(res, 201, out);
-      } catch (e) {
-        if (e instanceof ErroPagBank) return json(res, e.status, { error: e.message });
-        throw e;
-      }
-    }
-
-    if ((m = p.match(/^\/api\/pix-cobrancas\/(\d+)$/)) && req.method === 'GET') {
-      try {
-        return json(res, 200, await statusCobranca(Number(m[1])));
-      } catch (e) {
-        if (e instanceof ErroPagBank) return json(res, e.status, { error: e.message });
-        throw e;
-      }
+      return json(res, 200, { chave, nome, cidade });
     }
 
     try {

@@ -43,8 +43,6 @@
             chave: this.normalizarChave(d.chave),
             nome: this.normalizarNome(d.nome),
             cidade: this.normalizarCidade(d.cidade),
-            gateway: d.gateway || 'estatico',
-            gatewayAtivo: !!d.gatewayAtivo,
           };
         }
       } catch (_) { /* keep defaults */ }
@@ -52,7 +50,7 @@
     },
 
     disponivel() {
-      return Boolean(this.config.chave) || !!this.config.gatewayAtivo;
+      return Boolean(this.config.chave);
     },
 
     /** EMV: até 15 chars, sem acento. */
