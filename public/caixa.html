@@ -81,7 +81,7 @@ function pixNome() {
 }
 const esc = (s) => {
   if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') return SafeDOM.escapeHtml(s);
-  return String(s ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));
 };
 function money(n) {
   return 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');
@@ -136,11 +136,14 @@ function card(s) {
   const bloqueio = s.pedidosPendentes > 0
     ? `<span class="badge warn">${s.pedidosPendentes} em andamento</span>`
     : `<span class="badge ok">Pronto para fechar</span>`;
+  const pixAviso = s.pixInformadoEm
+    ? `<span class="badge ok" title="Cliente tocou em Já paguei no PIX">PIX informado pelo cliente</span>`
+    : '';
   const pixOk = window.LQRPix && LQRPix.disponivel();
   return `<article class="sessao-card ${s.podeFechar ? '' : 'blocked'}" data-id="${s.id}" data-total="${Number(s.valorTotal)}">
     <div class="sessao-head"><div><div class="big">Mesa ${s.mesa}</div>
       <div class="muted" style="font-size:.85rem">Aberta em ${fmtHora(s.abertaEm)} · sessão #${s.id}</div>
-      <div style="margin-top:8px">${bloqueio}</div></div>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${bloqueio}${pixAviso}</div></div>
       <div class="valor-big">${money(s.valorTotal)}</div></div>
     ${pedidosHtml || '<p class="muted" style="margin-top:12px">Nenhum pedido entregue ainda.</p>'}
     <div class="adjust-row">
