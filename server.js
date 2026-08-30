@@ -11,6 +11,8 @@ const {
   getFilaCozinha,
   getFilaGarcom,
   checkinCliente,
+  cancelarPedidoCliente,
+  editarPedidoCliente,
   ErroPedido,
 } = require('./db/pedidos');
 const { informarPixPago, ErroPixCliente } = require('./db/pix-cliente');
@@ -227,6 +229,26 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroPixCliente) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pedidos\/(\d+)$/)) && req.method === 'DELETE') {
+      try {
+        const out = await cancelarPedidoCliente(m[1], Number(m[2]));
+        broadcast('update', { type: 'pedido_cancelado', pedidoId: Number(m[2]), mesaToken: m[1] });
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroPedido) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pedidos\/(\d+)$/)) && req.method === 'PUT') {
+      try {
+        const out = await editarPedidoCliente(m[1], Number(m[2]), await body(req));
+        broadcast('update', { type: 'pedido_editado', pedidoId: Number(m[2]), mesaToken: m[1] });
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroPedido) return json(res, e.status, { error: e.message });
         throw e;
       }
     }
