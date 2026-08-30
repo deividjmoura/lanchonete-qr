@@ -36,7 +36,7 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 | Módulo | Status |
 |:------:|:------:|
 | 🗄️ Postgres + Neon | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
-| 📱 Mesa (QR + cardápio) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
+| 📱 Mesa (QR + cardápio + Escolher) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 👨‍🍳 Cozinha · 🏃 Garçom | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 💵 Caixa · Auth · SSE | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 📦 Estoque · Dashboard | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
@@ -48,7 +48,7 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 
 `████████████████░░░░` **~80%** do roadmap v2 · próximo: divisão de conta
 
-📌 Detalhes, histórico e próximas versões → **[ROADMAP.md](./ROADMAP.md)**
+📌 Detalhes → **[ROADMAP.md](./ROADMAP.md)**
 
 </div>
 
@@ -80,12 +80,24 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 
 | Papel | Rota | O que faz |
 |:-----:|:-----|:----------|
-| 👤 Cliente | `/mesa/:token` | Cardápio, personalizar, carrinho, conta + PIX |
+| 👤 Cliente | `/mesa/:token` | Cardápio, **Escolher** (bebidas), personalizar, carrinho, conta + PIX |
 | 👨‍🍳 Cozinha | `/cozinha` | Fila `recebido` → `em_producao` → `concluido` |
 | 🏃 Garçom | `/garcom/:token` | Entrega `concluido` → `entregue` |
 | 💵 Caixa | `/caixa` | Fecha conta, desconto/taxa, PIX, alerta em tempo real |
 | ⚙️ Admin | `/admin` | Cardápio, mesas/QR, dashboard, relatório, purge |
 | 🔐 Login | `/login` | Auth por papel (admin / cozinha / caixa) |
+
+---
+
+## 🥤 Cardápio: Adicionar · Personalizar · Escolher
+
+| Tipo de produto | Botão | Como cadastrar |
+|-----------------|--------|----------------|
+| Simples | **Adicionar** | Sem opções extras |
+| Lanche com extras | **Adicionar** + **Personalizar** | Adicionais (multi) + removíveis |
+| Bebida / tamanho / sabor | **Escolher** | Categoria *Bebidas* (ou só adicionais, sem remoção) → **uma** opção (rádio) |
+
+Ex.: produto `Coca-Cola` + adicionais `Lata`, `600ml`, `2L` → o cliente toca **Escolher** e marca um tamanho.
 
 ---
 
@@ -108,24 +120,24 @@ DATABASE_URL=postgres://...
 DATABASE_SSL=true
 STAFF_SEED_PASSWORD=troque-esta-senha
 
-# PIX (CPF só dígitos ou formatado — normalizamos)
 PIX_CHAVE=12345678901
 PIX_NOME=LANCHONETE QR
 PIX_CIDADE=PENHA SC
 ```
 
-> 💡 CPF com pontos/traço também funciona. Cidade e nome são limpos pro padrão EMV do Banco Central.
+> 💡 CPF com pontos/traço também funciona. Nome e cidade são limpos pro EMV.
 
 ---
 
-## 💠 PIX em 30 segundos
+## 💠 PIX na mesa e no caixa
 
 | Onde | Ação |
 |------|------|
-| **Mesa → Conta** | QR + copiar código · botão **Já paguei no PIX** |
+| **Mesa → Total** | Bloco de pagamento sempre visível; QR quando há total (pedidos entregues) |
+| **Mesa** | Copiar código + **Já paguei no PIX** avisa o caixa |
 | **Caixa** | Toast + beep + badge · fecha a sessão |
 
-A conta **não** fecha sozinha — o caixa confirma o pagamento.
+A conta **não** fecha sozinha — o caixa confirma.
 
 ```http
 GET  /api/config/pix
@@ -134,14 +146,14 @@ POST /api/mesas/:token/pix-informado
 
 ---
 
-## 📁 Estrutura (visão rápida)
+## 📁 Estrutura
 
 ```text
 lanchonete-qr/
-├── server.js          # HTTP + rotas + SSE
-├── db/                # Postgres, migrations, queries
-├── public/            # HTML/CSS/JS (mesa, caixa, admin…)
-├── ROADMAP.md         # progresso e próximos passos
+├── server.js
+├── db/
+├── public/
+├── ROADMAP.md
 └── .env.example
 ```
 
@@ -149,12 +161,12 @@ lanchonete-qr/
 
 ## 🗺️ Roadmap
 
-O plano completo (feito / fazendo / futuro) está em **[ROADMAP.md](./ROADMAP.md)**.
+Detalhes em **[ROADMAP.md](./ROADMAP.md)**.
 
 | Agora | Depois |
 |:-----:|:------:|
-| ✅ PIX + tempo real no caixa | ⬜ Divisão de conta |
-| ✅ Estoque · dashboard · PDF/purge | ⬜ Gateway PIX · delivery |
+| ✅ PIX + Escolher (bebidas) | ⬜ Divisão de conta |
+| ✅ Estoque · dashboard · PDF/purge | ⬜ Gateway · delivery |
 
 ---
 
