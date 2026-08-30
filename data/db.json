@@ -407,21 +407,100 @@
       "name": "Refrigerante Lata",
       "description": "Coca-Cola, Guaraná, Fanta",
       "price": 6.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "customization": {
+        "additions": [
+          {
+            "name": "Coca-Cola",
+            "price": 0
+          },
+          {
+            "name": "Guaraná",
+            "price": 0
+          },
+          {
+            "name": "Fanta Laranja",
+            "price": 0
+          },
+          {
+            "name": "Fanta Uva",
+            "price": 0
+          },
+          {
+            "name": "Sprite",
+            "price": 0
+          }
+        ],
+        "removals": []
+      }
     },
     {
       "id": 20,
       "name": "Refrigerante 600ml",
       "description": "Coca-Cola, Guaraná",
       "price": 9.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "customization": {
+        "additions": [
+          {
+            "name": "Coca-Cola",
+            "price": 0
+          },
+          {
+            "name": "Guaraná",
+            "price": 0
+          },
+          {
+            "name": "Fanta Laranja",
+            "price": 0
+          },
+          {
+            "name": "Fanta Uva",
+            "price": 0
+          },
+          {
+            "name": "Sprite",
+            "price": 0
+          }
+        ],
+        "removals": []
+      }
     },
     {
       "id": 21,
       "name": "Suco Natural",
       "description": "Laranja, limão, maracujá ou abacaxi",
       "price": 8.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "customization": {
+        "additions": [
+          {
+            "name": "Laranja",
+            "price": 0
+          },
+          {
+            "name": "Limão",
+            "price": 0
+          },
+          {
+            "name": "Maracujá",
+            "price": 0
+          },
+          {
+            "name": "Abacaxi",
+            "price": 0
+          },
+          {
+            "name": "Morango",
+            "price": 0
+          },
+          {
+            "name": "Acerola",
+            "price": 0
+          }
+        ],
+        "removals": []
+      }
     },
     {
       "id": 22,
@@ -442,7 +521,28 @@
       "name": "Milk Shake",
       "description": "Chocolate, morango ou baunilha",
       "price": 16.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "customization": {
+        "additions": [
+          {
+            "name": "Chocolate",
+            "price": 0
+          },
+          {
+            "name": "Morango",
+            "price": 0
+          },
+          {
+            "name": "Baunilha",
+            "price": 0
+          },
+          {
+            "name": "Ovomaltine",
+            "price": 0
+          }
+        ],
+        "removals": []
+      }
     },
     {
       "id": 25,
@@ -456,7 +556,32 @@
       "name": "Caipirinha de Frutas",
       "description": "Morango, maracujá ou abacaxi",
       "price": 20.0,
-      "category": "Drinks"
+      "category": "Drinks",
+      "customization": {
+        "additions": [
+          {
+            "name": "Limão",
+            "price": 0
+          },
+          {
+            "name": "Morango",
+            "price": 0
+          },
+          {
+            "name": "Maracujá",
+            "price": 0
+          },
+          {
+            "name": "Kiwi",
+            "price": 0
+          },
+          {
+            "name": "Abacaxi",
+            "price": 0
+          }
+        ],
+        "removals": []
+      }
     },
     {
       "id": 27,
@@ -491,7 +616,32 @@
       "name": "Drink sem Álcool",
       "description": "Limonada suíça ou soda italiana",
       "price": 12.0,
-      "category": "Drinks"
+      "category": "Drinks",
+      "customization": {
+        "additions": [
+          {
+            "name": "Limão",
+            "price": 0
+          },
+          {
+            "name": "Morango",
+            "price": 0
+          },
+          {
+            "name": "Maracujá",
+            "price": 0
+          },
+          {
+            "name": "Kiwi",
+            "price": 0
+          },
+          {
+            "name": "Abacaxi",
+            "price": 0
+          }
+        ],
+        "removals": []
+      }
     },
     {
       "id": 32,

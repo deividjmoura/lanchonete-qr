@@ -300,11 +300,12 @@ async function getSessao(token) {
       itensByPedido.get(item.pedido_id).push(packed);
     }
 
+    // totalDevido = só pedidos entregues (alinha com valor_total da sessão / caixa / PIX)
     let totalDevido = 0;
     const pedidosComItens = pedidos.map((p) => {
       const itens = itensByPedido.get(p.id) || [];
       const totalPedido = itens.reduce((sum, i) => sum + i.totalLinha, 0);
-      totalDevido += totalPedido;
+      if (p.status === 'entregue') totalDevido += totalPedido;
       return { ...p, itens, totalPedido: Number(totalPedido.toFixed(2)) };
     });
 

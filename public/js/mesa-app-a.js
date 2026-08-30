@@ -18,12 +18,14 @@ function productNeedsCustom(p){return !!(p.pedePontoCarne||(p.adicionais&&p.adic
 function productIsEscolha(p,catNome){
   if(!p||!(p.adicionais&&p.adicionais.length))return false;
   const cat=String(catNome||p._catNome||'').toLowerCase();
-  if(/bebida|drink|refri|suco|agua|cerveja/.test(cat))return true;
+  // Bebidas / drinks / sucos / cervejas / energéticos: sempre escolha única (rádio)
+  if(/bebida|drink|refri|suco|agua|cerveja|energ/.test(cat))return true;
+  // Produto só com opções (sem ponto de carne e sem removíveis) = Escolher
   return !p.pedePontoCarne&&!(p.removiveis&&p.removiveis.length);
 }
 function itemKey(productId,additions,removals,note){return productId+'|'+[...additions].map(a=>a.id).sort().join(',')+'|'+(removals||[]).slice().sort().join(',')+'|'+(note||'');}
 function itemTotal(i){const p=produtos.find(x=>x.id===i.productId);if(!p)return 0;const add=i.additions.reduce((s,a)=>s+Number(a.preco||0),0);return (Number(p.preco)+add)*i.qty;}
-async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;totalDevido=s.totalDevido||0;document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen)openSessao();}catch(_){}}
+async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen)openSessao();}catch(_){}}
 function openSessao(){sessaoOpen=true;cartOpen=false;const s=sessaoData||{pedidos:[],totalDevido:0,mesa:'—'};const pedidos=s.pedidos||[];const blocks=pedidos.length?pedidos.slice().reverse().map(p=>{const itens=(p.itens||[]).map(it=>`<div class="pedido-item"><div><b>${it.quantidade}× ${esc(it.nome)}</b></div><b>${br(it.totalLinha||0)}</b></div>`).join('');return `<div class="pedido-block"><div class="row" style="justify-content:space-between"><b>Pedido #${p.id}</b><span class="status-pill ${esc(p.status)}">${STATUS_LABEL[p.status]||p.status}</span></div>${itens}<div class="pedido-item"><span class="muted">Subtotal</span><b>${br(p.totalPedido||0)}</b></div></div>`;}).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Nenhum pedido ainda.</div>';document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2><div class="cart-total-row"><span>Total</span><span>${br(s.totalDevido||0)}</span></div>${blocks}</div></div>`;document.body.classList.add('modal-open');}
 function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}

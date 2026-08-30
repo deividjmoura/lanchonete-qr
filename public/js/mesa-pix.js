@@ -11,7 +11,7 @@
     const _open = openSessao;
     window.openSessao = function openSessaoPix() {
       _open();
-      const s = window.sessaoData || { totalDevido: 0 };
+      const s = window.sessaoData || { totalDevido: 0, pedidos: [] };
       const total = Number(s.totalDevido || 0);
       const sheet = document.querySelector('.modal-sheet');
       if (!sheet || sheet.querySelector('.pix-mesa')) return;
@@ -25,10 +25,25 @@
       div.style.cssText =
         'margin-top:16px;padding:14px;border:1px dashed rgba(240,235,224,.25);border-radius:12px;text-align:center';
 
+      const temPedido = (s.pedidos || []).length > 0;
+      const temPendente = (s.pedidos || []).some(function (p) {
+        return p.status && p.status !== 'entregue';
+      });
+
       if (total <= 0) {
+        let msg =
+          'Quando os pedidos forem <b>entregues</b>, o total aparece aqui com QR Code PIX para pagar na mesa.';
+        if (temPedido && temPendente) {
+          msg =
+            'Há pedido em andamento. O QR PIX libera assim que o garçom marcar como <b>entregue</b>.';
+        } else if (!temPedido) {
+          msg = 'Faça um pedido — depois de entregue, o PIX da conta aparece aqui.';
+        }
         div.innerHTML =
           '<div style="font-weight:700;margin-bottom:6px">Pagamento</div>' +
-          '<p class="muted" style="font-size:.85rem;margin:0">Quando os pedidos forem <b>entregues</b>, o total aparece aqui com QR Code PIX para pagar na mesa.</p>';
+          '<p class="muted" style="font-size:.85rem;margin:0">' +
+          msg +
+          '</p>';
         sheet.appendChild(div);
       } else if (LQRPix.disponivel()) {
         const payload = LQRPix.montarPayload(total);
