@@ -15,48 +15,35 @@ Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Cont
 | **MVP Core** | ✅ |
 | **Auth + dashboard + PDF/purge + estoque** | ✅ |
 | **Polimento** (print, desconto, fotos) | ✅ |
-| **Pagamento avançado** | ⬜ v2.7+ |
+| **PIX na mesa + caixa** | ✅ |
+| **Divisão de conta** | ⬜ depois |
 
 ### ✅ Pronto
 
 | Módulo | Detalhe |
 |--------|---------|
-| Fluxo operacional | Cozinha · Garçom · Caixa · SSE |
-| Cozinha | Fila + **imprimir comanda** (72mm) |
-| Garçom | Entrega + **imprimir comanda** |
-| Caixa | Desconto / taxa de serviço → `valor_cobrado` + PIX |
-| Admin | Dashboard (faturamento usa valor cobrado), cardápio, estoque, PDF, purge |
-| Mesa | Cardápio + **fotos** (`fotoUrl`) + personalizar |
+| Mesa | Cardápio, personalizar, fotos, **PIX na conta** |
+| Cozinha / Garçom | Fila + imprimir comanda |
+| Caixa | Desconto/taxa + PIX (config via `.env`) |
+| Admin | Dashboard, estoque, PDF, purge |
 
 ---
 
-## 🖨 Comanda impressa
+## 💳 PIX
 
-- **Cozinha** e **Garçom**: botão **Imprimir** em cada pedido
-- Layout ticket ~72mm (mesa, cliente, itens, extras, obs.)
-- Use impressora térmica ou “Salvar como PDF” no navegador
+No `.env`:
 
----
-
-## 💵 Caixa — desconto e taxa
-
-```bash
-npm run db:migrate   # 0007_desconto_taxa.sql
+```env
+PIX_CHAVE=sua-chave
+PIX_NOME=Nome no extrato
+PIX_CIDADE=SuaCidade
 ```
 
-No fechamento: **Desconto (R$)** e **Taxa de serviço (R$)**; “A cobrar” atualiza ao vivo; PIX usa o valor cobrado.
+- **Mesa** → Conta → QR + copiar código (total da sessão)
+- **Caixa** → forma PIX no fechamento (usa o valor a cobrar)
+- Cliente paga e **mostra comprovante no caixa** (sem gateway automático)
 
-```json
-POST /api/caixa/sessoes/:id/fechar
-{ "formaPagamento": "pix", "desconto": 5, "taxaServico": 2.5 }
-```
-
----
-
-## 🖼 Fotos dos produtos
-
-No **Admin → Cardápio**: campo **URL da foto** (https://… ou caminho relativo).
-Aparece no cardápio da mesa (`/mesa/:token`).
+API: `GET /api/config/pix`
 
 ---
 
@@ -68,26 +55,23 @@ npm run db:migrate && npm run db:seed
 npm start
 ```
 
-Staff: `admin` / `cozinha` / `caixa`.
-
 ---
 
 ## 🗺️ Roadmap
 
 | Versão | Foco | Status |
 |--------|------|:------:|
-| v2.0–v2.5 | MVP → estoque → design | ✅ |
-| **v2.6** | Print · desconto · fotos · faturamento líquido | ✅ |
-| **v2.7+** | Divisão de conta, PIX na mesa | ⬜ |
+| v2.0–v2.6 | MVP → polimento → PIX | ✅ |
+| **v2.7+** | Divisão de conta | ⬜ |
 | **v3** | Gateway, delivery, multi-loja | ⬜ |
 
 ### Changelog
 
 | Data | Mudança |
 |------|---------|
-| 2026-08-30 | Print no **garçom**; dashboard/relatório com `valor_cobrado` |
-| 2026-08-29 | Print cozinha · desconto/taxa caixa · fotos no cardápio |
-| 2026-08-29 | Estoque · PDF/purge · dashboard · auth |
+| 2026-08-30 | **PIX** configurável; QR na mesa + caixa; mesa modular (`mesa-*.css`, `mesa-app-*.js`) |
+| 2026-08-30 | Print garçom; faturamento com `valor_cobrado` |
+| 2026-08-29 | Print cozinha · desconto/taxa · estoque · PDF |
 
 ---
 
