@@ -8,7 +8,10 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
   <style>
-    .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow);padding:20px}
+    .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow);padding:0}
+    details.sessao-fold > summary{padding:14px 16px}
+    details.sessao-fold .order-body{padding:0 16px 16px;border-top:1px solid var(--line);padding-top:12px}
+    details.sessao-fold .order-sum-meta .badge{font-size:.75rem}
     .sessao-card.blocked{opacity:.88}
     .sessao-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
     .valor-big{font-size:1.65rem;font-weight:800;font-family:var(--font-mono)}
@@ -120,7 +123,7 @@ function valorAPagarFromCard(id, baseTotal, jaPago) {
   return Number(Math.max(0, cobrado - Number(jaPago || 0)).toFixed(2));
 }
 function refreshCobrado(id, baseTotal) {
-  const art = document.querySelector(`article[data-id="${id}"]`);
+  const art = document.querySelector(`[data-id="${id}"]`);
   const jaPago = Number(art?.dataset.pago || 0);
   const aPagar = valorAPagarFromCard(id, baseTotal, jaPago);
   const el = document.getElementById('cobrado-' + id);
@@ -159,29 +162,43 @@ function card(s) {
     ? `<span class="badge parcial" title="Pagamentos parciais registrados">Pago ${money(valorPago)} · resta ${money(valorRestante)}</span>`
     : '';
   const pixOk = window.LQRPix && LQRPix.disponivel();
-  return `<article class="sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pago="${valorPago}" data-restante="${valorRestante}" data-pix="${s.pixInformadoEm ? '1' : '0'}">
-    <div class="sessao-head"><div><div class="big">Mesa ${s.mesa}</div>
-      <div class="muted" style="font-size:.85rem">Aberta em ${fmtHora(s.abertaEm)} · sessão #${s.id}</div>
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${bloqueio}${pixAviso}${parcialBadge}</div></div>
-      <div class="valor-big">${money(s.valorTotal)}</div></div>
-    ${pedidosHtml || '<p class="muted" style="margin-top:12px">Nenhum pedido entregue ainda.</p>'}
-    <div class="adjust-row">
-      <label>Desconto (R$)<input type="number" min="0" step="0.01" inputmode="decimal" id="desconto-${s.id}" value="0" data-adjust="${s.id}"></label>
-      <label>Taxa de serviço (R$)<input type="number" min="0" step="0.01" inputmode="decimal" id="taxa-${s.id}" value="0" data-adjust="${s.id}"></label>
+  const nPed = (s.pedidosEntregues || []).length;
+  const openByDefault = s.pixInformadoEm || valorPago > 0.009;
+  return `<details class="sessao-fold sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pago="${valorPago}" data-restante="${valorRestante}" data-pix="${s.pixInformadoEm ? '1' : '0'}" ${openByDefault ? 'open' : ''}>
+    <summary>
+      <div class="order-sum-left">
+        <div class="big">Mesa ${s.mesa}</div>
+        <div class="order-sum-meta">
+          ${bloqueio}${pixAviso}${parcialBadge}
+          <span>${nPed} pedido${nPed === 1 ? '' : 's'}</span>
+          <span class="muted">#${s.id}</span>
+        </div>
+      </div>
+      <div class="order-sum-right"><div class="valor-big">${money(valorRestante > 0.009 && valorPago > 0.009 ? valorRestante : s.valorTotal)}</div>
+        <div class="muted" style="font-size:.75rem">${valorPago > 0.009 ? 'a cobrar' : 'total'}</div>
+      </div>
+    </summary>
+    <div class="order-body">
+      <div class="muted" style="font-size:.85rem;margin-bottom:8px">Aberta em ${fmtHora(s.abertaEm)}</div>
+      ${pedidosHtml || '<p class="muted">Nenhum pedido entregue ainda.</p>'}
+      <div class="adjust-row">
+        <label>Desconto (R$)<input type="number" min="0" step="0.01" inputmode="decimal" id="desconto-${s.id}" value="0" data-adjust="${s.id}"></label>
+        <label>Taxa de serviço (R$)<input type="number" min="0" step="0.01" inputmode="decimal" id="taxa-${s.id}" value="0" data-adjust="${s.id}"></label>
+      </div>
+      <div class="cobrado-line"><span class="muted">A cobrar${valorPago > 0.009 ? ' (restante)' : ''}</span><span class="valor-cobrado" id="cobrado-${s.id}">${money(valorRestante)}</span></div>
+      <div class="pay-row" data-pay="${s.id}">${pay}</div>
+      <div class="pix-box" id="pix-${s.id}" style="display:none">
+        ${pixOk ? `<img src="${qrUrlPix(valorRestante)}" alt="QR Code PIX" width="220" height="220" loading="lazy">
+        <p class="muted" style="margin:10px 0 6px;font-size:.85rem" data-pix-label>PIX · ${money(valorRestante)} · ${esc(pixNome())}</p>
+        <button class="btn btn-text-icon" type="button" data-copy-pix="${s.id}"><span class="ico">📋</span> Copiar PIX</button>
+        <textarea id="pix-payload-${s.id}" readonly hidden>${esc(montarPixCopiaCola(valorRestante))}</textarea>`
+        : `<p class="muted">Configure PIX_CHAVE no .env</p>`}
+      </div>
+      <div class="actions">
+        <button class="btn primary btn-text-icon" data-close="${s.id}" ${s.podeFechar ? '' : 'disabled title="Aguarde pedidos em andamento"'}><span class="ico">✓</span> Fechar</button>
+      </div>
     </div>
-    <div class="cobrado-line"><span class="muted">A cobrar${valorPago > 0.009 ? ' (restante)' : ''}</span><span class="valor-cobrado" id="cobrado-${s.id}">${money(valorRestante)}</span></div>
-    <div class="pay-row" data-pay="${s.id}">${pay}</div>
-    <div class="pix-box" id="pix-${s.id}" style="display:none">
-      ${pixOk ? `<img src="${qrUrlPix(valorRestante)}" alt="QR Code PIX" width="220" height="220" loading="lazy">
-      <p class="muted" style="margin:10px 0 6px;font-size:.85rem" data-pix-label>PIX · ${money(valorRestante)} · ${esc(pixNome())}</p>
-      <button class="btn" type="button" data-copy-pix="${s.id}">Copiar código PIX</button>
-      <textarea id="pix-payload-${s.id}" readonly hidden>${esc(montarPixCopiaCola(valorRestante))}</textarea>`
-      : `<p class="muted">Configure PIX_CHAVE no .env</p>`}
-    </div>
-    <div class="actions">
-      <button class="btn primary" data-close="${s.id}" ${s.podeFechar ? '' : 'disabled title="Aguarde pedidos em andamento"'}>Fechar conta</button>
-    </div>
-  </article>`;
+  </details>`;
 }
 function toast(msg, kind) {
   const el = document.getElementById('toast');
@@ -276,7 +293,7 @@ async function fechar(id) {
   if (closing) return;
   const radio = document.querySelector(`input[name="pay-${id}"]:checked`);
   if (!radio) { toast('Escolha a forma de pagamento', 'err'); return; }
-  const art = document.querySelector(`article[data-id="${id}"]`);
+  const art = document.querySelector(`[data-id="${id}"]`);
   const baseTotal = Number(art?.dataset.total || 0);
   const jaPago = Number(art?.dataset.pago || 0);
   const desconto = parseMoneyInput(document.getElementById('desconto-' + id));
@@ -312,14 +329,14 @@ function syncPixBox(sessaoId) {
   const box = document.getElementById('pix-' + sessaoId);
   if (!box) return;
   box.style.display = radio && radio.value === 'pix' ? 'block' : 'none';
-  const art = document.querySelector(`article[data-id="${sessaoId}"]`);
+  const art = document.querySelector(`[data-id="${sessaoId}"]`);
   refreshCobrado(sessaoId, Number(art?.dataset.total || 0));
 }
 document.getElementById('lista').addEventListener('input', (ev) => {
   const input = ev.target.closest('[data-adjust]');
   if (!input) return;
   const id = input.dataset.adjust;
-  const art = document.querySelector(`article[data-id="${id}"]`);
+  const art = document.querySelector(`[data-id="${id}"]`);
   refreshCobrado(id, Number(art?.dataset.total || 0));
 });
 document.getElementById('lista').addEventListener('change', (ev) => {

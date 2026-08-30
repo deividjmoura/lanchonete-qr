@@ -230,3 +230,78 @@ details.pedido summary{cursor:pointer;font-weight:700;}
  scroll-behavior:auto !important;transition:none !important;animation:none !important;
 }
 }
+
+
+/* Botões de ação compactos (ícone) */
+.btn-icon{
+  width:40px;height:40px;padding:0!important;min-width:40px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:1.15rem;line-height:1;flex:0 0 auto;
+}
+.btn-icon.primary{font-size:1.05rem}
+.btn-text-icon{
+  display:inline-flex;align-items:center;gap:6px;
+  padding-left:12px;padding-right:14px;
+}
+.btn-text-icon .ico{font-size:1rem;line-height:1}
+
+/* Cards de pedido recolhíveis */
+details.order-card,
+details.sessao-fold{
+  border:1px solid var(--line);
+  border-radius:var(--radius-md);
+  background:var(--surface);
+  box-shadow:var(--shadow);
+  padding:0;
+  overflow:hidden;
+}
+details.order-card.new{border-left:3px solid var(--primary)}
+details.order-card.warn{border-left:3px solid var(--warning)}
+details.order-card.hot{border-left:3px solid var(--danger)}
+details.order-card > summary,
+details.sessao-fold > summary{
+  list-style:none;
+  cursor:pointer;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  user-select:none;
+}
+details.order-card > summary::-webkit-details-marker,
+details.sessao-fold > summary::-webkit-details-marker{display:none}
+details.order-card > summary::after,
+details.sessao-fold > summary::after{
+  content:"▾";
+  opacity:.45;
+  font-size:.85rem;
+  flex:0 0 auto;
+}
+details.order-card[open] > summary::after,
+details.sessao-fold[open] > summary::after{content:"▴"}
+.order-sum-left{min-width:0;flex:1}
+.order-sum-left .big{font-size:1.05rem;font-weight:800;line-height:1.2}
+.order-sum-meta{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  margin-top:4px;font-size:.82rem;color:var(--muted);
+}
+.order-sum-right{text-align:right;flex:0 0 auto}
+.order-sum-right .valor-big{font-size:1.15rem}
+.order-body{
+  padding:0 14px 14px;
+  border-top:1px solid var(--line);
+  padding-top:12px;
+}
+.order-body .nav,
+.order-body .actions{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;
+}
+.order-preview{
+  margin-top:4px;font-size:.82rem;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+}
+.pedido-block details > summary{
+  list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;
+}
+.pedido-block details > summary::-webkit-details-marker{display:none}

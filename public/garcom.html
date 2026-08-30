@@ -61,21 +61,35 @@ function extrasHtml(item){
 }
 function card(p){
   const min=idadeMinutos(p.criado_em);
+  const nItens=(p.itens||[]).reduce((a,i)=>a+(Number(i.quantidade)||1),0);
+  const preview=(p.itens||[]).slice(0,2).map(i=>i.quantidade+'× '+i.nome).join(' · ');
+  const mais=(p.itens||[]).length>2?'…':'';
   const itens=(p.itens||[]).map(i=>`<div class="row"><span><b>${i.quantidade}×</b> ${esc(i.nome)}${extrasHtml(i)}</span></div>`).join('');
-  const cliente=p.cliente_nome?`<div class="muted" style="margin-top:4px">Cliente: <b>${esc(p.cliente_nome)}</b></div>`:'';
-  return `<article class="card kcard ${ageClass(min)}" data-id="${p.id}">
-    <div class="row" style="justify-content:space-between">
-      <div><b>Mesa ${esc(String(p.mesa))}</b> · #${p.id}
-        <div class="muted">${fmtHora(p.criado_em)} · ${min} min</div>${cliente}</div>
-      <span class="badge">Pronto</span>
+  const cliente=p.cliente_nome?`<div class="muted" style="margin-bottom:8px">Cliente: <b>${esc(p.cliente_nome)}</b></div>`:'';
+  return `<details class="order-card kcard ${ageClass(min)}" data-id="${p.id}">
+    <summary>
+      <div class="order-sum-left">
+        <div class="big">Mesa ${esc(String(p.mesa))} <span class="muted" style="font-weight:600">#${p.id}</span></div>
+        <div class="order-sum-meta">
+          <span class="badge">Pronto</span>
+          <span>${min===0?'agora':min+' min'}</span>
+          <span>${nItens} item${nItens===1?'':'s'}</span>
+        </div>
+        <div class="order-preview">${esc(preview)}${mais}</div>
+      </div>
+    </summary>
+    <div class="order-body">
+      ${cliente}
+      ${itens||'<span class="muted">Sem itens</span>'}
+      ${p.observacao_geral?`<p class="muted" style="margin:8px 0 0">Obs.: ${esc(p.observacao_geral)}</p>`:''}
+      <div class="nav">
+        <button class="btn btn-icon" type="button" data-print="${p.id}" title="Imprimir comanda" aria-label="Imprimir">🖨</button>
+        <button class="btn primary btn-text-icon" type="button" data-deliver="${p.id}" title="Entregar e assinar como ${esc(me?.nome||'')}">
+          <span class="ico">✓</span> Entregar
+        </button>
+      </div>
     </div>
-    <div style="margin-top:10px">${itens||'<span class="muted">Sem itens</span>'}</div>
-    ${p.observacao_geral?`<p class="muted" style="margin:8px 0 0">Obs.: ${esc(p.observacao_geral)}</p>`:''}
-    <div class="nav" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
-      <button class="btn" type="button" data-print="${p.id}" title="Imprimir comanda">🖨 Imprimir</button>
-      <button class="btn primary" type="button" data-deliver="${p.id}">Entregar · assinar como ${esc(me?.nome||'…')}</button>
-    </div>
-  </article>`;
+  </details>`;
 }
 function ticketHtml(p) {
   const linhas = (p.itens || []).map((i) => {
@@ -186,7 +200,7 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
 });
 async function entregar(id){
   if(advancing)return;advancing=true;
-  const art = document.querySelector(`article[data-id="${id}"]`);
+  const art = document.querySelector(`[data-id="${id}"]`);
   if (art) art.remove();
   try{
     const res=await fetch(`/api/garcom/${garcomToken}/pedidos/${id}/entregar`,{method:'POST'});

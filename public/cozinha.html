@@ -133,6 +133,9 @@ function card(p) {
   const min = idadeMinutos(p.criado_em);
   const proximo = PROXIMO[p.status];
   const acao = ACAO[p.status];
+  const nItens = (p.itens || []).reduce((a, i) => a + (Number(i.quantidade) || 1), 0);
+  const preview = (p.itens || []).slice(0, 2).map((i) => i.quantidade + '× ' + i.nome).join(' · ');
+  const mais = (p.itens || []).length > 2 ? '…' : '';
   const itens = (p.itens || [])
     .map(
       (i) =>
@@ -141,33 +144,40 @@ function card(p) {
         </div>`
     )
     .join('');
-
-  return `<article class="order ${p.status === 'recebido' ? 'new' : ''}" data-id="${p.id}">
-    <div class="row">
-      <div>
-        <div class="big">Mesa ${p.mesa}</div>
-        ${p.cliente_nome ? `<div class="muted">Cliente: <b>${esc(p.cliente_nome)}</b></div>` : ''}
-        <div class="meta-row">
+  const isNew = p.status === 'recebido';
+  const editado = (p.editadoEm || p.editado_em)
+    ? '<span class="badge" style="background:#fef3c7;color:#92400e">Editado</span>'
+    : '';
+  const acaoIcon = p.status === 'recebido' ? '▶' : '✓';
+  const acaoShort = p.status === 'recebido' ? 'Preparar' : 'Pronto';
+  return `<details class="order-card order ${isNew ? 'new' : ''} ${ageClass(min)}" data-id="${p.id}" ${isNew ? 'open' : ''}>
+    <summary>
+      <div class="order-sum-left">
+        <div class="big">Mesa ${p.mesa} <span class="muted" style="font-weight:600">#${p.id}</span></div>
+        <div class="order-sum-meta">
           <span class="badge ${p.status}">${LABELS[p.status] || p.status}</span>
-          ${(p.editadoEm || p.editado_em) ? '<span class="badge" style="background:#fef3c7;color:#92400e">Editado</span>' : ''}
+          ${editado}
           <span class="age ${ageClass(min)}">${min === 0 ? 'agora' : min + ' min'}</span>
+          <span>${nItens} item${nItens === 1 ? '' : 's'}</span>
         </div>
+        <div class="order-preview">${esc(preview)}${mais}</div>
       </div>
-      <b>#${p.id}</b>
+    </summary>
+    <div class="order-body">
+      ${p.cliente_nome ? `<div class="muted" style="margin-bottom:8px">Cliente: <b>${esc(p.cliente_nome)}</b></div>` : ''}
+      ${itens || '<p class="muted">Sem itens</p>'}
+      ${p.observacao_geral ? `<p style="margin-top:8px"><b>Obs.:</b> ${esc(p.observacao_geral)}</p>` : ''}
+      <p class="muted" style="margin-top:6px;font-size:.8rem">${fmtHora(p.criado_em)}</p>
+      <div class="nav">
+        <button class="btn btn-icon" type="button" data-print="${p.id}" title="Imprimir comanda" aria-label="Imprimir comanda">🖨</button>
+        ${
+          proximo
+            ? `<button class="btn primary btn-text-icon" data-advance="${p.id}" data-status="${proximo}" title="${acao}"><span class="ico">${acaoIcon}</span> ${acaoShort}</button>`
+            : ''
+        }
+      </div>
     </div>
-    <hr>
-    ${itens || '<p class="muted">Sem itens</p>'}
-    ${p.observacao_geral ? `<p><b>Obs. geral:</b> ${esc(p.observacao_geral)}</p>` : ''}
-    <p class="muted">${fmtHora(p.criado_em)}</p>
-    <div class="nav">
-      <button class="btn" type="button" data-print="${p.id}" title="Imprimir comanda">🖨 Imprimir</button>
-      ${
-        proximo
-          ? `<button class="btn primary" data-advance="${p.id}" data-status="${proximo}">${acao}</button>`
-          : ''
-      }
-    </div>
-  </article>`;
+  </details>`;
 }
 
 function ticketHtml(p) {
@@ -321,7 +331,7 @@ async function avancar(id, status) {
     btn.disabled = true;
     btn.textContent = '…';
   }
-  const art = document.querySelector(`article[data-id="${id}"]`);
+  const art = document.querySelector(`[data-id="${id}"]`);
   if (art && status === 'concluido') art.remove();
   else if (art && status === 'em_producao') {
     const badge = art.querySelector('.badge');
@@ -329,8 +339,8 @@ async function avancar(id, status) {
     const nav = art.querySelector('.nav');
     if (nav) {
       nav.innerHTML =
-        `<button class="btn" type="button" data-print="${id}" title="Imprimir comanda">🖨 Imprimir</button>` +
-        `<button class="btn primary" data-advance="${id}" data-status="concluido">${ACAO.em_producao}</button>`;
+        `<button class="btn btn-icon" type="button" data-print="${id}" title="Imprimir comanda" aria-label="Imprimir">🖨</button>` +
+        `<button class="btn primary btn-text-icon" data-advance="${id}" data-status="concluido" title="${ACAO.em_producao}"><span class="ico">✓</span> Pronto</button>`;
     }
   }
   try {
