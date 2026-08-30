@@ -131,9 +131,14 @@
 .chip.on{background:var(--success-soft);color:var(--success);}
 .chip.off{background:var(--danger-soft);color:var(--danger);}
 .edit-panel{
- background:var(--edit-panel-bg);border:1px solid var(--line);border-radius:var(--radius);
- padding:14px;margin-top:10px;
+ background:var(--edit-panel-bg,var(--surface-2));border:1px solid var(--line);border-radius:var(--radius);
+ padding:14px;margin-top:10px;color:var(--text);
 }
+.edit-panel input,.edit-panel textarea,.edit-panel select{
+ background:var(--input-bg,var(--surface));color:var(--text);border:1px solid var(--line);
+}
+.edit-panel label,.edit-panel h3,.edit-panel .muted{color:var(--muted);}
+.edit-panel h3{color:var(--text);}
 .edit-panel .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .edit-panel .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
 .form-inline{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px;}

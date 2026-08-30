@@ -93,6 +93,9 @@
  --danger:#f87171;--danger-soft:rgba(248,113,113,0.14);
  --header-bg:rgba(15,14,13,0.92);--modal-bg:#1c1a18;--input-bg:#161412;
  --chip-bg:#2a2622;--badge-neutral-bg:#2a2622;--badge-neutral-text:#c4bcb2;
+ --edit-panel-bg:#161412;--surface-elevated:#1c1a18;
+ --cart-bg:rgba(28,26,24,0.96);--toast-bg:#1c1a18;--toast-text:#f5f2ee;
+ --qty-btn-bg:#2a2622;--check-active-bg:#2a2622;--check-active-border:#fb923c;
  }
 }
 *,*::before,*::after{box-sizing:border-box;}
