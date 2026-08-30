@@ -253,4 +253,301 @@ const server = http.createServer(async (req, res) => {
         });
         return json(res, 200, out);
       } catch (e) {
-        if (e instanceof ErroGarcom<|control29|>response<|control30|>Push failed mid-server - need to complete. Let me push server with create_or_update using artifacts file and caixa.html separately with a shorter approach.
+        if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+
+    if (p === '/api/login' && req.method === 'POST') {
+      const ip = clientIp(req);
+      if (!golpePermitido(`login:${ip}`, { janelaMs: 5 * 60 * 1000, max: 8 })) {
+        return json(res, 429, { error: 'Muitos tentativas. Aguarde alguns minutos.' });
+      }
+      try {
+        await garantirStaffSeed();
+        const b = await body(req);
+        const staff = await autenticar(b.usuario || b.login || b.user, b.senha);
+        const token = await criarSessao(staff.id);
+        res.setHeader('Set-Cookie', cookieDeSessao(token));
+        return json(res, 200, {
+          ok: true,
+          staff,
+          home: homeDoPapel(staff.papel),
+        });
+      } catch (e) {
+        if (e instanceof ErroAuth) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/logout' && req.method === 'POST') {
+      await destruirSessao(parseCookies(req)[SESSION_COOKIE]);
+      res.setHeader('Set-Cookie', cookieDeLogout());
+      return json(res, 200, { ok: true });
+    }
+    if (p === '/api/me' && req.method === 'GET') {
+      const staff = await getStaffDaRequisicao(req);
+      if (!staff) return json(res, 401, { error: 'Não autenticado' });
+      return json(res, 200, { staff, home: homeDoPapel(staff.papel) });
+    }
+
+    if (p === '/api/config/pix' && req.method === 'GET') {
+      return json(res, 200, {
+        chave: process.env.PIX_CHAVE || '',
+        nome: process.env.PIX_NOME || 'LANCHONETE',
+        cidade: process.env.PIX_CIDADE || 'BRASIL',
+      });
+    }
+
+    try {
+      if (p.startsWith('/api/admin')) {
+        await exigirAcesso(req, 'admin');
+      } else if (p.startsWith('/api/caixa')) {
+        await exigirAcesso(req, 'caixa');
+      } else if (
+        p.startsWith('/api/cozinha') ||
+        (p.match(/^\/api\/pedidos\/\d+\/status$/) && req.method === 'PATCH')
+      ) {
+        await exigirAcesso(req, 'cozinha');
+      }
+    } catch (e) {
+      if (e instanceof ErroAuth) return json(res, e.status, { error: e.message });
+      throw e;
+    }
+
+    if (p === '/api/cozinha/pedidos' && req.method === 'GET') {
+      return json(res, 200, await getFilaCozinha());
+    }
+
+    if (p === '/api/caixa/sessoes' && req.method === 'GET') {
+      return json(res, 200, await listSessoesAbertas());
+    }
+    if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/fechar$/)) && req.method === 'POST') {
+      try {
+        const out = await fecharSessao(Number(m[1]), await body(req));
+        broadcast('update', { type: 'sessao_fechada', sessaoId: Number(m[1]) });
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroCaixa) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/pedidos\/(\d+)\/status$/)) && req.method === 'PATCH') {
+      try {
+        const b = await body(req);
+        const out = await avancarStatus(Number(m[1]), b.status);
+        broadcast('update', { type: 'status_alterado', pedidoId: Number(m[1]), status: b.status });
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroPedido) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+
+    if (p === '/api/admin/mesas' && req.method === 'GET') {
+      return json(res, 200, await listMesas());
+    }
+    if (p === '/api/admin/garcons' && req.method === 'GET') {
+      return json(res, 200, await listGarcons());
+    }
+    if (p === '/api/admin/garcons' && req.method === 'POST') {
+      try {
+        return json(res, 201, await criarGarcom(await body(req)));
+      } catch (e) {
+        if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/garcons\/(\d+)$/)) && req.method === 'PATCH') {
+      try {
+        const b = await body(req);
+        return json(res, 200, await setGarcomAtivo(Number(m[1]), b.ativo !== false));
+      } catch (e) {
+        if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/garcons\/(\d+)$/)) && req.method === 'DELETE') {
+      try {
+        return json(res, 200, await removerGarcom(Number(m[1])));
+      } catch (e) {
+        if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/dashboard' && req.method === 'GET') {
+      const q = new URL(req.url, 'http://localhost').searchParams;
+      return json(res, 200, await resumoDia({ from: q.get('from') || null, to: q.get('to') || null }));
+    }
+    if (p === '/api/admin/relatorio' && req.method === 'GET') {
+      try {
+        const q = new URL(req.url, 'http://localhost').searchParams;
+        return json(res, 200, await relatorioVendas({ from: q.get('from'), to: q.get('to') }));
+      } catch (e) {
+        if (e.status) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/historico/purge' && req.method === 'POST') {
+      try {
+        const b = await body(req);
+        return json(res, 200, await purgeHistorico({
+          before: b.before,
+          confirm: b.confirm === true,
+          dryRun: b.dryRun === true,
+        }));
+      } catch (e) {
+        if (e instanceof ErroPurge || e.status) return json(res, e.status || 400, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/pedidos' && req.method === 'GET') {
+      const q = new URL(req.url, 'http://localhost').searchParams;
+      const ativos = q.get('ativos') === '1' || q.get('ativos') === 'true';
+      return json(res, 200, await listPedidosRecentes({
+        limit: Number(q.get('limit')) || (ativos ? 100 : 80),
+        ativos,
+        from: q.get('from') || null,
+        to: q.get('to') || null,
+      }));
+    }
+    if (p === '/api/admin/cardapio' && req.method === 'GET') {
+      return json(res, 200, await getCardapioAdmin());
+    }
+    if (p === '/api/admin/categorias' && req.method === 'POST') {
+      try {
+        const out = await criarCategoria(await body(req));
+        invalidarCardapio();
+        return json(res, 201, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/categorias\/(\d+)$/)) && req.method === 'PATCH') {
+      try {
+        const out = await atualizarCategoria(Number(m[1]), await body(req));
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/produtos' && req.method === 'POST') {
+      try {
+        const out = await criarProduto(await body(req));
+        invalidarCardapio();
+        return json(res, 201, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)$/)) && req.method === 'PATCH') {
+      try {
+        const out = await atualizarProduto(Number(m[1]), await body(req));
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)\/adicionais$/)) && req.method === 'POST') {
+      try {
+        const out = await criarAdicional(Number(m[1]), await body(req));
+        invalidarCardapio();
+        return json(res, 201, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/adicionais\/(\d+)$/)) && req.method === 'DELETE') {
+      try {
+        const out = await removerAdicional(Number(m[1]));
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)\/removiveis$/)) && req.method === 'PUT') {
+      try {
+        const b = await body(req);
+        const out = await setRemoviveis(Number(m[1]), b.ingredientes || b.removiveis || []);
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+
+    if (p === '/admin' || p === '/caixa' || p === '/cozinha') {
+      const recurso = p.slice(1);
+      try {
+        await exigirAcesso(req, recurso);
+      } catch (e) {
+        if (e instanceof ErroAuth && e.status === 401) {
+          res.writeHead(302, { Location: `/login?next=${encodeURIComponent(p)}` });
+          return res.end();
+        }
+        if (e instanceof ErroAuth && e.status === 403) {
+          const staff = await getStaffDaRequisicao(req);
+          const dest = staff ? homeDoPapel(staff.papel) : '/login';
+          res.writeHead(302, { Location: dest });
+          return res.end();
+        }
+        throw e;
+      }
+    }
+    if (p === '/') {
+      const staff = await getStaffDaRequisicao(req);
+      res.writeHead(302, { Location: staff ? homeDoPapel(staff.papel) : '/login' });
+      return res.end();
+    }
+    let file = p;
+    if (file.startsWith('/mesa/')) file = '/mesa.html';
+    if (file.startsWith('/pedido/')) file = '/pedido.html';
+    if (file === '/cozinha') file = '/cozinha.html';
+    if (file === '/garcom' || /^\/garcom\/[0-9a-f-]{36}$/i.test(file)) file = '/garcom.html';
+    if (file === '/caixa') file = '/caixa.html';
+    if (file === '/admin') file = '/admin.html';
+    if (file === '/login') file = '/login.html';
+    const publicRoot = path.resolve(ROOT, 'public');
+    const fp = path.resolve(publicRoot, '.' + (file.startsWith('/') ? file : '/' + file));
+    if (!fp.startsWith(publicRoot + path.sep) && fp !== publicRoot) {
+      return send(res, 400, 'text/plain', 'Bad path');
+    }
+    try {
+      const data = await fs.promises.readFile(fp);
+      return send(res, 200, mime[path.extname(fp)] || 'application/octet-stream', data);
+    } catch {
+      return send(res, 404, 'text/plain', '404');
+    }
+  } catch (e) {
+    console.error(e);
+    if (e && e.status) {
+      return json(res, e.status, { error: e.message || 'Erro' });
+    }
+    const msg =
+      process.env.NODE_ENV === 'production'
+        ? 'Erro interno do servidor'
+        : (e && e.message) || 'Erro interno';
+    json(res, 500, { error: msg });
+  }
+});
+
+server.listen(PORT, async () => {
+  console.log(`🍔 Lanchonete QR V2: http://localhost:${PORT}`);
+  try {
+    const seed = await garantirStaffSeed();
+    if (seed.created) {
+      console.log('Staff inicial criado (admin / cozinha / caixa). Troque as senhas em produção.');
+    }
+  } catch (e) {
+    console.error('Aviso: não foi possível garantir seed de staff:', e.message || e);
+  }
+});
