@@ -40,6 +40,13 @@ async function criarPedido(token, body) {
     );
     const pedido = pedidoRows[0];
 
+    // Novo pedido após "Já paguei no PIX": limpa o aviso para o caixa/mesa
+    // (a conta mudou — cliente pode pagar de novo o restante)
+    await client.query(
+      `UPDATE mesa_sessoes SET pix_informado_em = NULL WHERE id = $1`,
+      [sessaoId]
+    );
+
     const itensGravados = [];
     let total = 0;
 

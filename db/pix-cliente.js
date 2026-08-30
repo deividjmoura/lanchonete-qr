@@ -21,7 +21,7 @@ async function informarPixPago(token) {
     const mesa = mesas[0];
     const { rows } = await client.query(
       `UPDATE mesa_sessoes
-       SET pix_informado_em = COALESCE(pix_informado_em, now())
+       SET pix_informado_em = now()
        WHERE mesa_id = $1 AND status = 'aberta'
        RETURNING id, pix_informado_em`,
       [mesa.id]
