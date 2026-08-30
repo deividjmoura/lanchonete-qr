@@ -217,13 +217,68 @@ textarea::placeholder {
   color: #fff !important;
 }
 
-/* Dock / bottom bars */
-.dock,
-.burger-dock {
+/* Dock ops (caixa etc.) */
+.dock {
   background: rgba(12, 10, 9, 0.32) !important;
   backdrop-filter: blur(22px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
   border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Mesa: pedir + total = botões flutuantes (não barra) */
+body.board-page .burger-dock {
+  position: fixed !important;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  padding: 0 20px calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  display: flex !important;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 36px;
+  pointer-events: none;
+  z-index: 50;
+}
+body.board-page .burger-dock .dock-item {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+body.board-page .burger-dock .burger-btn,
+body.board-page .burger-dock .conta-btn {
+  background: rgba(22, 20, 18, 0.45) !important;
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  width: 72px !important;
+  height: 72px !important;
+  padding: 8px !important;
+}
+body.board-page .burger-dock .conta-btn {
+  width: 64px !important;
+  height: 64px !important;
+}
+body.board-page .burger-hint {
+  font-family: Inter, system-ui, sans-serif !important;
+  font-size: 0.75rem !important;
+  font-weight: 600;
+  color: rgba(245, 242, 238, 0.92) !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+  background: rgba(12, 10, 9, 0.4);
+  backdrop-filter: blur(8px);
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* ========== Mesa (cliente) ========== */
