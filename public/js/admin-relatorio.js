@@ -80,7 +80,13 @@ async function previewPurge() {
     });
     const d = await r.json();
     if (!r.ok) { msg.textContent = ''; return toast(d.error || 'Erro'); }
-    msg.textContent = 'Prévia: ' + d.sessoes + ' sessão(ões), ' + d.pedidos + ' pedido(s), ' + d.itens + ' item(ns) antes de ' + before + '.';
+    msg.textContent =
+      'Prévia (será apagado de TODOS os lugares): ' +
+      d.sessoes + ' sessão(ões), ' +
+      d.pedidos + ' pedido(s), ' +
+      d.itens + ' item(ns)' +
+      (d.pagamentos != null ? ', ' + d.pagamentos + ' pagamento(s)' : '') +
+      ' com fechamento ANTES de ' + before + '.';
   } catch (e) {
     msg.textContent = '';
     toast('Erro na prévia');
@@ -90,9 +96,28 @@ async function executarPurge() {
   const before = document.getElementById('purgeBefore').value;
   const msg = document.getElementById('purgeMsg');
   if (!before) return toast('Informe a data limite');
-  if (!confirm('Apagar permanentemente sessões fechadas e pedidos com fechamento ANTES de ' + before + '?\n\nEsta ação não pode ser desfeita.')) return;
-  if (!confirm('Confirma de novo? Dados apagados não voltam.')) return;
-  msg.textContent = 'Apagando…';
+
+  const aviso1 =
+    '⚠️ APAGAR HISTÓRICO — leia com calma\n\n' +
+    'Serão removidos permanentemente TODOS os dados de contas FECHADAS com data de fechamento ANTES de ' + before + ':\n\n' +
+    '• Sessões / comandas fechadas\n' +
+    '• Pedidos e itens dessas sessões\n' +
+    '• Pagamentos parciais (divisão de conta)\n\n' +
+    'Isso some do Histórico de pedidos, do Relatório PDF e dos totais antigos do Dashboard.\n\n' +
+    'NÃO apaga: mesas abertas, pedidos em andamento, cardápio, staff.\n\n' +
+    'Esta ação NÃO pode ser desfeita. Continuar?';
+  if (!confirm(aviso1)) return;
+
+  const digite = prompt(
+    'Para confirmar, digite APAGAR (em maiúsculas):\n\n' +
+      'Tudo antes de ' + before + ' será removido de todos os lugares.'
+  );
+  if (digite !== 'APAGAR') {
+    toast('Purge cancelado — texto de confirmação não confere');
+    return;
+  }
+
+  msg.textContent = 'Apagando de todos os lugares…';
   try {
     const r = await fetch('/api/admin/historico/purge', {
       method: 'POST',
@@ -102,8 +127,18 @@ async function executarPurge() {
     const d = await r.json();
     if (!r.ok) { msg.textContent = ''; return toast(d.error || 'Erro'); }
     msg.textContent = d.message || ('Removidas ' + d.sessoes + ' sessão(ões).');
-    toast('Histórico limpo');
+    toast('Histórico limpo em todos os lugares');
     if (typeof loadDashboard === 'function') loadDashboard();
+    // limpa painel de histórico na tela
+    const hist = document.getElementById('pedidosHistorico');
+    if (hist) hist.innerHTML = '<p class="muted">Histórico apagado. Busque de novo se quiser conferir o que restou.</p>';
+    window.__histPedidos = [];
+    // se havia filtros de data, rebusca para mostrar lista vazia/atualizada
+    if (typeof buscarHistorico === 'function') {
+      const from = document.getElementById('histFrom');
+      const to = document.getElementById('histTo');
+      if ((from && from.value) || (to && to.value)) buscarHistorico();
+    }
   } catch (e) {
     msg.textContent = '';
     toast('Erro ao apagar');

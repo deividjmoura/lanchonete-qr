@@ -2,10 +2,24 @@ const token=location.pathname.split('/').filter(Boolean).pop()||'';
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 if(!UUID_RE.test(token)){document.body.innerHTML='<main class="wrap"><div class="panel"><h2>Mesa inválida</h2><p class="muted">Escaneie o QR Code da mesa.</p></div></main>';throw new Error('token inválido');}
 let categorias=[],produtos=[],cart=[],totalDevido=0,cartOpen=false,sessaoData=null,sessaoOpen=false,clienteNome='';
+/** Último status visto por pedido — para toast de mudança */
+let lastStatusMap={};
 function getClienteNome(){if(clienteNome)return clienteNome;try{clienteNome=sessionStorage.getItem('lq-cliente-nome-'+token)||'';}catch(_){}return clienteNome;}
 function setClienteNome(nome){clienteNome=String(nome||'').trim().slice(0,80);try{sessionStorage.setItem('lq-cliente-nome-'+token,clienteNome);}catch(_){}}
 function ensureClienteNome(){return new Promise((resolve)=>{if(getClienteNome())return resolve(getClienteNome());const gate=document.getElementById('nameGate');const input=document.getElementById('clienteNomeInput');const btn=document.getElementById('clienteNomeBtn');gate.hidden=false;setTimeout(()=>input.focus(),50);const done=()=>{const n=(input.value||'').trim();if(!n){input.focus();return;}setClienteNome(n);gate.hidden=true;fetch('/api/mesas/'+token+'/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clienteNome:n})}).catch(()=>{});resolve(n);};btn.addEventListener('click',done);input.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();done();}});});}
-const STATUS_LABEL={recebido:'Recebido',em_producao:'Na cozinha',concluido:'Pronto',entregue:'Entregue'};
+// Status legíveis para o cliente
+const STATUS_LABEL={
+  recebido:'Na cozinha',
+  em_producao:'Preparando',
+  concluido:'Pronto',
+  entregue:'Entregue',
+};
+const STATUS_TOAST={
+  recebido:'Pedido chegou na cozinha',
+  em_producao:'Pedido em preparo',
+  concluido:'Pedido pronto — o garçom já vai levar',
+  entregue:'Pedido entregue na mesa',
+};
 const br=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
 const esc=(s)=>{if(window.SafeDOM&&typeof SafeDOM.escapeHtml==='function')return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));};
 function cartCount(){return cart.reduce((s,i)=>s+i.qty,0);}
@@ -14,19 +28,80 @@ function updateCartPill(){const n=cartCount();const badge=document.getElementByI
 function showToast(message,ms=1800){const toast=document.getElementById('toast');if(!toast)return;toast.textContent=message;toast.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>toast.classList.remove('show'),ms);}
 function bounceBurger(){const btn=document.getElementById('burgerBtn');if(!btn)return;btn.classList.remove('pop');void btn.offsetWidth;btn.classList.add('pop');clearTimeout(bounceBurger._t);bounceBurger._t=setTimeout(()=>btn.classList.remove('pop'),600);}
 function productNeedsCustom(p){return !!(p.pedePontoCarne||(p.adicionais&&p.adicionais.length)||(p.removiveis&&p.removiveis.length));}
-/** Bebidas / só opções (tamanhos): escolha única, não "personalizar lanche". */
 function productIsEscolha(p,catNome){
   if(!p||!(p.adicionais&&p.adicionais.length))return false;
   const cat=String(catNome||p._catNome||'').toLowerCase();
-  // Bebidas / drinks / sucos / cervejas / energéticos: sempre escolha única (rádio)
   if(/bebida|drink|refri|suco|agua|cerveja|energ/.test(cat))return true;
-  // Produto só com opções (sem ponto de carne e sem removíveis) = Escolher
   return !p.pedePontoCarne&&!(p.removiveis&&p.removiveis.length);
 }
 function itemKey(productId,additions,removals,note){return productId+'|'+[...additions].map(a=>a.id).sort().join(',')+'|'+(removals||[]).slice().sort().join(',')+'|'+(note||'');}
 function itemTotal(i){const p=produtos.find(x=>x.id===i.productId);if(!p)return 0;const add=i.additions.reduce((s,a)=>s+Number(a.preco||0),0);return (Number(p.preco)+add)*i.qty;}
-async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen)openSessao();}catch(_){}}
-function openSessao(){sessaoOpen=true;cartOpen=false;const s=sessaoData||{pedidos:[],totalDevido:0,mesa:'—'};const pedidos=s.pedidos||[];const blocks=pedidos.length?pedidos.slice().reverse().map(p=>{const itens=(p.itens||[]).map(it=>`<div class="pedido-item"><div><b>${it.quantidade}× ${esc(it.nome)}</b></div><b>${br(it.totalLinha||0)}</b></div>`).join('');return `<div class="pedido-block"><div class="row" style="justify-content:space-between"><b>Pedido #${p.id}</b><span class="status-pill ${esc(p.status)}">${STATUS_LABEL[p.status]||p.status}</span></div>${itens}<div class="pedido-item"><span class="muted">Subtotal</span><b>${br(p.totalPedido||0)}</b></div></div>`;}).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Nenhum pedido ainda.</div>';const pago=Number(s.valorPago||0);const rest=s.valorRestante!=null?Number(s.valorRestante):Math.max(0,Number(s.totalDevido||0)-pago);const totalLine=pago>0.009?`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div><div class="cart-total-row" style="font-size:.95rem;opacity:.9"><span>Já pago</span><span>${br(pago)}</span></div><div class="cart-total-row"><span>A pagar</span><span>${br(rest)}</span></div>`:`<div class="cart-total-row"><span>Total</span><span>${br(s.totalDevido||0)}</span></div>`;document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2>${totalLine}${blocks}</div></div>`;document.body.classList.add('modal-open');}
+function notifyStatusChanges(pedidos){
+  if(!Array.isArray(pedidos))return;
+  const next={};
+  for(const p of pedidos){
+    next[p.id]=p.status;
+    const prev=lastStatusMap[p.id];
+    if(prev&&prev!==p.status){
+      const msg=STATUS_TOAST[p.status]||('Pedido #'+p.id+' → '+(STATUS_LABEL[p.status]||p.status));
+      showToast('#'+p.id+' · '+msg,3200);
+    }
+  }
+  lastStatusMap=next;
+}
+async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;notifyStatusChanges(s.pedidos||[]);document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen)openSessao();}catch(_){}}
+async function cancelarPedido(pedidoId){
+  if(!confirm('Cancelar o pedido #'+pedidoId+'? Só dá enquanto a cozinha ainda não começou o preparo.'))return;
+  try{
+    const r=await fetch('/api/mesas/'+token+'/pedidos/'+pedidoId,{method:'DELETE'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){alert(d.error||'Não foi possível cancelar');return;}
+    showToast('Pedido #'+pedidoId+' cancelado',2800);
+    await loadSessao();
+  }catch(e){alert('Falha de rede');}
+}
+function iniciarEdicaoPedido(pedidoId){
+  const s=sessaoData||{};
+  const p=(s.pedidos||[]).find(x=>Number(x.id)===Number(pedidoId));
+  if(!p||p.status!=='recebido'){alert('Só é possível editar antes da cozinha começar o preparo.');return;}
+  // Carrega itens no carrinho para o cliente ajustar e reenviar via PUT
+  cart=[];
+  for(const it of (p.itens||[])){
+    const productId=it.produtoId||it.produto_id;
+    const additions=(it.adicionais||[]).map(a=>({id:a.id,nome:a.nome,preco:Number(a.preco||0)}));
+    const removals=it.remocoes||it.removals||[];
+    const note=it.observacao||'';
+    const key=itemKey(productId,additions,removals,note);
+    cart.push({key,productId,qty:it.quantidade||1,additions,removals,note,_editPedidoId:pedidoId});
+  }
+  window._editandoPedidoId=pedidoId;
+  updateCartPill();
+  closeModal();
+  openCart();
+  showToast('Edite o pedido e toque em Salvar alterações',3500);
+}
+function openSessao(){
+  sessaoOpen=true;cartOpen=false;
+  const s=sessaoData||{pedidos:[],totalDevido:0,mesa:'—'};
+  const pedidos=s.pedidos||[];
+  const blocks=pedidos.length?pedidos.slice().reverse().map(p=>{
+    const itens=(p.itens||[]).map(it=>`<div class="pedido-item"><div><b>${it.quantidade}× ${esc(it.nome)}</b></div><b>${br(it.totalLinha||0)}</b></div>`).join('');
+    const editado=p.editadoEm||p.editado_em?' <span class="status-pill" style="background:#fef3c7;color:#92400e">Editado</span>':'';
+    const pode=p.status==='recebido'||p.podeEditar;
+    const acoes=pode
+      ?`<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn" type="button" onclick="iniciarEdicaoPedido(${p.id})">Editar</button>
+          <button class="btn" type="button" style="border-color:#f87171;color:#fca5a5" onclick="cancelarPedido(${p.id})">Cancelar</button>
+        </div>`
+      :'';
+    return `<div class="pedido-block"><div class="row" style="justify-content:space-between"><b>Pedido #${p.id}</b><span><span class="status-pill ${esc(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>${editado}</span></div>${itens}<div class="pedido-item"><span class="muted">Subtotal</span><b>${br(p.totalPedido||0)}</b></div>${acoes}</div>`;
+  }).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Nenhum pedido ainda.</div>';
+  const pago=Number(s.valorPago||0);
+  const rest=s.valorRestante!=null?Number(s.valorRestante):Math.max(0,Number(s.totalDevido||0)-pago);
+  const totalLine=pago>0.009?`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div><div class="cart-total-row" style="font-size:.95rem;opacity:.9"><span>Já pago</span><span>${br(pago)}</span></div><div class="cart-total-row"><span>A pagar</span><span>${br(rest)}</span></div>`:`<div class="cart-total-row"><span>Total</span><span>${br(s.totalDevido||0)}</span></div>`;
+  document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2>${totalLine}${blocks}</div></div>`;
+  document.body.classList.add('modal-open');
+}
 function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}
 async function loadCardapio(){const r=await fetch('/api/cardapio');if(!r.ok){document.getElementById('menu').innerHTML='<div style="padding:20px;color:#a89f8c">Não foi possível carregar o cardápio.</div>';return;}categorias=await r.json();produtos=categorias.flatMap(c=>c.produtos||[]);renderMenu();}
