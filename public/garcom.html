@@ -7,49 +7,57 @@
   <title>Garçom · Lanchonete QR</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
+  <style>
+    @media print {
+      body * { visibility: hidden !important; }
+      #printArea, #printArea * { visibility: visible !important; }
+      #printArea {
+        position: absolute; left: 0; top: 0; width: 72mm;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12px; color: #000; background: #fff;
+      }
+      .no-print { display: none !important; }
+    }
+    #printArea { display: none; }
+  </style>
 </head>
 <body>
-<main class="wrap">
+<main class="wrap no-print">
   <div class="top">
     <div>
-      <div class="brand">🛎️ Garçom</div>
+      <div class="brand">🧑‍🍳 Garçom</div>
       <div class="muted" id="who">Carregando…</div>
     </div>
   </div>
-  <div id="stats" class="muted" style="margin-bottom:14px"></div>
+  <div id="stats" class="muted" style="margin-bottom:14px" aria-live="polite"></div>
   <div id="orders" class="kgrid"></div>
 </main>
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast no-print"></div>
+<div id="printArea" aria-hidden="true"></div>
 <script src="/js/safe-dom.js"></script>
 <script src="/js/realtime.js"></script>
 <script>
-const parts = location.pathname.split('/').filter(Boolean);
-const garcomToken = parts[0] === 'garcom' && parts[1] ? parts[1] : new URLSearchParams(location.search).get('token');
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-if (!garcomToken || !UUID_RE.test(garcomToken)) {
-  document.body.innerHTML = '<main class="wrap"><div class="panel"><h2>Acesso do garçom</h2><p class="muted">Use o link pessoal gerado no painel Admin (com seu nome).</p></div></main>';
-  throw new Error('token ausente');
-}
-let me = null, advancing = false;
+const path = location.pathname.split('/').filter(Boolean);
+const garcomToken = path[path.length - 1];
+let me = null;
+let advancing = false;
+
 function fmtHora(iso){try{return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}catch{return'—'}}
 function idadeMinutos(iso){return Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000))}
 function ageClass(min){if(min>=10)return'hot';if(min>=5)return'warn';return''}
-const esc = (s) => {
+function esc(s) {
   if (window.SafeDOM && typeof SafeDOM.escapeHtml === 'function') {
     return SafeDOM.escapeHtml(s);
   }
-  return String(s ?? '').replace(/[&<>"']/g, (m) => ({
-    '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#039;',
-  }[m]));
-};
+  return String(s ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
 function extrasHtml(item){
-  const parts=[];
-  const adds=Array.isArray(item.adicionais)?item.adicionais:[];
-  if(adds.length)parts.push(`<span class="com">+ ${adds.map(a=>a.nome).join(', ')}</span>`);
-  const rems=Array.isArray(item.remocoes)?item.remocoes:[];
-  if(rems.length)parts.push(`<span class="sem">sem ${rems.join(', ')}</span>`);
-  if(item.observacao)parts.push(`Obs.: ${esc(item.observacao)}`);
-  return parts.length?`<small class="item-extra">${parts.join(' · ')}</small>`:'';
+  const parts = [];
+  (item.adicionais || []).forEach((a) => parts.push('+' + (a.nome || a)));
+  (item.remocoes || []).forEach((r) => parts.push('sem ' + r));
+  if (item.ponto_carne) parts.push(String(item.ponto_carne).replace(/_/g, ' ').toLowerCase());
+  if (item.observacao) parts.push(item.observacao);
+  return parts.length ? ` <span class="muted">(${parts.map(esc).join(', ')})</span>` : '';
 }
 function card(p){
   const min=idadeMinutos(p.criado_em);
@@ -63,10 +71,42 @@ function card(p){
     </div>
     <div style="margin-top:10px">${itens||'<span class="muted">Sem itens</span>'}</div>
     ${p.observacao_geral?`<p class="muted" style="margin:8px 0 0">Obs.: ${esc(p.observacao_geral)}</p>`:''}
-    <div class="nav" style="margin-top:12px">
+    <div class="nav" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
+      <button class="btn" type="button" data-print="${p.id}" title="Imprimir comanda">🖨 Imprimir</button>
       <button class="btn primary" type="button" data-deliver="${p.id}">Entregar · assinar como ${esc(me?.nome||'…')}</button>
     </div>
   </article>`;
+}
+function ticketHtml(p) {
+  const linhas = (p.itens || []).map((i) => {
+    const extras = extrasHtml(i).replace(/<[^>]+>/g, ' ').trim();
+    return `${i.quantidade}x ${i.nome}${extras ? ' (' + extras + ')' : ''}`;
+  }).join('\n');
+  const cliente = p.cliente_nome ? `Cliente: ${p.cliente_nome}\n` : '';
+  const obs = p.observacao_geral ? `Obs: ${p.observacao_geral}\n` : '';
+  return `<pre style="margin:0;white-space:pre-wrap">=== COMANDA ===
+Mesa ${p.mesa}  #${p.id}
+${cliente}${obs}---------------
+${linhas || '(sem itens)'}
+---------------
+${fmtHora(p.criado_em)}
+Garçom: ${(me && me.nome) || '-'}
+</pre>`;
+}
+function imprimirPedido(id) {
+  const pedidos = window.__lastPedidos || [];
+  const p = pedidos.find((x) => Number(x.id) === Number(id));
+  if (!p) return toast('Pedido não encontrado', 'err');
+  const area = document.getElementById('printArea');
+  area.innerHTML = ticketHtml(p);
+  area.style.display = 'block';
+  const after = () => {
+    area.style.display = 'none';
+    area.innerHTML = '';
+    window.removeEventListener('afterprint', after);
+  };
+  window.addEventListener('afterprint', after);
+  setTimeout(() => window.print(), 50);
 }
 function toast(msg,kind){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(kind||'');clearTimeout(toast._t);toast._t=setTimeout(()=>{el.className='toast'},2400)}
 async function loadMe(){
@@ -90,6 +130,7 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   const res = await fetch('/api/garcom/' + garcomToken + '/pedidos');
   if (!res.ok) throw new Error('fail');
   const pedidos = await res.json();
+  window.__lastPedidos = pedidos;
   document.getElementById('stats').textContent = pedidos.length
     ? `${pedidos.length} pronto(s) para entregar`
     : 'Nenhum pedido aguardando entrega';
@@ -111,6 +152,8 @@ async function entregar(id){
   finally{advancing=false}
 }
 document.getElementById('orders').addEventListener('click',(ev)=>{
+  const printBtn=ev.target.closest('[data-print]');
+  if(printBtn){imprimirPedido(Number(printBtn.dataset.print));return;}
   const btn=ev.target.closest('[data-deliver]');if(!btn)return;entregar(Number(btn.dataset.deliver));
 });
 (async()=>{
