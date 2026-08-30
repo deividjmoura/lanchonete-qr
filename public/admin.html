@@ -28,49 +28,53 @@
     }
   </style>
 </head>
-<body>
+<body class="page-admin">
 <main class="wrap">
-  <div class="top">
-    <div><div class="brand">⚙️ Admin</div><div class="muted">Dashboard · Cardápio · Mesas · Funções</div></div>
-    <div class="nav">
-      <a class="btn" href="/caixa">💵 Caixa</a>
-      <a class="btn" href="/cozinha">👨‍🍳 Cozinha</a>
-      <a class="btn dark" href="/">🏠 Início</a>
-      <button class="btn" id="btnSair" type="button">🚪 Sair</button>
+  <div class="glass-nav">
+    <div class="logo-mark" aria-hidden="true">
+      <span class="logo-star">★</span>
+    </div>
+    <div class="admin-tabs glass-tabs">
+      <button type="button" class="active" data-tab="dashboard">Dashboard</button>
+      <button type="button" data-tab="mesas">Mesas</button>
+      <button type="button" data-tab="cardapio">Cardápio</button>
+      <button type="button" data-tab="garcons">Garçons</button>
+      <button type="button" data-tab="funcoes">Funções</button>
+    </div>
+    <div class="nav glass-actions">
+      <a class="btn btn-ghost" href="/caixa"><span class="ico-line">◇</span> Caixa</a>
+      <a class="btn btn-ghost" href="/cozinha"><span class="ico-line">◎</span> Cozinha</a>
+      <a class="btn btn-ghost" href="/"><span class="ico-line">⌂</span> Início</a>
+      <button class="btn btn-ghost" id="btnSair" type="button"><span class="ico-line">→</span> Sair</button>
     </div>
   </div>
-  <div class="admin-tabs">
-    <button type="button" class="active" data-tab="dashboard">📊 Dashboard</button>
-    <button type="button" data-tab="mesas">🪑 Mesas</button>
-    <button type="button" data-tab="cardapio">🍔 Cardápio</button>
-    <button type="button" data-tab="garcons">🧑‍🍳 Garçons</button>
-    <button type="button" data-tab="funcoes">🛠️ Funções</button>
-  </div>
   <section id="sec-dashboard" class="admin-section active">
-    <div class="panel">
-      <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div><h2 style="margin:0">Dashboard do dia</h2><p class="muted" style="margin:6px 0 0">Fila de pedidos, faturamento e operação.</p></div>
-        <button class="btn" type="button" onclick="loadDashboard();loadPedidosBoard()">🔄 Atualizar</button>
-      </div>
-      <div class="panel dash-pedidos" style="margin-top:16px;box-shadow:none;border:1px solid var(--line)">
-        <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">
-          <div>
-            <h3 style="margin:0;font-size:1rem">📋 Pedidos ativos</h3>
-            <p class="muted" style="margin:4px 0 0;font-size:.85rem">Fila em tempo real · imprimir comanda</p>
-          </div>
-          <div id="pedidosStats" class="meta-row"></div>
+    <div class="panel glass-shell">
+      <div class="dash-head">
+        <div>
+          <h2 class="dash-title"><span class="ico-cal" aria-hidden="true"></span> Dashboard do dia</h2>
+          <p class="muted dash-sub" id="dashSub">Visão geral da operação hoje</p>
         </div>
-        <div id="pedidosBoard" class="pedidos-kanban" style="margin-top:14px"></div>
+        <button class="btn btn-ghost" type="button" onclick="loadDashboard();loadPedidosBoard()">Atualizar</button>
       </div>
-      <div id="kpiGrid" class="kpi-grid" style="margin-top:18px"></div>
+      <div class="dash-top-grid">
+        <div class="panel dash-pedidos inner-glass">
+          <div class="card-head">
+            <h3><span class="dot-live"></span> Pedidos ativos</h3>
+            <div id="pedidosStats" class="meta-row"></div>
+          </div>
+          <div id="pedidosBoard" class="pedidos-kanban"></div>
+        </div>
+        <div id="kpiGrid" class="kpi-grid"></div>
+      </div>
       <div class="dash-grid">
-        <div class="panel" style="margin:0;box-shadow:none;border:1px solid var(--line)">
-          <h3 style="margin:0 0 8px;font-size:1rem">🔥 Top produtos hoje</h3>
+        <div class="panel inner-glass">
+          <h3 class="card-title"><span class="ico-fire"></span> Top produtos hoje</h3>
           <ul id="topProdutos" class="dash-list"><li class="muted">Carregando…</li></ul>
         </div>
-        <div class="panel" style="margin:0;box-shadow:none;border:1px solid var(--line)">
-          <h3 style="margin:0 0 8px;font-size:1rem">⚡ Operação</h3>
-          <div id="dashOps" class="muted">Carregando…</div>
+        <div class="panel inner-glass">
+          <h3 class="card-title"><span class="ico-gear"></span> Operação</h3>
+          <div id="dashOps" class="ops-list muted">Carregando…</div>
         </div>
       </div>
     </div>
@@ -177,14 +181,27 @@ async function loadDashboard(){
   try{
     const d=await(await fetch('/api/admin/dashboard')).json();
     const brl=n=>'R$ '+Number(n||0).toFixed(2).replace('.',',');
-    kpi.innerHTML=`<div class="kpi-card accent"><div class="kpi-icon">💰</div><div class="kpi-label">Faturamento</div><div class="kpi-value">${brl(d.faturamento)}</div><div class="kpi-hint">${d.contasFechadas} conta(s)</div></div>
-      <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-label">Ticket médio</div><div class="kpi-value">${brl(d.ticketMedio)}</div></div>
-      <div class="kpi-card success"><div class="kpi-icon">📦</div><div class="kpi-label">Pedidos hoje</div><div class="kpi-value">${d.pedidosTotal||0}</div></div>
-      <div class="kpi-card warning"><div class="kpi-icon">🪑</div><div class="kpi-label">Mesas ocupadas</div><div class="kpi-value">${(d.mesas&&d.mesas.ocupada)||0}</div></div>`;
+    const hoje=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+    const sub=document.getElementById('dashSub');
+    if(sub)sub.textContent='Visão geral da operação hoje · '+hoje;
+    const mesasTot=(d.mesas&&(d.mesas.total||((d.mesas.ocupada||0)+(d.mesas.livre||0))))||0;
+    const ocup=(d.mesas&&d.mesas.ocupada)||0;
+    kpi.innerHTML=`<div class="kpi-card accent"><div class="kpi-icon kpi-i-fat"></div><div class="kpi-label">Faturamento</div><div class="kpi-value">${brl(d.faturamento)}</div><div class="kpi-hint">${d.contasFechadas||0} conta(s)</div></div>
+      <div class="kpi-card"><div class="kpi-icon kpi-i-ticket"></div><div class="kpi-label">Ticket Médio</div><div class="kpi-value">${brl(d.ticketMedio)}</div></div>
+      <div class="kpi-card success"><div class="kpi-icon kpi-i-bag"></div><div class="kpi-label">Pedidos Hoje</div><div class="kpi-value">${d.pedidosTotal||0}</div></div>
+      <div class="kpi-card warning"><div class="kpi-icon kpi-i-mesa"></div><div class="kpi-label">Mesas Ocupadas</div><div class="kpi-value">${ocup}</div><div class="kpi-hint">de ${mesasTot||ocup} mesas</div></div>`;
     const maxQ=Math.max(1,...(d.topProdutos||[]).map(x=>x.quantidade));
-    top.innerHTML=(d.topProdutos&&d.topProdutos.length)?d.topProdutos.map(p=>`<li><span>${esc(p.nome)}</span><div class="bar"><span style="width:${Math.round(100*p.quantidade/maxQ)}%"></span></div><b>${p.quantidade}×</b></li>`).join(''):'<li class="muted">Nenhum item hoje.</li>';
+    top.innerHTML=(d.topProdutos&&d.topProdutos.length)?d.topProdutos.map(p=>`<li><span>${esc(p.nome)}</span><div class="bar"><span style="width:${Math.round(100*p.quantidade/maxQ)}%"></span></div><b>${p.quantidade}×</b></li>`).join(''):'<li class="muted empty-msg">Nenhum pedido registrado hoje.</li>';
     const st=d.pedidosPorStatus||{};
-    ops.innerHTML=`<div class="status-dots"><span class="status-dot">📥 ${st.recebido||0}</span><span class="status-dot">🔥 ${st.em_producao||0}</span><span class="status-dot">✅ ${st.concluido||0}</span><span class="status-dot">🍽️ ${st.entregue||0}</span></div>`;
+    const ativos=(st.recebido||0)+(st.em_producao||0)+(st.concluido||0);
+    const mov=ativos>=8?'Alto':ativos>=3?'Médio':'Baixo';
+    const movClass=ativos>=8?'ops-hot':ativos>=3?'ops-mid':'ops-low';
+    ops.innerHTML=`<div class="ops-row"><span>Status da Operação</span><b class="ops-ok">Aberto</b></div>
+      <div class="ops-row"><span>Movimento</span><b class="${movClass}">${mov}</b></div>
+      <div class="ops-row"><span>Na cozinha</span><b>${st.em_producao||0}</b></div>
+      <div class="ops-row"><span>Prontos</span><b>${st.concluido||0}</b></div>
+      <div class="ops-row"><span>Fila (recebidos)</span><b>${st.recebido||0}</b></div>
+      <p class="ops-updated muted">Atualizado · ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</p>`;
   }catch(e){kpi.innerHTML='<div class="muted">Erro no dashboard.</div>';}
 }
 async function loadMesas(){
