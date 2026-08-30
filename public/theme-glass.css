@@ -710,16 +710,17 @@ body .login-lock {
 }
 .dash-top-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(0, 1.6fr);
+  grid-template-columns: 1fr; /* Pedidos ativos sozinho em cima */
   gap: 16px;
-  align-items: start; /* não estica KPIs quando pedidos expandem */
+  align-items: start;
   margin-bottom: 16px;
 }
 .dash-pedidos {
   margin: 0 !important;
   min-height: 0;
   padding: 18px 16px !important;
-  align-self: start;
+  align-self: stretch;
+  width: 100%;
 }
 .dash-pedidos .card-head {
   display: flex;
@@ -749,18 +750,18 @@ body .login-lock {
   margin: 0 !important;
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  align-items: start;
+  gap: 14px;
+  align-items: stretch;
   align-content: start;
+  width: 100%;
 }
 .kpi-card {
   text-align: left;
-  padding: 16px 14px !important;
+  padding: 18px 16px !important;
   border-radius: 16px !important;
   background: rgba(16, 14, 12, 0.42) !important;
-  min-height: 110px;
+  min-height: 100px;
   height: auto !important;
-  align-self: start;
 }
 .kpi-card .kpi-icon {
   width: 36px;
