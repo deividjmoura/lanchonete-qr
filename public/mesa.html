@@ -3,18 +3,52 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Mesa · Lanchonete QR</title>
+<meta name="theme-color" content="#1a1a1a">
+<title>Cardápio</title>
 <link rel="stylesheet" href="/style.css">
-<style>
-/* styles embedded from previous full mesa — minimal shell; full content in body scripts */
-body{margin:0}
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/mesa.css">
 </head>
-<body>
-<p style="padding:2rem;font-family:system-ui">Restaurando… puxe o commit anterior se a tela não carregar.</p>
+<body class="board-page">
+<main class="board">
+<header class="board-header">
+<h1 class="menu-title">MENU</h1>
+<div class="mesa-line" id="mesaDesk">Cardápio</div>
+</header>
+<div class="board-frame"><div id="menu"></div></div>
+</main>
+<div class="burger-dock">
+<div class="dock-item">
+<button type="button" class="burger-btn" id="burgerBtn" onclick="togglePedir()" aria-label="Pedir">
+<span class="badge-count" id="cartBadge">0</span>
+<span class="sand" aria-hidden="true"><span class="bun-top"></span><span class="lettuce"></span><span class="tomato"></span><span class="cheese"></span><span class="patty"></span><span class="bun-bot"></span></span>
+</button>
+<span class="burger-hint">pedir</span>
+</div>
+<div class="dock-item">
+<button type="button" class="conta-btn" id="contaBtn" onclick="toggleConta()" aria-label="Total da mesa">
+<span class="badge-total" id="contaBadge">$</span>
+<span class="bag" aria-hidden="true"><span class="bag-handle"></span><span class="bag-body"></span><span class="bag-dollar">$</span></span>
+</button>
+<span class="burger-hint">total</span>
+</div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="nameGate" class="name-gate" hidden>
+<div class="name-gate__card" role="dialog" aria-modal="true">
+<h2>Como podemos te chamar?</h2>
+<p>Só o primeiro nome — a cozinha e o garçom usam para achar sua mesa.</p>
+<input id="clienteNomeInput" type="text" maxlength="80" placeholder="Ex.: Ana" autocomplete="nickname">
+<button type="button" class="btn primary" id="clienteNomeBtn">Continuar</button>
+</div>
+</div>
+<div id="modal"></div>
 <script src="/js/safe-dom.js"></script>
 <script src="/js/realtime.js"></script>
 <script src="/js/pix.js"></script>
+<script src="/js/mesa-app.js"></script>
 <script src="/js/mesa-pix.js"></script>
 </body>
 </html>
