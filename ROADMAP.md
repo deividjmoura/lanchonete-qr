@@ -20,18 +20,18 @@ v2.4 ████████████████████  Estoque      
 v2.5 ████████████████████  Desconto / taxa / foto  ✅
 v2.6 ████████████████████  PIX mesa + caixa        ✅
 v2.6+████████████████████  Escolher (bebidas)      ✅
-v2.7 ░░░░░░░░░░░░░░░░░░░░  Divisão de conta        ⬜
+v2.7 ████████████████████  Divisão de conta        ✅
 v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · delivery      ⬜
 ```
 
-**Barra do v2:** `████████████████░░░░` ~**80%**
+**Barra do v2:** `██████████████████░░` ~**90%**
 
 ---
 
-## ✅ Feito (v2.0 → v2.6+)
+## ✅ Feito (v2.0 → v2.7)
 
 ### Fundação
-- [x] PostgreSQL no **Neon** + migrations (`0001` … `0008`)
+- [x] PostgreSQL no **Neon** + migrations (`0001` … `0009`)
 - [x] Seed (mesas, cardápio, adicionais, removíveis)
 - [x] Token **UUID** por mesa (QR opaco)
 - [x] Sessão de mesa acumulativa (`mesa_sessoes`)
@@ -65,19 +65,26 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Caixa: badge + toast + beep + destaque + PIX pré-selecionado
 - [x] Bloco de pagamento **sempre** na conta da mesa (explica se total 0 ou PIX off)
 
+### Divisão de conta (v2.7)
+- [x] Migration `sessao_pagamentos` + API `POST /api/caixa/sessoes/:id/pagamentos`
+- [x] Vários pagamentos parciais na mesma sessão (dinheiro, PIX, cartões)
+- [x] UX no caixa: painel **Divisão de conta**, valor/pessoa, badge pago/restante
+- [x] Ao **Fechar conta**, o restante é quitado automaticamente
+- [ ] *(futuro)* divisão por item · divisão na tela da mesa
+
 ---
 
 ## ⬜ Próximo
 
-### v2.7 — Divisão de conta
-- [ ] Cliente/caixa divide o total (por pessoa ou por item)
-- [ ] Vários pagamentos parciais na mesma sessão
-- [ ] UX clara no mobile da mesa e no caixa
-
 ### Polimento contínuo
-- [ ] Revisar impressão de comanda (cozinha/garçom)
-- [ ] Aposentar restos legados (`data/db.json` se ainda existir)
-- [ ] Testes de fumaça documentados (mesa → PIX → caixa)
+- [ ] Revisar impressão de comanda (cozinha/garçom) se necessário
+- [ ] Aposentar restos legados (`data/db.json` = só seed de referência)
+- [ ] Testes de fumaça: mesa → cozinha → garçom → parciais → PIX → fechar
+
+### v3 — Gateway · delivery
+- [ ] Gateway PIX (confirmação automática)
+- [ ] Delivery / retirada
+- [ ] Multi-loja
 
 ---
 

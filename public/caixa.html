@@ -32,6 +32,7 @@
     .pix-box img{display:block;margin:0 auto;border-radius:12px;background:#fff;padding:8px}
     .sessao-card.pix-wait{border-color:#16a34a;box-shadow:0 0 0 2px rgba(22,163,74,.25)}
     .badge.pix{background:#dcfce7;color:#166534;font-weight:700}
+    .badge.parcial{background:#fef3c7;color:#92400e;font-weight:700}
   </style>
 </head>
 <body>
@@ -53,6 +54,7 @@
 <script src="/js/safe-dom.js"></script>
 <script src="/js/realtime.js"></script>
 <script src="/js/pix.js"></script>
+<script src="/js/caixa-divisao.js"></script>
 <script>
 (function () {
   const _fetch = window.fetch;
@@ -111,11 +113,18 @@ function valorCobradoFromCard(id, baseTotal) {
   const taxa = parseMoneyInput(document.getElementById('taxa-' + id));
   return Number((Number(baseTotal) - desconto + taxa).toFixed(2));
 }
-function refreshCobrado(id, baseTotal) {
+/** Valor ainda a pagar no fechamento (total ajustado − já pago). */
+function valorAPagarFromCard(id, baseTotal, jaPago) {
   const cobrado = valorCobradoFromCard(id, baseTotal);
+  return Number(Math.max(0, cobrado - Number(jaPago || 0)).toFixed(2));
+}
+function refreshCobrado(id, baseTotal) {
+  const art = document.querySelector(`article[data-id="${id}"]`);
+  const jaPago = Number(art?.dataset.pago || 0);
+  const aPagar = valorAPagarFromCard(id, baseTotal, jaPago);
   const el = document.getElementById('cobrado-' + id);
-  if (el) el.textContent = money(Math.max(0, cobrado));
-  refreshPix(id, Math.max(0, cobrado));
+  if (el) el.textContent = money(aPagar);
+  refreshPix(id, aPagar);
 }
 function refreshPix(id, valor) {
   const box = document.getElementById('pix-' + id);
@@ -128,6 +137,10 @@ function refreshPix(id, valor) {
   if (label) label.textContent = 'PIX · ' + money(valor) + ' · ' + pixNome();
 }
 function card(s) {
+  const valorPago = Number(s.valorPago || 0);
+  const valorRestante = Number(
+    s.valorRestante != null ? s.valorRestante : Math.max(0, Number(s.valorTotal) - valorPago)
+  );
   const pedidosHtml = (s.pedidosEntregues || []).map((p) => {
     const itens = (p.itens || []).map(itemLine).join('');
     return `<details class="pedido"><summary>Pedido #${p.id} · ${money(p.total)}</summary><ul class="itens-list">${itens || '<li class="muted">Sem itens</li>'}</ul></details>`;
@@ -141,24 +154,27 @@ function card(s) {
   const pixAviso = s.pixInformadoEm
     ? `<span class="badge pix" title="Cliente tocou em Já paguei no PIX">PIX informado pelo cliente</span>`
     : '';
+  const parcialBadge = valorPago > 0.009
+    ? `<span class="badge parcial" title="Pagamentos parciais registrados">Pago ${money(valorPago)} · resta ${money(valorRestante)}</span>`
+    : '';
   const pixOk = window.LQRPix && LQRPix.disponivel();
-  return `<article class="sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pix="${s.pixInformadoEm ? '1' : '0'}">
+  return `<article class="sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pago="${valorPago}" data-restante="${valorRestante}" data-pix="${s.pixInformadoEm ? '1' : '0'}">
     <div class="sessao-head"><div><div class="big">Mesa ${s.mesa}</div>
       <div class="muted" style="font-size:.85rem">Aberta em ${fmtHora(s.abertaEm)} · sessão #${s.id}</div>
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${bloqueio}${pixAviso}</div></div>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${bloqueio}${pixAviso}${parcialBadge}</div></div>
       <div class="valor-big">${money(s.valorTotal)}</div></div>
     ${pedidosHtml || '<p class="muted" style="margin-top:12px">Nenhum pedido entregue ainda.</p>'}
     <div class="adjust-row">
       <label>Desconto (R$)<input type="number" min="0" step="0.01" inputmode="decimal" id="desconto-${s.id}" value="0" data-adjust="${s.id}"></label>
       <label>Taxa de serviço (R$)<input type="number" min="0" step="0.01" inputmode="decimal" id="taxa-${s.id}" value="0" data-adjust="${s.id}"></label>
     </div>
-    <div class="cobrado-line"><span class="muted">A cobrar</span><span class="valor-cobrado" id="cobrado-${s.id}">${money(s.valorTotal)}</span></div>
+    <div class="cobrado-line"><span class="muted">A cobrar${valorPago > 0.009 ? ' (restante)' : ''}</span><span class="valor-cobrado" id="cobrado-${s.id}">${money(valorRestante)}</span></div>
     <div class="pay-row" data-pay="${s.id}">${pay}</div>
     <div class="pix-box" id="pix-${s.id}" style="display:none">
-      ${pixOk ? `<img src="${qrUrlPix(s.valorTotal)}" alt="QR Code PIX" width="220" height="220" loading="lazy">
-      <p class="muted" style="margin:10px 0 6px;font-size:.85rem" data-pix-label>PIX · ${money(s.valorTotal)} · ${esc(pixNome())}</p>
+      ${pixOk ? `<img src="${qrUrlPix(valorRestante)}" alt="QR Code PIX" width="220" height="220" loading="lazy">
+      <p class="muted" style="margin:10px 0 6px;font-size:.85rem" data-pix-label>PIX · ${money(valorRestante)} · ${esc(pixNome())}</p>
       <button class="btn" type="button" data-copy-pix="${s.id}">Copiar código PIX</button>
-      <textarea id="pix-payload-${s.id}" readonly hidden>${esc(montarPixCopiaCola(s.valorTotal))}</textarea>`
+      <textarea id="pix-payload-${s.id}" readonly hidden>${esc(montarPixCopiaCola(valorRestante))}</textarea>`
       : `<p class="muted">Configure PIX_CHAVE no .env</p>`}
     </div>
     <div class="actions">
@@ -250,14 +266,18 @@ async function fechar(id) {
   if (!radio) { toast('Escolha a forma de pagamento', 'err'); return; }
   const art = document.querySelector(`article[data-id="${id}"]`);
   const baseTotal = Number(art?.dataset.total || 0);
+  const jaPago = Number(art?.dataset.pago || 0);
   const desconto = parseMoneyInput(document.getElementById('desconto-' + id));
   const taxaServico = parseMoneyInput(document.getElementById('taxa-' + id));
   if (desconto > baseTotal) { toast('Desconto maior que o total', 'err'); return; }
   const cobrado = Number((baseTotal - desconto + taxaServico).toFixed(2));
+  const aPagar = Number(Math.max(0, cobrado - jaPago).toFixed(2));
   const msg = `Confirmar fechamento?\nSubtotal ${money(baseTotal)}` +
     (desconto ? `\nDesconto -${money(desconto)}` : '') +
     (taxaServico ? `\nTaxa +${money(taxaServico)}` : '') +
-    `\nA cobrar ${money(cobrado)} · ${radio.value}`;
+    (jaPago > 0.009 ? `\nJá pago ${money(jaPago)}` : '') +
+    `\nA cobrar agora ${money(aPagar)} · ${radio.value}` +
+    (aPagar <= 0.009 ? '\n(restante zerado — só fecha a sessão)' : '');
   if (!confirm(msg)) return;
   closing = true;
   try {
@@ -306,6 +326,7 @@ document.getElementById('lista').addEventListener('click', (ev) => {
   if (!btn || btn.disabled) return;
   fechar(Number(btn.dataset.close));
 });
+window.__caixaReload = load;
 (async () => {
   if (window.LQRPix) await LQRPix.loadConfig();
   await load();

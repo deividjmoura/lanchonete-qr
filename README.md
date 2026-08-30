@@ -7,7 +7,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Neon](https://img.shields.io/badge/Neon-00E599?style=for-the-badge&logo=neon&logoColor=black)](https://neon.tech/)
-[![License](https://img.shields.io/badge/status-v2.6%20PIX-orange?style=for-the-badge)](./ROADMAP.md)
+[![License](https://img.shields.io/badge/status-v2.7%20divisão-green?style=for-the-badge)](./ROADMAP.md)
 
 </div>
 
@@ -41,12 +41,12 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 | 💵 Caixa · Auth · SSE | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 📦 Estoque · Dashboard | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 💠 PIX (QR + aviso) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
-| ✂️ Divisão de conta | ![todo](https://img.shields.io/badge/0%25-64748b?style=flat-square) |
+| ✂️ Divisão de conta | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 🚀 Gateway · Delivery | ![todo](https://img.shields.io/badge/planejado-f59e0b?style=flat-square) |
 
 **Visão geral**
 
-`████████████████░░░░` **~80%** do roadmap v2 · próximo: divisão de conta
+`██████████████████░░` **~90%** do roadmap v2 · próximo: gateway / delivery
 
 📌 Detalhes → **[ROADMAP.md](./ROADMAP.md)**
 
@@ -83,7 +83,7 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 | 👤 Cliente | `/mesa/:token` | Cardápio, **Escolher** (bebidas), personalizar, carrinho, conta + PIX |
 | 👨‍🍳 Cozinha | `/cozinha` | Fila `recebido` → `em_producao` → `concluido` |
 | 🏃 Garçom | `/garcom/:token` | Entrega `concluido` → `entregue` |
-| 💵 Caixa | `/caixa` | Fecha conta, desconto/taxa, PIX, alerta em tempo real |
+| 💵 Caixa | `/caixa` | Fecha conta, **divisão** (parciais), desconto/taxa, PIX, alerta SSE |
 | ⚙️ Admin | `/admin` | Cardápio, mesas/QR, dashboard, relatório, purge |
 | 🔐 Login | `/login` | Auth por papel (admin / cozinha / caixa) |
 
@@ -146,6 +146,24 @@ POST /api/mesas/:token/pix-informado
 
 ---
 
+## ✂️ Divisão de conta (caixa)
+
+No painel de cada sessão aberta:
+
+1. Informe **N pessoas** → **Usar valor/pessoa** (preenche o valor parcial)
+2. Escolha a forma de pagamento → **Registrar pagamento**
+3. Repita quantas vezes precisar; o badge mostra **pago / restante**
+4. Ao **Fechar conta**, o que ainda faltar é quitado com a forma escolhida
+
+```http
+POST /api/caixa/sessoes/:id/pagamentos
+Body: { "valor": 25.50, "formaPagamento": "pix" }
+```
+
+> Desconto e taxa de serviço continuam sobre o **total** da sessão; o restante a cobrar no fechamento já desconta os parciais.
+
+---
+
 ## 📁 Estrutura
 
 ```text
@@ -165,8 +183,8 @@ Detalhes em **[ROADMAP.md](./ROADMAP.md)**.
 
 | Agora | Depois |
 |:-----:|:------:|
-| ✅ PIX + Escolher (bebidas) | ⬜ Divisão de conta |
-| ✅ Estoque · dashboard · PDF/purge | ⬜ Gateway · delivery |
+| ✅ PIX + Escolher + **divisão de conta** | ⬜ Gateway PIX |
+| ✅ Estoque · dashboard · PDF/purge | ⬜ Delivery · multi-loja |
 
 ---
 
