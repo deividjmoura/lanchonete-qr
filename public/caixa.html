@@ -235,7 +235,13 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
     root.innerHTML = '<div class="panel empty-state" style="grid-column:1/-1"><div class="big">✅</div><div>Nenhuma sessão aberta no momento.</div></div>';
   } else {
     root.innerHTML = sessoes.map(card).join('');
-    sessoes.forEach((s) => syncPixBox(s.id));
+    sessoes.forEach((s) => {
+      if (s.pixInformadoEm) {
+        const radio = document.querySelector(`input[name="pay-${s.id}"][value="pix"]`);
+        if (radio) radio.checked = true;
+      }
+      syncPixBox(s.id);
+    });
   }
 });
 async function fechar(id) {
