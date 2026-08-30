@@ -1,1 +1,326 @@
-<PLACEHOLDER>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin · Lanchonete QR</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style-ops.css">
+  <style>
+    .prod-row{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+    .prod-row:last-child{border-bottom:0}
+    .prod-thumb{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line);flex-shrink:0;background:var(--surface-2)}
+    .prod-thumb-lg{max-width:160px;max-height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+    .cat-acc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:0;background:transparent;cursor:pointer;text-align:left;color:var(--text);font:inherit}
+    .cat-acc-head:hover{background:var(--surface-2)}
+    .cat-acc-chev{opacity:.55;font-size:.85rem;transition:transform .2s ease}
+    .cat-accordion.open .cat-acc-chev{transform:rotate(180deg)}
+    .cat-acc-body{padding:0 16px 14px;border-top:1px solid var(--line)}
+    .dash-pedidos{margin-top:18px}
+    .pk-card summary{cursor:pointer;list-style:none}
+    .pk-card .pk-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+    #printArea{display:none}
+    @media print{
+      body *{visibility:hidden!important}
+      #printArea,#printArea *{visibility:visible!important}
+      #printArea{position:absolute;left:0;top:0;width:72mm;display:block!important;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#000;background:#fff}
+    }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div><div class="brand">⚙️ Admin</div><div class="muted">Dashboard · Cardápio · Mesas · Funções</div></div>
+    <div class="nav">
+      <a class="btn" href="/caixa">💵 Caixa</a>
+      <a class="btn" href="/cozinha">👨‍🍳 Cozinha</a>
+      <a class="btn dark" href="/">🏠 Início</a>
+      <button class="btn" id="btnSair" type="button">🚪 Sair</button>
+    </div>
+  </div>
+  <div class="admin-tabs">
+    <button type="button" class="active" data-tab="dashboard">📊 Dashboard</button>
+    <button type="button" data-tab="mesas">🪑 Mesas</button>
+    <button type="button" data-tab="cardapio">🍔 Cardápio</button>
+    <button type="button" data-tab="garcons">🧑‍🍳 Garçons</button>
+    <button type="button" data-tab="funcoes">🛠️ Funções</button>
+  </div>
+  <section id="sec-dashboard" class="admin-section active">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div><h2 style="margin:0">Dashboard do dia</h2><p class="muted" style="margin:6px 0 0">Fila de pedidos, faturamento e operação.</p></div>
+        <button class="btn" type="button" onclick="loadDashboard();loadPedidosBoard()">🔄 Atualizar</button>
+      </div>
+      <div class="panel dash-pedidos" style="margin-top:16px;box-shadow:none;border:1px solid var(--line)">
+        <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">
+          <div>
+            <h3 style="margin:0;font-size:1rem">📋 Pedidos ativos</h3>
+            <p class="muted" style="margin:4px 0 0;font-size:.85rem">Fila em tempo real · imprimir comanda</p>
+          </div>
+          <div id="pedidosStats" class="meta-row"></div>
+        </div>
+        <div id="pedidosBoard" class="pedidos-kanban" style="margin-top:14px"></div>
+      </div>
+      <div id="kpiGrid" class="kpi-grid" style="margin-top:18px"></div>
+      <div class="dash-grid">
+        <div class="panel" style="margin:0;box-shadow:none;border:1px solid var(--line)">
+          <h3 style="margin:0 0 8px;font-size:1rem">🔥 Top produtos hoje</h3>
+          <ul id="topProdutos" class="dash-list"><li class="muted">Carregando…</li></ul>
+        </div>
+        <div class="panel" style="margin:0;box-shadow:none;border:1px solid var(--line)">
+          <h3 style="margin:0 0 8px;font-size:1rem">⚡ Operação</h3>
+          <div id="dashOps" class="muted">Carregando…</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="sec-mesas" class="admin-section"><div class="panel"><h2>Mesas</h2><div id="mesas" class="qrgrid" style="margin-top:18px"></div></div></section>
+  <section id="sec-cardapio" class="admin-section">
+    <div class="panel" style="margin-bottom:18px"><h2>Nova categoria</h2>
+      <div class="form-inline"><div><label>Nome</label><input id="catNome"></div><div><label>Ordem</label><input id="catOrdem" type="number" value="0" style="width:80px"></div>
+      <button class="btn primary" type="button" onclick="criarCat()">Adicionar</button></div></div>
+    <div class="panel" style="margin-bottom:18px"><h2>Novo produto</h2>
+      <div class="form-inline"><div><label>Categoria</label><select id="prodCat"></select></div><div><label>Nome</label><input id="prodNome"></div>
+      <div><label>Preço</label><input id="prodPreco" type="number" step="0.01" min="0" style="width:100px"></div>
+      <div><label>URL da foto</label><input id="prodFoto" type="url" placeholder="https://…" style="min-width:180px"></div>
+      <div><label><input type="checkbox" id="prodPonto"> Ponto</label></div>
+      <button class="btn primary" type="button" onclick="criarProd()">Adicionar</button></div>
+      <p class="muted" style="margin:10px 0 0;font-size:.85rem">Foto: link público (https) ou caminho em <code>/public</code> (ex.: <code>/uploads/xburguer.jpg</code>).</p>
+    </div>
+    <div id="cardapio"></div>
+  </section>
+  <section id="sec-garcons" class="admin-section"><div class="panel"><h2>Garçons</h2>
+    <div class="form-inline"><input id="garcomNome" placeholder="Nome" maxlength="80">
+    <button class="btn primary" type="button" onclick="criarGarcom()">Adicionar</button></div>
+    <div id="garconsList" style="margin-top:18px"></div></div></section>
+  <section id="sec-funcoes" class="admin-section">
+    <div class="panel">
+      <h2 style="margin-top:0">🛠️ Funções</h2>
+      <p class="muted" style="margin:0 0 16px">Histórico, relatórios e limpeza. A opção de apagar fica por último de propósito.</p>
+      <div class="panel" style="margin:0 0 14px;box-shadow:none;border:1px solid var(--line)">
+        <h3 style="margin:0 0 6px;font-size:1rem">📜 Histórico de pedidos</h3>
+        <p class="muted" style="margin:0 0 12px;font-size:.9rem">Consulta pedidos por período (inclui entregues e cancelados no intervalo).</p>
+        <div class="form-inline"><label>De<input type="date" id="histFrom"></label><label>Até<input type="date" id="histTo"></label>
+        <button class="btn primary" type="button" onclick="buscarHistorico()">Buscar</button>
+        <button class="btn" type="button" onclick="limparHistorico()">Limpar filtros</button></div>
+        <div id="pedidosHistorico" style="margin-top:16px"><p class="muted">Escolha um período.</p></div>
+      </div>
+      <div class="panel" style="margin:0 0 14px;box-shadow:none;border:1px solid var(--line)">
+        <h3 style="margin:0 0 6px;font-size:1rem">📄 Relatório de vendas (PDF)</h3>
+        <p class="muted" style="margin:0 0 12px;font-size:.9rem">Use <b>Salvar como PDF</b> na impressão do navegador.</p>
+        <div class="form-inline" style="align-items:end">
+          <label>De<input type="date" id="relFrom"></label>
+          <label>Até<input type="date" id="relTo"></label>
+          <button class="btn primary" type="button" onclick="gerarRelatorioPdf()">Gerar / imprimir PDF</button>
+        </div>
+      </div>
+      <div class="panel" style="margin:0;box-shadow:none;border:1px solid var(--line);border-color:#fca5a5">
+        <h3 style="margin:0 0 6px;font-size:1rem">🗑️ Limpar histórico (perigoso)</h3>
+        <p class="muted" style="margin:0 0 12px;font-size:.9rem">
+          Apaga <b>permanentemente</b> de <b>todos os lugares</b> (histórico, relatório e totais antigos do dashboard)
+          as contas <b>fechadas</b> com data de fechamento <b>antes</b> da data informada.
+          Não mexe em mesas abertas nem pedidos em andamento. <b>Não dá para desfazer.</b>
+        </p>
+        <div class="form-inline" style="align-items:end">
+          <label>Antes de<input type="date" id="purgeBefore"></label>
+          <button class="btn" type="button" onclick="previewPurge()">Ver quantos</button>
+          <button class="btn" type="button" style="border-color:var(--danger);color:var(--danger)" onclick="executarPurge()">Apagar definitivamente</button>
+        </div>
+        <p id="purgeMsg" class="muted" style="margin:12px 0 0;font-size:.9rem"></p>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="printArea" aria-hidden="true"></div>
+<div class="toast" id="toast"></div>
+<script src="/js/safe-dom.js"></script>
+<script src="/js/realtime.js"></script>
+<script src="/js/admin-relatorio.js"></script>
+<script>
+(function(){const _f=window.fetch;window.fetch=async function(...a){const r=await _f(...a);if(r.status===401)location.href='/login?next='+encodeURIComponent(location.pathname);return r;};})();
+document.getElementById('btnSair').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST'});}catch(e){}location.href='/login';});
+const host=location.origin;
+const br=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
+const esc=(s)=>{if(window.SafeDOM&&SafeDOM.escapeHtml)return SafeDOM.escapeHtml(s);return String(s??'').replace(/[&<>"']/g,m=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#039;'}[m]));};
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
+document.querySelectorAll('.admin-tabs button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.admin-tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    const t=btn.dataset.tab;
+    document.getElementById('sec-'+t).classList.add('active');
+    if(t==='dashboard'){if(typeof defaultRelDates==='function')defaultRelDates();loadDashboard();loadPedidosBoard();}
+    if(t==='mesas')loadMesas();
+    if(t==='cardapio')loadCardapio();
+    if(t==='garcons')loadGarcons();
+    if(t==='funcoes'){if(typeof defaultRelDates==='function')defaultRelDates();}
+  });
+});
+async function loadDashboard(){
+  const kpi=document.getElementById('kpiGrid'),top=document.getElementById('topProdutos'),ops=document.getElementById('dashOps');
+  if(!kpi)return;
+  try{
+    const d=await(await fetch('/api/admin/dashboard')).json();
+    const brl=n=>'R$ '+Number(n||0).toFixed(2).replace('.',',');
+    kpi.innerHTML=`<div class="kpi-card accent"><div class="kpi-icon">💰</div><div class="kpi-label">Faturamento</div><div class="kpi-value">${brl(d.faturamento)}</div><div class="kpi-hint">${d.contasFechadas} conta(s)</div></div>
+      <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-label">Ticket médio</div><div class="kpi-value">${brl(d.ticketMedio)}</div></div>
+      <div class="kpi-card success"><div class="kpi-icon">📦</div><div class="kpi-label">Pedidos hoje</div><div class="kpi-value">${d.pedidosTotal||0}</div></div>
+      <div class="kpi-card warning"><div class="kpi-icon">🪑</div><div class="kpi-label">Mesas ocupadas</div><div class="kpi-value">${(d.mesas&&d.mesas.ocupada)||0}</div></div>`;
+    const maxQ=Math.max(1,...(d.topProdutos||[]).map(x=>x.quantidade));
+    top.innerHTML=(d.topProdutos&&d.topProdutos.length)?d.topProdutos.map(p=>`<li><span>${esc(p.nome)}</span><div class="bar"><span style="width:${Math.round(100*p.quantidade/maxQ)}%"></span></div><b>${p.quantidade}×</b></li>`).join(''):'<li class="muted">Nenhum item hoje.</li>';
+    const st=d.pedidosPorStatus||{};
+    ops.innerHTML=`<div class="status-dots"><span class="status-dot">📥 ${st.recebido||0}</span><span class="status-dot">🔥 ${st.em_producao||0}</span><span class="status-dot">✅ ${st.concluido||0}</span><span class="status-dot">🍽️ ${st.entregue||0}</span></div>`;
+  }catch(e){kpi.innerHTML='<div class="muted">Erro no dashboard.</div>';}
+}
+async function loadMesas(){
+  const mesas=await(await fetch('/api/admin/mesas')).json();
+  const el=document.getElementById('mesas');
+  if(!mesas.length){el.innerHTML='<div class="panel">Nenhuma mesa.</div>';return;}
+  el.innerHTML=mesas.map(m=>{
+    const url=host+'/mesa/'+m.token;
+    const qr='https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='+encodeURIComponent(url);
+    const badge=m.sessaoAberta?'<span class="badge badge-ocupada">ocupada</span>':'<span class="badge badge-livre">livre</span>';
+    return '<article class="panel"><div class="row"><h2 style="margin:0">Mesa '+m.numero+'</h2>'+badge+'</div><img src="'+qr+'" width="160" height="160" alt="QR"><button class="btn primary" type="button" style="width:100%;margin-top:8px" onclick="navigator.clipboard.writeText(\''+url+'\').then(()=>toast(\'Copiado\'))">Copiar link</button></article>';
+  }).join('');
+}
+let cardapioCache=[];
+async function loadCardapio(){
+  cardapioCache=await(await fetch('/api/admin/cardapio')).json();
+  document.getElementById('prodCat').innerHTML=cardapioCache.map(c=>'<option value="'+c.id+'">'+esc(c.nome)+'</option>').join('');
+  const root=document.getElementById('cardapio');
+  const openId=root.dataset.openCat||'';
+  root.innerHTML=cardapioCache.map(cat=>{
+    const n=(cat.produtos&&cat.produtos.length)||0;
+    const isOpen=String(cat.id)===String(openId);
+    const prods=n?cat.produtos.map(p=>renderProduto(p)).join(''):'<p class="muted">Nenhum produto.</p>';
+    return '<div class="panel cat-accordion'+(isOpen?' open':'')+'" data-cat-id="'+cat.id+'" style="margin-bottom:12px;padding:0;overflow:hidden">'+
+      '<button type="button" class="cat-acc-head" onclick="toggleAdminCat(this)">'+
+      '<span><b>'+esc(cat.nome)+'</b> <span class="muted" style="font-weight:600;font-size:.85rem">· '+n+' item(ns)</span></span>'+
+      '<span class="cat-acc-chev" aria-hidden="true">▼</span></button>'+
+      '<div class="cat-acc-body" style="'+(isOpen?'':'display:none')+'">'+prods+'</div></div>';
+  }).join('')||'<p class="muted">Nenhuma categoria.</p>';
+}
+function toggleAdminCat(btn){
+  const panel=btn&&btn.closest('.cat-accordion');
+  if(!panel)return;
+  const body=panel.querySelector('.cat-acc-body');
+  const root=document.getElementById('cardapio');
+  const wasOpen=panel.classList.contains('open');
+  document.querySelectorAll('#cardapio .cat-accordion.open').forEach(function(el){
+    el.classList.remove('open');
+    const b=el.querySelector('.cat-acc-body');
+    if(b)b.style.display='none';
+  });
+  if(!wasOpen){
+    panel.classList.add('open');
+    if(body)body.style.display='block';
+    if(root)root.dataset.openCat=panel.dataset.catId||'';
+  }else if(root){
+    root.dataset.openCat='';
+  }
+}
+async function loadGarcons(){
+  const list=await(await fetch('/api/admin/garcons')).json();
+  const el=document.getElementById('garconsList');
+  if(!list.length){el.innerHTML='<p class="muted">Nenhum.</p>';return;}
+  el.innerHTML=list.map(g=>{
+    const link=host+'/garcom/'+g.token;
+    return '<div class="panel" style="margin-bottom:12px"><b>'+esc(g.nome)+'</b><div class="form-inline"><input readonly value="'+esc(link)+'" style="flex:1"><button class="btn" type="button" onclick="navigator.clipboard.writeText(\''+link+'\');toast(\'Copiado\')">Copiar</button></div></div>';
+  }).join('');
+}
+async function criarGarcom(){
+  const nome=document.getElementById('garcomNome').value.trim();if(!nome)return toast('Nome');
+  const r=await fetch('/api/admin/garcons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome})});
+  const d=await r.json();if(!r.ok)return toast(d.error||'Erro');
+  document.getElementById('garcomNome').value='';toast('OK');loadGarcons();
+}
+const STATUS_COLS=[{key:'recebido',label:'Recebido',icon:'📥'},{key:'em_producao',label:'Na cozinha',icon:'👨‍🍳'},{key:'concluido',label:'Pronto',icon:'✅'}];
+const STATUS_LABEL={recebido:'Recebido',em_producao:'Na cozinha',concluido:'Pronto',entregue:'Entregue'};
+let pedidosAtivosCache=[];
+function fmtHora(iso){try{return new Date(iso).toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});}catch{return'—';}}
+function itemLinhaResumo(i){
+  const extras=[];
+  if(i.ponto_carne)extras.push(String(i.ponto_carne).replace(/_/g,' ').toLowerCase());
+  if((i.adicionais||[]).length)extras.push('+ '+(i.adicionais.map(a=>a.nome).join(', ')));
+  if((i.remocoes||[]).length)extras.push('sem '+i.remocoes.join(', '));
+  if(i.observacao)extras.push(i.observacao);
+  return '<div style="font-size:.85rem;margin:4px 0"><b>'+i.quantidade+'×</b> '+esc(i.nome)+(extras.length?' <span class="muted">('+esc(extras.join(' · '))+')</span>':'')+'</div>';
+}
+function pedidoCardAtivo(p){
+  const itens=(p.itens||[]).map(itemLinhaResumo).join('')||'<p class="muted" style="margin:6px 0;font-size:.85rem">Sem itens</p>';
+  const cli=p.cliente_nome?' · '+esc(p.cliente_nome):'';
+  return '<details class="pk-card"><summary><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))+cli+'<div class="muted" style="font-size:.8rem">'+fmtHora(p.criado_em)+(p.totalPedido!=null?' · '+br(p.totalPedido):'')+'</div></summary>'+
+    itens+(p.observacao_geral?'<p class="muted" style="font-size:.85rem;margin:6px 0">Obs: '+esc(p.observacao_geral)+'</p>':'')+
+    '<div class="pk-actions"><button class="btn" type="button" data-print-pedido="'+p.id+'">🖨 Imprimir</button></div></details>';
+}
+function pedidoCardHist(p){
+  const itens=(p.itens||[]).map(itemLinhaResumo).join('');
+  return '<details class="hist-card"><summary><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))+' · '+fmtHora(p.criado_em)+(p.status?' · '+esc(STATUS_LABEL[p.status]||p.status):'')+'</summary>'+itens+
+    '<div class="pk-actions" style="margin-top:8px"><button class="btn" type="button" data-print-pedido="'+p.id+'">🖨 Imprimir</button></div></details>';
+}
+function ticketHtmlAdmin(p){
+  const linhas=(p.itens||[]).map(i=>{
+    const extras=[];
+    if(i.ponto_carne)extras.push('Ponto: '+String(i.ponto_carne).replace(/_/g,' '));
+    if((i.adicionais||[]).length)extras.push('+ '+i.adicionais.map(a=>a.nome).join(', '));
+    if((i.remocoes||[]).length)extras.push('sem '+i.remocoes.join(', '));
+    if(i.observacao)extras.push(i.observacao);
+    return '<div style="margin:6px 0"><b>'+i.quantidade+'x '+esc(i.nome)+'</b>'+(extras.length?'<div style="padding-left:8px;font-size:11px">'+esc(extras.join(' · '))+'</div>':'')+'</div>';
+  }).join('');
+  return '<div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:8px;margin-bottom:8px"><div style="font-size:16px;font-weight:800">COMANDA</div><div>Pedido #'+p.id+'</div></div>'+
+    '<div><b>Mesa:</b> '+esc(String(p.mesa??''))+'</div>'+(p.cliente_nome?'<div><b>Cliente:</b> '+esc(p.cliente_nome)+'</div>':'')+
+    '<div><b>Hora:</b> '+fmtHora(p.criado_em)+'</div><div><b>Status:</b> '+esc(STATUS_LABEL[p.status]||p.status||'')+'</div>'+
+    '<hr style="border:none;border-top:1px dashed #000;margin:10px 0">'+
+    (linhas||'<div>Sem itens</div>')+
+    (p.observacao_geral?'<hr style="border:none;border-top:1px dashed #000;margin:10px 0"><div><b>Obs.:</b> '+esc(p.observacao_geral)+'</div>':'')+
+    '<hr style="border:none;border-top:1px dashed #000;margin:10px 0"><div style="text-align:center;font-size:11px">Lanchonete QR</div>';
+}
+function imprimirPedidoAdmin(id){
+  let p=pedidosAtivosCache.find(x=>Number(x.id)===Number(id));
+  if(!p&&window.__histPedidos)p=window.__histPedidos.find(x=>Number(x.id)===Number(id));
+  if(!p){toast('Pedido não encontrado');return;}
+  const area=document.getElementById('printArea');
+  if(!area){toast('Área de impressão indisponível');return;}
+  area.innerHTML=ticketHtmlAdmin(p);
+  area.style.display='block';
+  const after=()=>{area.style.display='none';area.innerHTML='';window.removeEventListener('afterprint',after);};
+  window.addEventListener('afterprint',after);
+  setTimeout(()=>window.print(),50);
+}
+document.addEventListener('click',function(ev){
+  const btn=ev.target.closest('[data-print-pedido]');
+  if(btn){imprimirPedidoAdmin(Number(btn.dataset.printPedido));}
+});
+async function loadPedidosBoard(){
+  const el=document.getElementById('pedidosBoard');const statsEl=document.getElementById('pedidosStats');
+  if(!el)return;
+  const list=await(await fetch('/api/admin/pedidos?ativos=1')).json();
+  pedidosAtivosCache=list;
+  const by={recebido:[],em_producao:[],concluido:[]};
+  for(const p of list){if(by[p.status])by[p.status].push(p);}
+  if(statsEl)statsEl.innerHTML=list.length?'<span class="badge">'+list.length+' ativo(s)</span>':'<span class="badge">Fila limpa</span>';
+  if(!list.length){el.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="big">✅</div><div>Nenhum pedido em andamento.</div></div>';return;}
+  el.innerHTML=STATUS_COLS.map(col=>{const items=by[col.key]||[];return '<div class="pk-col"><div class="pk-col-head"><h3 style="margin:0;font-size:.95rem">'+col.icon+' '+col.label+'</h3><span class="pk-count">'+items.length+'</span></div>'+(items.length?items.map(pedidoCardAtivo).join(''):'<p class="muted">Vazio</p>')+'</div>';}).join('');
+}
+async function buscarHistorico(){
+  const from=document.getElementById('histFrom').value,to=document.getElementById('histTo').value,el=document.getElementById('pedidosHistorico');
+  if(!from&&!to){el.innerHTML='<p class="muted">Informe uma data.</p>';return;}
+  const q=new URLSearchParams();if(from)q.set('from',from);if(to)q.set('to',to);q.set('limit','120');
+  try{
+    const list=await(await fetch('/api/admin/pedidos?'+q)).json();
+    window.__histPedidos=list;el.innerHTML=list.length?'<p class="muted">'+list.length+' pedido(s)</p>'+list.map(pedidoCardHist).join(''):'<p class="muted">Nenhum.</p>';
+  }catch(e){el.innerHTML='<p class="muted">Erro.</p>';}
+}
+function limparHistorico(){
+  document.getElementById('histFrom').value='';document.getElementById('histTo').value='';
+  document.getElementById('pedidosHistorico').innerHTML='<p class="muted">Escolha um período.</p>';
+}
+if(typeof defaultRelDates==='function')defaultRelDates();
+loadDashboard();loadMesas();loadCardapio();loadGarcons();loadPedidosBoard();
+if(window.LQRRealtime){LQRRealtime.connect(()=>{loadPedidosBoard();loadMesas();loadDashboard();},{fallbackMs:25000,debounceMs:200});}
+else if(typeof EventSource!=='undefined'){const es=new EventSource('/api/events');es.addEventListener('update',()=>{loadPedidosBoard();loadMesas();loadDashboard();});}
+</script>
+<script src="/js/admin-cardapio.js"></script>
+</body>
+</html>
