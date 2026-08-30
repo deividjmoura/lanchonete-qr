@@ -298,15 +298,17 @@ const server = http.createServer(async (req, res) => {
         chave = chave.replace(/\s/g, '');
       } else if (chave) {
         const digits = chave.replace(/\D/g, '');
-        if (digits.length === 11 || digits.length === 14) chave = digits; // CPF / CNPJ
+        if (digits.length === 11 || digits.length === 14) chave = digits;
         else if (digits.startsWith('55') && digits.length >= 12 && digits.length <= 13) chave = '+' + digits;
         else if (digits.length === 10) chave = '+55' + digits;
       }
-      return json(res, 200, {
-        chave,
-        nome: (process.env.PIX_NOME || 'LANCHONETE').trim().slice(0, 25) || 'LANCHONETE',
-        cidade: (process.env.PIX_CIDADE || 'BRASIL').trim().slice(0, 15) || 'BRASIL',
-      });
+      let nome = String(process.env.PIX_NOME || 'LANCHONETE').trim().toUpperCase();
+      nome = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      nome = nome.replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 25) || 'LANCHONETE';
+      let cidade = String(process.env.PIX_CIDADE || 'BRASIL').trim().toUpperCase();
+      cidade = cidade.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      cidade = cidade.replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 15) || 'BRASIL';
+      return json(res, 200, { chave, nome, cidade });
     }
 
     try {
