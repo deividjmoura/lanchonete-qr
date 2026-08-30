@@ -163,7 +163,7 @@ function card(s) {
     : '';
   const pixOk = window.LQRPix && LQRPix.disponivel();
   const nPed = (s.pedidosEntregues || []).length;
-  const openByDefault = s.pixInformadoEm || valorPago > 0.009;
+  const openByDefault = false; // cards sempre recolhidos; usuário expande
   return `<details class="sessao-fold sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pago="${valorPago}" data-restante="${valorRestante}" data-pix="${s.pixInformadoEm ? '1' : '0'}" ${openByDefault ? 'open' : ''}>
     <summary>
       <div class="order-sum-left">

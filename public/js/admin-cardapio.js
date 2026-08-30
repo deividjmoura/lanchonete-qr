@@ -58,6 +58,8 @@ function renderProduto(p) {
     '<button class="btn" type="button" onclick="toggleEdit(' + p.id + ')">Editar</button>' +
     '<button class="btn ' + (p.disponivel ? '' : 'primary') + '" type="button" style="margin-top:8px;width:100%"' +
     ' onclick="toggleDisp(' + p.id + ', ' + (!p.disponivel) + ')">' + (p.disponivel ? 'Pausar' : 'Ativar') + '</button>' +
+    '<button class="btn" type="button" style="margin-top:8px;width:100%;border-color:var(--danger);color:var(--danger)"' +
+    ' onclick="excluirProd(' + p.id + ')">Excluir</button>' +
     '</div></div>';
 }
 
@@ -181,5 +183,14 @@ async function salvarRems(produtoId) {
   const data = await r.json();
   if (!r.ok) return toast(data.error || 'Erro');
   toast('Removíveis atualizados');
+  loadCardapio();
+}
+
+async function excluirProd(id) {
+  if (!confirm('Excluir este produto permanentemente? Só funciona se ele nunca tiver sido pedido. Prefira Pausar se já vendeu.')) return;
+  const r = await fetch('/api/admin/produtos/' + id, { method: 'DELETE' });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return toast(data.error || 'Erro ao excluir');
+  toast('Produto excluído');
   loadCardapio();
 }

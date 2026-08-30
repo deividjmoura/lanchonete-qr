@@ -27,6 +27,7 @@ const {
   criarAdicional,
   removerAdicional,
   setRemoviveis,
+  removerProduto,
 } = require('./db/admin');
 const {
   listSessoesAbertas,
@@ -492,6 +493,17 @@ const server = http.createServer(async (req, res) => {
     if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)$/)) && req.method === 'PATCH') {
       try {
         const out = await atualizarProduto(Number(m[1]), await body(req));
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+
+    if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)$/)) && req.method === 'DELETE') {
+      try {
+        const out = await removerProduto(Number(m[1]));
         invalidarCardapio();
         return json(res, 200, out);
       } catch (e) {

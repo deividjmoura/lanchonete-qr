@@ -263,6 +263,47 @@ async function setRemoviveis(produtoId, ingredientes) {
   }
 }
 
+
+async function removerProduto(id) {
+  const { rows: used } = await pool.query(
+    'SELECT 1 FROM itens_pedido WHERE produto_id = $1 LIMIT 1',
+    [id]
+  );
+  if (used[0]) {
+    throw new ErroAdmin(
+      409,
+      'Produto já aparece em pedidos antigos e não pode ser excluído. Use Pausar ou Esgotar.'
+    );
+  }
+  const { rows: usedAdd } = await pool.query(
+    `SELECT 1 FROM itens_pedido_adicionais ia
+     JOIN adicionais a ON a.id = ia.adicional_id
+     WHERE a.produto_id = $1 LIMIT 1`,
+    [id]
+  );
+  if (usedAdd[0]) {
+    throw new ErroAdmin(
+      409,
+      'Opções deste produto já foram usadas em pedidos e não podem ser excluídas. Use Pausar.'
+    );
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM produtos_ingredientes_removiveis WHERE produto_id = $1', [id]);
+    await client.query('DELETE FROM adicionais WHERE produto_id = $1', [id]);
+    const { rowCount } = await client.query('DELETE FROM produtos WHERE id = $1', [id]);
+    if (!rowCount) throw new ErroAdmin(404, 'Produto não encontrado');
+    await client.query('COMMIT');
+    return { ok: true };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   ErroAdmin,
   listMesas,
@@ -274,4 +315,5 @@ module.exports = {
   criarAdicional,
   removerAdicional,
   setRemoviveis,
+  removerProduto,
 };

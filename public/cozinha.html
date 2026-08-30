@@ -150,7 +150,7 @@ function card(p) {
     : '';
   const acaoIcon = p.status === 'recebido' ? '▶' : '✓';
   const acaoShort = p.status === 'recebido' ? 'Preparar' : 'Pronto';
-  return `<details class="order-card order ${isNew ? 'new' : ''} ${ageClass(min)}" data-id="${p.id}" ${isNew ? 'open' : ''}>
+  return `<details class="order-card order ${isNew ? 'new' : ''} ${ageClass(min)}" data-id="${p.id}">
     <summary>
       <div class="order-sum-left">
         <div class="big">Mesa ${p.mesa} <span class="muted" style="font-weight:600">#${p.id}</span></div>

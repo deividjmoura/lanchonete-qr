@@ -189,10 +189,10 @@ async function loadCardapio(){
   cardapioCache=await(await fetch('/api/admin/cardapio')).json();
   document.getElementById('prodCat').innerHTML=cardapioCache.map(c=>'<option value="'+c.id+'">'+esc(c.nome)+'</option>').join('');
   const root=document.getElementById('cardapio');
-  const openId=root.dataset.openCat||'';
+  const openSet=new Set((root.dataset.openCats||'').split(',').filter(Boolean));
   root.innerHTML=cardapioCache.map(cat=>{
     const n=(cat.produtos&&cat.produtos.length)||0;
-    const isOpen=String(cat.id)===String(openId);
+    const isOpen=openSet.has(String(cat.id));
     const prods=n?cat.produtos.map(p=>renderProduto(p)).join(''):'<p class="muted">Nenhum produto.</p>';
     return '<div class="panel cat-accordion'+(isOpen?' open':'')+'" data-cat-id="'+cat.id+'" style="margin-bottom:12px;padding:0;overflow:hidden">'+
       '<button type="button" class="cat-acc-head" onclick="toggleAdminCat(this)">'+
@@ -207,17 +207,17 @@ function toggleAdminCat(btn){
   const body=panel.querySelector('.cat-acc-body');
   const root=document.getElementById('cardapio');
   const wasOpen=panel.classList.contains('open');
-  document.querySelectorAll('#cardapio .cat-accordion.open').forEach(function(el){
-    el.classList.remove('open');
-    const b=el.querySelector('.cat-acc-body');
-    if(b)b.style.display='none';
-  });
-  if(!wasOpen){
+  if(wasOpen){
+    panel.classList.remove('open');
+    if(body)body.style.display='none';
+  }else{
     panel.classList.add('open');
     if(body)body.style.display='block';
-    if(root)root.dataset.openCat=panel.dataset.catId||'';
-  }else if(root){
-    root.dataset.openCat='';
+  }
+  // preserva lista de abertas no reload
+  if(root){
+    const openIds=[...document.querySelectorAll('#cardapio .cat-accordion.open')].map(el=>el.dataset.catId).filter(Boolean);
+    root.dataset.openCats=openIds.join(',');
   }
 }
 async function loadGarcons(){
