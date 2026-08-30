@@ -293,13 +293,15 @@ body.board-page .burger-hint {
 body.board-page .board-header {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 14px;
   margin-bottom: 12px;
+  text-align: center;
 }
 body.board-page .mesa-logo-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
 }
 body.board-page .mesa-logo {
@@ -315,11 +317,13 @@ body.board-page .board-header .menu-title {
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
   margin: 0;
   font-size: 1.6rem;
+  text-align: left;
 }
 body.board-page .board-header .mesa-line {
   font-family: Inter, system-ui, sans-serif;
   color: rgba(245, 242, 238, 0.75);
   margin-top: 2px;
+  text-align: left;
 }
 
 body.board-page .board-frame {

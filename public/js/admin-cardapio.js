@@ -31,7 +31,7 @@ function renderProduto(p) {
     '<div><label>Preço</label><input id="e-preco-' + p.id + '" type="number" step="0.01" min="0" value="' + p.preco + '"></div></div>' +
     '<div style="margin-top:10px"><label>Descrição</label><textarea id="e-desc-' + p.id + '">' + esc(p.descricao || '') + '</textarea></div>' +
     '<div style="margin-top:10px"><label>Foto</label>' +
-    '<input id="e-foto-' + p.id + '" type="url" placeholder="https://… ou /uploads/….webp" value="' + esc(p.fotoUrl || '') + '">' +
+    '<input id="e-foto-' + p.id + '" type="text" inputmode="url" autocomplete="off" placeholder="https://… ou /uploads/….webp" value="' + esc(p.fotoUrl || '') + '">' +
     '<div class="form-inline" style="margin-top:8px;align-items:center">' +
     '<input id="e-foto-file-' + p.id + '" type="file" accept="image/*" hidden onchange="onFotoFileEdit(' + p.id + ')">' +
     '<button class="btn primary" type="button" onclick="document.getElementById(\'e-foto-file-' + p.id + '\').click()">📷 Upload</button>' +
@@ -155,13 +155,14 @@ async function salvarProd(id) {
     nome: document.getElementById('e-nome-' + id).value.trim(),
     preco: Number(document.getElementById('e-preco-' + id).value),
     descricao: document.getElementById('e-desc-' + id).value.trim(),
-    fotoUrl: fotoRaw || null,
     disponivel: document.getElementById('e-disp-' + id).checked,
     pedePontoCarne: false,
     controlaEstoque: document.getElementById('e-stock-' + id).checked,
     estoque: estRaw === '' ? null : Number(estRaw),
     estoqueMinimo: Number(document.getElementById('e-estmin-' + id).value) || 0,
   };
+  // Só atualiza foto se houver valor (evita apagar /uploads ao salvar outros campos)
+  if (fotoRaw) body.fotoUrl = fotoRaw;
   const r = await fetch('/api/admin/produtos/' + id, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

@@ -15,8 +15,10 @@
     .sessao-fold > .sessao-sum:hover{background:var(--surface-2)}
     .sessao-fold > .sessao-sum::after{content:"▾";opacity:.45;font-size:.85rem;flex:0 0 auto}
     .sessao-fold.open > .sessao-sum::after{content:"▴"}
-    .sessao-fold .order-body{display:none;padding:0 16px 16px;border-top:1px solid var(--line);padding-top:12px}
-    .sessao-fold.open .order-body{display:block}
+    .sessao-fold .order-body{display:none !important;padding:0 16px 16px;border-top:1px solid var(--line);padding-top:12px}
+    .sessao-fold.open > .order-body{display:block !important}
+    /* garante que só o card clicado abre — sem afetar irmãos */
+    .grid-caixa .sessao-fold:not(.open) > .order-body{display:none !important}
     .sessao-fold .order-sum-meta .badge{font-size:.75rem}
     details.pedido{margin-top:10px}
     .sessao-card.blocked{opacity:.88}
@@ -151,7 +153,7 @@ function refreshPix(id, valor) {
 window.__caixaOpenIds = window.__caixaOpenIds || new Set();
 function toggleSessaoCard(id) {
   id = String(id);
-  const art = document.querySelector('.sessao-fold[data-id="' + id + '"]');
+  const art = document.querySelector('article.sessao-fold[data-id="' + CSS.escape(id) + '"]');
   if (!art) return;
   const open = art.classList.toggle('open');
   const btn = art.querySelector('[data-toggle-sessao]');
@@ -368,6 +370,7 @@ document.getElementById('lista').addEventListener('click', (ev) => {
   const toggleBtn = ev.target.closest('[data-toggle-sessao]');
   if (toggleBtn) {
     ev.preventDefault();
+    ev.stopPropagation();
     toggleSessaoCard(toggleBtn.getAttribute('data-toggle-sessao'));
     return;
   }
