@@ -82,10 +82,19 @@
     <div class="panel" style="margin-bottom:18px"><h2>Novo produto</h2>
       <div class="form-inline"><div><label>Categoria</label><select id="prodCat"></select></div><div><label>Nome</label><input id="prodNome"></div>
       <div><label>Preço</label><input id="prodPreco" type="number" step="0.01" min="0" style="width:100px"></div>
-      <div><label>URL da foto</label><input id="prodFoto" type="url" placeholder="https://…" style="min-width:180px"></div>
       <div><label><input type="checkbox" id="prodPonto"> Ponto</label></div>
       <button class="btn primary" type="button" onclick="criarProd()">Adicionar</button></div>
-      <p class="muted" style="margin:10px 0 0;font-size:.85rem">Foto: link público (https) ou caminho em <code>/public</code> (ex.: <code>/uploads/xburguer.jpg</code>).</p>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+        <label style="font-weight:600;font-size:.85rem">Foto (opcional)</label>
+        <div class="form-inline" style="margin-top:8px">
+          <input id="prodFotoFile" type="file" accept="image/*" style="max-width:220px">
+          <input id="prodFoto" type="url" placeholder="ou cole um link https://…" style="min-width:200px;flex:1">
+          <button class="btn" type="button" id="btnOtimizarFotoNovo" onclick="otimizarFotoNovo()">Otimizar foto</button>
+        </div>
+        <p class="muted" style="margin:8px 0 0;font-size:.8rem">Upload ou link: a imagem é redimensionada (~480px) e salva em WebP leve em <code>/uploads</code>. Só o caminho fica no banco.</p>
+        <div id="prodFotoPreview" style="margin-top:10px"></div>
+        <input type="hidden" id="prodFotoFinal" value="">
+      </div>
     </div>
     <div id="cardapio"></div>
   </section>

@@ -31,9 +31,12 @@ function renderProduto(p) {
     '<div class="grid2"><div><label>Nome</label><input id="e-nome-' + p.id + '" value="' + esc(p.nome) + '"></div>' +
     '<div><label>Preço</label><input id="e-preco-' + p.id + '" type="number" step="0.01" min="0" value="' + p.preco + '"></div></div>' +
     '<div style="margin-top:10px"><label>Descrição</label><textarea id="e-desc-' + p.id + '">' + esc(p.descricao || '') + '</textarea></div>' +
-    '<div style="margin-top:10px"><label>URL da foto</label>' +
-    '<input id="e-foto-' + p.id + '" type="url" placeholder="https://… ou /uploads/produto.jpg" value="' + esc(p.fotoUrl || '') + '">' +
-    '<p class="muted" style="margin:4px 0 0;font-size:.8rem">Link público (https) ou caminho local em /public</p></div>' +
+    '<div style="margin-top:10px"><label>Foto</label>' +
+    '<input id="e-foto-' + p.id + '" type="url" placeholder="https://… ou /uploads/….webp" value="' + esc(p.fotoUrl || '') + '">' +
+    '<div class="form-inline" style="margin-top:8px">' +
+    '<input id="e-foto-file-' + p.id + '" type="file" accept="image/*" style="max-width:200px">' +
+    '<button class="btn" type="button" onclick="otimizarFotoEdit(' + p.id + ')">Otimizar e aplicar</button></div>' +
+    '<p class="muted" style="margin:4px 0 0;font-size:.8rem">Upload ou link → WebP leve (~480px) em /uploads. Só o caminho fica no banco.</p></div>' +
     (p.fotoUrl ? '<div style="margin-top:8px"><img src="' + esc(p.fotoUrl) + '" alt="" class="prod-thumb-lg" loading="lazy" onerror="this.style.display=\'none\'"></div>' : '') +
     '<div class="form-inline" style="margin-top:10px">' +
     '<label><input type="checkbox" id="e-disp-' + p.id + '"' + (p.disponivel ? ' checked' : '') + '> Disponível</label>' +
@@ -89,8 +92,29 @@ async function criarProd() {
   const preco = Number(document.getElementById('prodPreco').value);
   const pedePontoCarne = document.getElementById('prodPonto').checked;
   const fotoEl = document.getElementById('prodFoto');
-  const fotoUrl = fotoEl ? fotoEl.value.trim() : '';
+  const finalEl = document.getElementById('prodFotoFinal');
+  const fileEl = document.getElementById('prodFotoFile');
+  let fotoUrl = (finalEl && finalEl.value.trim()) || (fotoEl ? fotoEl.value.trim() : '') || '';
+  // Se tem arquivo ou link externo ainda não otimizado, processa antes de criar
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  const precisaOtimizar =
+    file ||
+    (fotoUrl && !fotoUrl.startsWith('/uploads/') && /^https?:\/\//i.test(fotoUrl));
   if (!nome || Number.isNaN(preco)) return toast('Nome e preço obrigatórios');
+  try {
+    if (precisaOtimizar) {
+      toast('Otimizando foto…');
+      const out = await uploadFotoOtimizada({
+        file: file || null,
+        url: file ? null : fotoUrl,
+      });
+      fotoUrl = out.fotoUrl;
+      if (finalEl) finalEl.value = fotoUrl;
+      if (fotoEl) fotoEl.value = fotoUrl;
+    }
+  } catch (e) {
+    return toast(e.message || 'Erro na foto');
+  }
   const r = await fetch('/api/admin/produtos', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ categoriaId, nome, preco, pedePontoCarne, fotoUrl: fotoUrl || null }),
@@ -101,13 +125,34 @@ async function criarProd() {
   document.getElementById('prodPreco').value = '';
   document.getElementById('prodPonto').checked = false;
   if (fotoEl) fotoEl.value = '';
+  if (finalEl) finalEl.value = '';
+  if (fileEl) fileEl.value = '';
+  const prev = document.getElementById('prodFotoPreview');
+  if (prev) prev.innerHTML = '';
   toast('Produto criado');
   loadCardapio();
 }
 
 async function salvarProd(id) {
   const estRaw = document.getElementById('e-est-' + id).value;
-  const fotoRaw = (document.getElementById('e-foto-' + id).value || '').trim();
+  let fotoRaw = (document.getElementById('e-foto-' + id).value || '').trim();
+  const fileEl = document.getElementById('e-foto-file-' + id);
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  try {
+    if (file) {
+      toast('Otimizando foto…');
+      const out = await uploadFotoOtimizada({ file });
+      fotoRaw = out.fotoUrl;
+      document.getElementById('e-foto-' + id).value = fotoRaw;
+    } else if (fotoRaw && !fotoRaw.startsWith('/uploads/') && /^https?:\/\//i.test(fotoRaw)) {
+      toast('Otimizando foto do link…');
+      const out = await uploadFotoOtimizada({ url: fotoRaw });
+      fotoRaw = out.fotoUrl;
+      document.getElementById('e-foto-' + id).value = fotoRaw;
+    }
+  } catch (e) {
+    return toast(e.message || 'Erro na foto');
+  }
   const body = {
     nome: document.getElementById('e-nome-' + id).value.trim(),
     preco: Number(document.getElementById('e-preco-' + id).value),

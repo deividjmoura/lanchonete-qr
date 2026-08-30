@@ -64,6 +64,7 @@ const {
 const { resumoDia } = require('./db/dashboard');
 const { relatorioVendas } = require('./db/relatorio');
 const { purgeHistorico, ErroPurge } = require('./db/purge');
+const { processarUploadFoto, ErroFoto } = require('./db/foto');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -113,13 +114,14 @@ function send(res, status, type, body) {
 function json(res, status, obj) {
   send(res, status, 'application/json; charset=utf-8', JSON.stringify(obj));
 }
-function body(req) {
+function body(req, opts) {
+  const limit = (opts && opts.maxBytes) || MAX_BODY_BYTES;
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
     req.on('data', (c) => {
       size += c.length;
-      if (size > MAX_BODY_BYTES) {
+      if (size > limit) {
         const err = new Error('Payload too large');
         err.status = 413;
         reject(err);
@@ -459,6 +461,19 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/admin/cardapio' && req.method === 'GET') {
       return json(res, 200, await getCardapioAdmin());
+    }
+
+    if (p === '/api/admin/upload-foto' && req.method === 'POST') {
+      try {
+        const b = await body(req, { maxBytes: Number(process.env.FOTO_MAX_BODY_BYTES || 8 * 1024 * 1024) });
+        const out = await processarUploadFoto(b);
+        return json(res, 201, out);
+      } catch (e) {
+        if (e instanceof ErroFoto || e.status) {
+          return json(res, e.status || 400, { error: e.message });
+        }
+        throw e;
+      }
     }
     if (p === '/api/admin/categorias' && req.method === 'POST') {
       try {
