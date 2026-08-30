@@ -102,7 +102,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 
 | Ideia | Nota |
 |-------|------|
-| Gateway PIX (MP / PagSeguro) | Confirmação automática de pagamento |
+| Gateway PIX **PagBank** | Orders API + webhook · configure `PAGBANK_TOKEN` |
 | Delivery / retirada | Fora do fluxo de mesa |
 | Multi-loja | Um banco, vários pontos |
 | App garçom PWA | Offline leve + push |
