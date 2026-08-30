@@ -15,7 +15,7 @@ async function resumoDia(opts = {}) {
 
   const sessoesQ = rangeSql
     ? await pool.query(
-        `SELECT id, valor_total, forma_pagamento, fechada_em, aberta_em
+        `SELECT id, valor_total, desconto, taxa_servico, valor_cobrado, forma_pagamento, fechada_em, aberta_em
          FROM mesa_sessoes
          WHERE status = 'fechada'
            AND fechada_em::date >= $1::date
@@ -23,21 +23,25 @@ async function resumoDia(opts = {}) {
         [rangeSql.start, rangeSql.end]
       )
     : await pool.query(
-        `SELECT id, valor_total, forma_pagamento, fechada_em, aberta_em
+        `SELECT id, valor_total, desconto, taxa_servico, valor_cobrado, forma_pagamento, fechada_em, aberta_em
          FROM mesa_sessoes
          WHERE status = 'fechada'
            AND fechada_em::date = CURRENT_DATE`
       );
 
   const sessoes = sessoesQ.rows;
-  const faturamento = sessoes.reduce((s, r) => s + Number(r.valor_total || 0), 0);
+  const valorSessao = (r) =>
+    r.valor_cobrado != null && r.valor_cobrado !== ''
+      ? Number(r.valor_cobrado)
+      : Number(r.valor_total || 0);
+  const faturamento = sessoes.reduce((s, r) => s + valorSessao(r), 0);
   const contasFechadas = sessoes.length;
   const ticketMedio = contasFechadas ? faturamento / contasFechadas : 0;
 
   const porForma = {};
   for (const s of sessoes) {
     const k = s.forma_pagamento || 'outro';
-    porForma[k] = (porForma[k] || 0) + Number(s.valor_total || 0);
+    porForma[k] = (porForma[k] || 0) + valorSessao(s);
   }
 
   const pedidosQ = rangeSql

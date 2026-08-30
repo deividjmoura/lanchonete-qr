@@ -27,7 +27,7 @@ async function relatorioVendas({ from, to }) {
   const { rows: porDia } = await pool.query(
     `SELECT fechada_em::date AS dia,
             COUNT(*)::int AS contas,
-            COALESCE(SUM(valor_total), 0)::float AS faturamento
+            COALESCE(SUM(COALESCE(valor_cobrado, valor_total)), 0)::float AS faturamento
      FROM mesa_sessoes
      WHERE status = 'fechada'
        AND fechada_em::date >= $1::date
@@ -38,7 +38,7 @@ async function relatorioVendas({ from, to }) {
   );
 
   const { rows: sessoes } = await pool.query(
-    `SELECT s.id, s.valor_total, s.forma_pagamento, s.fechada_em, s.cliente_nome,
+    `SELECT s.id, s.valor_total, s.desconto, s.taxa_servico, s.valor_cobrado, s.forma_pagamento, s.fechada_em, s.cliente_nome,
             m.numero AS mesa
      FROM mesa_sessoes s
      JOIN mesas m ON m.id = s.mesa_id
@@ -67,14 +67,21 @@ async function relatorioVendas({ from, to }) {
       contas: r.contas,
       faturamento: Number(Number(r.faturamento || 0).toFixed(2)),
     })),
-    contas: sessoes.map((s) => ({
-      id: s.id,
-      mesa: s.mesa,
-      cliente: s.cliente_nome || null,
-      valor: Number(Number(s.valor_total || 0).toFixed(2)),
-      forma: s.forma_pagamento || 'outro',
-      fechadaEm: s.fechada_em,
-    })),
+    contas: sessoes.map((s) => {
+      const base = Number(s.valor_total || 0);
+      const cobrado = s.valor_cobrado != null ? Number(s.valor_cobrado) : base;
+      return {
+        id: s.id,
+        mesa: s.mesa,
+        cliente: s.cliente_nome || null,
+        valor: Number(base.toFixed(2)),
+        desconto: Number(Number(s.desconto || 0).toFixed(2)),
+        taxaServico: Number(Number(s.taxa_servico || 0).toFixed(2)),
+        valorCobrado: Number(cobrado.toFixed(2)),
+        forma: s.forma_pagamento || 'outro',
+        fechadaEm: s.fechada_em,
+      };
+    }),
   };
 }
 
