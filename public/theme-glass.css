@@ -1,0 +1,407 @@
+/**
+ * Tema glass — translucidez + fundo restaurante
+ * Só aparência; não altera comportamento.
+ */
+html, body {
+  min-height: 100%;
+}
+
+body {
+  background-color: #0a0908 !important;
+  background-image:
+    linear-gradient(165deg, rgba(8, 7, 6, 0.72) 0%, rgba(12, 10, 8, 0.55) 40%, rgba(8, 7, 6, 0.78) 100%),
+    url('/assets/bg-bar.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  color: #f5f2ee;
+}
+
+/* Tokens glass (escuro + laranja) */
+:root,
+[data-theme="dark"],
+[data-theme="light"],
+html {
+  --bg: transparent;
+  --bg-elevated: rgba(22, 20, 18, 0.45);
+  --surface: rgba(28, 26, 24, 0.55);
+  --surface-2: rgba(36, 32, 28, 0.5);
+  --surface-3: rgba(48, 42, 36, 0.55);
+  --surface-elevated: rgba(32, 28, 24, 0.65);
+  --line: rgba(255, 255, 255, 0.12);
+  --line-strong: rgba(255, 255, 255, 0.2);
+  --border: var(--line);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --text: #f7f4ef;
+  --text-secondary: #e0d9cf;
+  --muted: #b0a89c;
+  --primary: #f97316;
+  --primary-hover: #fb923c;
+  --primary-active: #ea580c;
+  --primary-soft: rgba(249, 115, 22, 0.18);
+  --primary-ring: rgba(249, 115, 22, 0.35);
+  --accent: #fb923c;
+  --brand: #fbbf24;
+  --dark: #f5f2ee;
+  --dark-soft: #e5e1db;
+  --success: #4ade80;
+  --success-soft: rgba(74, 222, 128, 0.16);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.16);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.16);
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.14);
+  --header-bg: rgba(18, 16, 14, 0.55);
+  --modal-bg: rgba(22, 20, 18, 0.82);
+  --modal-backdrop: rgba(0, 0, 0, 0.55);
+  --cart-bg: rgba(18, 16, 14, 0.75);
+  --toast-bg: rgba(22, 20, 18, 0.9);
+  --toast-text: #f5f2ee;
+  --input-bg: rgba(12, 10, 9, 0.55);
+  --edit-panel-bg: rgba(16, 14, 12, 0.55);
+  --chip-bg: rgba(255, 255, 255, 0.08);
+  --badge-neutral-bg: rgba(255, 255, 255, 0.1);
+  --badge-neutral-text: #e0d9cf;
+  --qty-btn-bg: rgba(255, 255, 255, 0.1);
+  --check-active-bg: rgba(249, 115, 22, 0.2);
+  --check-active-border: #fb923c;
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.45);
+  --glass-blur: 18px;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* Superfícies em vidro */
+.panel,
+.kpi-card,
+.order,
+.kcard,
+.order-card,
+.sessao-card,
+.sessao-fold,
+.pk-col,
+.pk-card,
+.hist-card,
+.login-card,
+.cat-accordion,
+.dash-grid > .panel,
+.foto-upload-box,
+.empty-state,
+article.panel {
+  background: rgba(22, 20, 18, 0.48) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  border: var(--glass-border) !important;
+  box-shadow: var(--shadow) !important;
+  color: var(--text);
+}
+
+.panel:hover,
+.kpi-card:hover,
+.sessao-fold:hover,
+.order-card:hover {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Topo / nav */
+.top,
+.admin-tabs,
+.nav {
+  position: relative;
+  z-index: 2;
+}
+
+.brand {
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+
+.muted {
+  color: var(--muted) !important;
+}
+
+/* Inputs em vidro */
+input,
+textarea,
+select {
+  background: rgba(10, 9, 8, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: var(--text) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(176, 168, 156, 0.75);
+}
+
+/* Botões */
+.btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.btn.primary {
+  background: linear-gradient(165deg, #fb923c, #ea580c) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 4px 16px rgba(234, 88, 12, 0.35);
+}
+
+.btn.primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.btn.dark {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: transparent !important;
+  color: #1a1510 !important;
+}
+
+/* Tabs admin */
+.admin-tabs button {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--text-secondary) !important;
+  backdrop-filter: blur(10px);
+}
+
+.admin-tabs button.active {
+  background: linear-gradient(165deg, #fb923c, #ea580c) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+}
+
+/* Kanban / lista */
+.pk-col {
+  background: rgba(16, 14, 12, 0.4) !important;
+}
+
+.pedidos-kanban .pk-card,
+.hist-card {
+  background: rgba(28, 26, 24, 0.5) !important;
+}
+
+/* Modal */
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.modal,
+.modal-sheet {
+  background: rgba(22, 20, 18, 0.78) !important;
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  border: var(--glass-border);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+}
+
+/* Toast */
+.toast {
+  background: rgba(22, 20, 18, 0.88) !important;
+  border: var(--glass-border);
+  backdrop-filter: blur(12px);
+  color: #fff !important;
+}
+
+/* Dock / bottom bars */
+.dock,
+.burger-dock {
+  background: rgba(12, 10, 9, 0.55) !important;
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ========== Mesa (cliente) ========== */
+body.board-page {
+  background-color: #0a0908 !important;
+  background-image:
+    linear-gradient(165deg, rgba(8, 7, 6, 0.7) 0%, rgba(12, 10, 8, 0.5) 45%, rgba(8, 7, 6, 0.75) 100%),
+    url('/assets/bg-bar.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+}
+
+body.board-page .board-header .menu-title {
+  font-family: Inter, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #fff;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+}
+
+body.board-page .board-header .mesa-line {
+  font-family: Inter, system-ui, sans-serif;
+  color: rgba(245, 242, 238, 0.75);
+}
+
+body.board-page .board-frame {
+  background: rgba(22, 20, 18, 0.42) !important;
+  backdrop-filter: blur(20px) saturate(1.25);
+  -webkit-backdrop-filter: blur(20px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  padding: 8px 10px 16px;
+}
+
+body.board-page .chalk-cat {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body.board-page .chalk-cat__head {
+  font-family: Inter, system-ui, sans-serif !important;
+  color: #f7f4ef !important;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 14px 12px;
+}
+
+body.board-page .chalk-cat__head .chev,
+body.board-page .cat-count {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+body.board-page .chalk-item {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.board-page .chalk-item h3 {
+  font-family: Inter, system-ui, sans-serif !important;
+  color: #f7f4ef !important;
+}
+
+body.board-page .chalk-item .desc {
+  color: rgba(176, 168, 156, 0.95) !important;
+}
+
+body.board-page .chalk-item .price {
+  color: #fb923c !important;
+}
+
+body.board-page .burger-hint {
+  color: rgba(245, 242, 238, 0.85);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Login */
+body .login-shell .login-card {
+  background: rgba(22, 20, 18, 0.55) !important;
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  border: var(--glass-border) !important;
+  border-radius: 22px;
+  box-shadow: var(--shadow-lg);
+}
+
+body .login-lock {
+  background: linear-gradient(165deg, #fb923c, #ea580c) !important;
+  color: #fff !important;
+}
+
+/* Caixa / cozinha summary buttons */
+.sessao-fold > .sessao-sum {
+  color: var(--text);
+}
+
+.sessao-fold.open {
+  background: rgba(28, 26, 24, 0.58) !important;
+}
+
+.order-body,
+.cat-acc-body {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Badges */
+.badge,
+.chip,
+.status-pill {
+  backdrop-filter: blur(6px);
+}
+
+.chip.on,
+.badge.ok {
+  background: rgba(74, 222, 128, 0.18) !important;
+  color: #86efac !important;
+}
+
+.chip.off,
+.badge.warn {
+  background: rgba(251, 191, 36, 0.18) !important;
+  color: #fde68a !important;
+}
+
+/* KPI accent */
+.kpi-card.accent {
+  background: linear-gradient(165deg, rgba(28, 26, 24, 0.5), rgba(249, 115, 22, 0.15)) !important;
+  border-color: rgba(249, 115, 22, 0.35) !important;
+}
+
+/* Acordeão admin */
+.cat-acc-head {
+  color: var(--text) !important;
+}
+
+.cat-acc-head:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Preço em destaque */
+.price,
+.valor-big {
+  color: #fb923c;
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Mobile: fixed attachment can lag */
+@media (max-width: 768px) {
+  body,
+  body.board-page {
+    background-attachment: scroll !important;
+  }
+}
+
+/* Preferência de menos blur (acessibilidade) */
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .kpi-card,
+  .modal,
+  .modal-sheet,
+  body.board-page .board-frame {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(22, 20, 18, 0.92) !important;
+  }
+}
