@@ -48,10 +48,20 @@
   <section id="sec-dashboard" class="admin-section active">
     <div class="panel">
       <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div><h2 style="margin:0">Dashboard do dia</h2><p class="muted" style="margin:6px 0 0">Faturamento, ticket médio e operação.</p></div>
-        <button class="btn" type="button" onclick="loadDashboard()">🔄 Atualizar</button>
+        <div><h2 style="margin:0">Dashboard do dia</h2><p class="muted" style="margin:6px 0 0">Fila de pedidos, faturamento e operação.</p></div>
+        <button class="btn" type="button" onclick="loadDashboard();loadPedidosBoard()">🔄 Atualizar</button>
       </div>
-      <div id="kpiGrid" class="kpi-grid" style="margin-top:16px"></div>
+      <div class="panel dash-pedidos" style="margin-top:16px;box-shadow:none;border:1px solid var(--line)">
+        <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">
+          <div>
+            <h3 style="margin:0;font-size:1rem">📋 Pedidos ativos</h3>
+            <p class="muted" style="margin:4px 0 0;font-size:.85rem">Fila em tempo real · imprimir comanda</p>
+          </div>
+          <div id="pedidosStats" class="meta-row"></div>
+        </div>
+        <div id="pedidosBoard" class="pedidos-kanban" style="margin-top:14px"></div>
+      </div>
+      <div id="kpiGrid" class="kpi-grid" style="margin-top:18px"></div>
       <div class="dash-grid">
         <div class="panel" style="margin:0;box-shadow:none;border:1px solid var(--line)">
           <h3 style="margin:0 0 8px;font-size:1rem">🔥 Top produtos hoje</h3>
@@ -61,16 +71,6 @@
           <h3 style="margin:0 0 8px;font-size:1rem">⚡ Operação</h3>
           <div id="dashOps" class="muted">Carregando…</div>
         </div>
-      </div>
-      <div class="panel dash-pedidos" style="margin-top:18px;box-shadow:none;border:1px solid var(--line)">
-        <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">
-          <div>
-            <h3 style="margin:0;font-size:1rem">📋 Pedidos ativos</h3>
-            <p class="muted" style="margin:4px 0 0;font-size:.85rem">Fila em tempo real · imprimir comanda</p>
-          </div>
-          <div id="pedidosStats" class="meta-row"></div>
-        </div>
-        <div id="pedidosBoard" class="pedidos-kanban" style="margin-top:14px"></div>
       </div>
     </div>
   </section>
