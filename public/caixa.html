@@ -191,7 +191,8 @@ function toast(msg, kind) {
   toast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
 }
 let closing = false;
-const pixAvisados = new Set();
+// Chave = sessaoId → último pixInformadoEm visto (permite re-aviso do próximo pagante)
+const pixAvisados = new Map();
 let pixPrimeiroLoad = true;
 function beepPix() {
   try {
@@ -223,12 +224,21 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   if (!res.ok) throw new Error('Falha ao carregar');
   const sessoes = await res.json();
   const novos = [];
+  const idsAtivos = new Set();
   for (const s of sessoes) {
-    if (s.pixInformadoEm && !pixAvisados.has(s.id)) {
-      pixAvisados.add(s.id);
-      if (!pixPrimeiroLoad) novos.push(s);
+    idsAtivos.add(s.id);
+    if (s.pixInformadoEm) {
+      const visto = pixAvisados.get(s.id);
+      if (visto !== s.pixInformadoEm) {
+        pixAvisados.set(s.id, s.pixInformadoEm);
+        if (!pixPrimeiroLoad) novos.push(s);
+      }
+    } else {
+      pixAvisados.delete(s.id);
     }
-    if (!s.pixInformadoEm) pixAvisados.delete(s.id);
+  }
+  for (const id of [...pixAvisados.keys()]) {
+    if (!idsAtivos.has(id)) pixAvisados.delete(id);
   }
   if (novos.length) {
     const mesas = novos.map((s) => s.mesa).join(', ');

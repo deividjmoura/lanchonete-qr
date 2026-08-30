@@ -60,8 +60,12 @@
       } else if (LQRPix.disponivel()) {
         const payload = LQRPix.montarPayload(total);
         const qr = LQRPix.qrUrl(total);
-        const ja = s.pixInformadoEm
-          ? '<p class="muted" style="margin:12px 0 0;font-size:.85rem;color:#86efac">✓ Você avisou que pagou. Aguarde o caixa confirmar.</p>'
+        // Enquanto houver restante, o botão fica disponível para cada pagante avisar.
+        // Se já avisou recentemente, mostra um lembrete + opção de avisar de novo.
+        const jaAvisou = !!s.pixInformadoEm;
+        const ja = jaAvisou
+          ? '<p class="muted" style="margin:12px 0 8px;font-size:.85rem;color:#86efac">✓ Caixa já foi avisado. Se outro da mesa também pagou, avise de novo.</p>' +
+            '<button class="btn" type="button" style="width:100%" id="btnPixPago">Já paguei no PIX · avisar de novo</button>'
           : '<button class="btn" type="button" style="width:100%;margin-top:10px" id="btnPixPago">Já paguei no PIX · avisar o caixa</button>';
         const detalhe =
           pago > 0.009
@@ -77,7 +81,7 @@
           '<div style="font-weight:700;margin-bottom:6px">💳 Pagar com PIX</div>' +
           '<p class="muted" style="font-size:.85rem;margin:0 0 10px">' +
           detalhe +
-          '. Escaneie o QR, pague e toque em “Já paguei” (ou mostre o comprovante no caixa).</p>' +
+          '. Escaneie o QR, pague e toque em “Já paguei” (ou mostre o comprovante no caixa). O caixa confirma o valor de cada um.</p>' +
           '<img src="' + qr + '" alt="QR PIX" width="200" height="200" style="border-radius:12px;background:#fff;padding:8px" loading="lazy">' +
           '<button class="btn primary" type="button" style="width:100%;margin-top:12px" id="btnCopiarPixMesa">Copiar código PIX</button>' +
           ja;
@@ -107,7 +111,9 @@
               if (!r.ok) {
                 alert(d.error || 'Não foi possível avisar');
                 pagoBtn.disabled = false;
-                pagoBtn.textContent = 'Já paguei no PIX · avisar o caixa';
+                pagoBtn.textContent = jaAvisou
+                  ? 'Já paguei no PIX · avisar de novo'
+                  : 'Já paguei no PIX · avisar o caixa';
                 return;
               }
               if (window.sessaoData) {
@@ -120,18 +126,20 @@
               if (typeof loadSessao === 'function') {
                 await loadSessao();
               } else {
-                pagoBtn.replaceWith(
-                  Object.assign(document.createElement('p'), {
-                    className: 'muted',
-                    style: 'margin:12px 0 0;font-size:.85rem;color:#86efac',
-                    textContent: '✓ Você avisou que pagou. Aguarde o caixa confirmar.',
-                  })
-                );
+                pagoBtn.disabled = false;
+                pagoBtn.textContent = 'Já paguei no PIX · avisar de novo';
+                const hint = pagoBtn.previousElementSibling;
+                if (hint && hint.classList && hint.classList.contains('muted')) {
+                  hint.textContent = '✓ Caixa avisado de novo. Se mais alguém pagou, pode avisar outra vez.';
+                  hint.style.color = '#86efac';
+                }
               }
             } catch (e) {
               alert('Falha de rede');
               pagoBtn.disabled = false;
-              pagoBtn.textContent = 'Já paguei no PIX · avisar o caixa';
+              pagoBtn.textContent = jaAvisou
+                ? 'Já paguei no PIX · avisar de novo'
+                : 'Já paguei no PIX · avisar o caixa';
             }
           });
         }

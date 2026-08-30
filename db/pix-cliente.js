@@ -1,4 +1,5 @@
-// Cliente informa pagamento PIX: avisa o caixa e registra o valor restante como parcial.
+// Cliente informa pagamento PIX: avisa o caixa (sem baixar o valor automaticamente).
+// O registro do valor parcial fica a cargo do caixa (divisão de conta).
 const pool = require('./pool');
 
 class ErroPixCliente extends Error {
@@ -41,29 +42,18 @@ async function informarPixPago(token) {
        FROM sessao_pagamentos WHERE sessao_id = $1`,
       [sessaoId]
     );
-    let valorPago = Number(sumRows[0].pago || 0);
-    let valorRestante = Number(Math.max(0, valorTotal - valorPago).toFixed(2));
+    const valorPago = Number(sumRows[0].pago || 0);
+    const valorRestante = Number(Math.max(0, valorTotal - valorPago).toFixed(2));
 
-    // Só registra pagamento na primeira vez deste ciclo (flag limpo em novo pedido).
-    // Valor = o que falta agora (o que o QR da mesa mostra).
-    let pagamentoRegistrado = null;
-    if (valorRestante > 0.009 && !sessao.pix_informado_em) {
-      const { rows: ins } = await client.query(
-        `INSERT INTO sessao_pagamentos (sessao_id, valor, forma_pagamento)
-         VALUES ($1, $2, 'pix')
-         RETURNING id, valor, forma_pagamento, criado_em`,
-        [sessaoId, valorRestante]
+    if (valorRestante <= 0.009) {
+      throw new ErroPixCliente(
+        400,
+        'Nada a pagar no momento — a conta já está quitada ou ainda não há pedidos entregues.'
       );
-      pagamentoRegistrado = {
-        id: ins[0].id,
-        valor: Number(ins[0].valor),
-        formaPagamento: ins[0].forma_pagamento,
-        criadoEm: ins[0].criado_em,
-      };
-      valorPago = Number((valorPago + valorRestante).toFixed(2));
-      valorRestante = 0;
     }
 
+    // Só avisa o caixa. Não grava pagamento aqui:
+    // cada pagante pode avisar; o caixa confirma o valor na divisão.
     const { rows: updated } = await client.query(
       `UPDATE mesa_sessoes
        SET pix_informado_em = now()
@@ -82,7 +72,7 @@ async function informarPixPago(token) {
       valorTotal,
       valorPago,
       valorRestante,
-      pagamento: pagamentoRegistrado,
+      pagamento: null,
     };
   } catch (err) {
     try {
