@@ -8,9 +8,7 @@ html, body {
 
 body {
   background-color: #0a0908 !important;
-  background-image:
-    linear-gradient(165deg, rgba(8, 7, 6, 0.72) 0%, rgba(12, 10, 8, 0.55) 40%, rgba(8, 7, 6, 0.78) 100%),
-    url('/assets/bg-bar.jpg') !important;
+  background-image: url('/assets/bg-admin.jpg') !important;
   background-size: cover !important;
   background-position: center !important;
   background-attachment: fixed !important;
@@ -25,7 +23,7 @@ body {
 html {
   --bg: transparent;
   --bg-elevated: rgba(22, 20, 18, 0.45);
-  --surface: rgba(28, 26, 24, 0.55);
+  --surface: rgba(28, 26, 24, 0.34);
   --surface-2: rgba(36, 32, 28, 0.5);
   --surface-3: rgba(48, 42, 36, 0.55);
   --surface-elevated: rgba(32, 28, 24, 0.65);
@@ -54,7 +52,7 @@ html {
   --info: #38bdf8;
   --info-soft: rgba(56, 189, 248, 0.14);
   --header-bg: rgba(18, 16, 14, 0.55);
-  --modal-bg: rgba(22, 20, 18, 0.82);
+  --modal-bg: rgba(22, 20, 18, 0.4);
   --modal-backdrop: rgba(0, 0, 0, 0.55);
   --cart-bg: rgba(18, 16, 14, 0.75);
   --toast-bg: rgba(22, 20, 18, 0.9);
@@ -70,7 +68,7 @@ html {
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.45);
-  --glass-blur: 18px;
+  --glass-blur: 24px;
   --glass-border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
@@ -91,9 +89,9 @@ html {
 .foto-upload-box,
 .empty-state,
 article.panel {
-  background: rgba(22, 20, 18, 0.48) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  background: rgba(22, 20, 18, 0.32) !important;
+  backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.2);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.2);
   border: var(--glass-border) !important;
   box-shadow: var(--shadow) !important;
   color: var(--text);
@@ -186,12 +184,12 @@ textarea::placeholder {
 
 /* Kanban / lista */
 .pk-col {
-  background: rgba(16, 14, 12, 0.4) !important;
+  background: rgba(16, 14, 12, 0.26) !important;
 }
 
 .pedidos-kanban .pk-card,
 .hist-card {
-  background: rgba(28, 26, 24, 0.5) !important;
+  background: rgba(28, 26, 24, 0.32) !important;
 }
 
 /* Modal */
@@ -203,7 +201,7 @@ textarea::placeholder {
 
 .modal,
 .modal-sheet {
-  background: rgba(22, 20, 18, 0.78) !important;
+  background: rgba(22, 20, 18, 0.42) !important;
   backdrop-filter: blur(22px) saturate(1.25);
   -webkit-backdrop-filter: blur(22px) saturate(1.25);
   border: var(--glass-border);
@@ -222,22 +220,14 @@ textarea::placeholder {
 /* Dock / bottom bars */
 .dock,
 .burger-dock {
-  background: rgba(12, 10, 9, 0.55) !important;
-  backdrop-filter: blur(16px) saturate(1.2);
+  background: rgba(12, 10, 9, 0.32) !important;
+  backdrop-filter: blur(22px) saturate(1.2);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
   border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 /* ========== Mesa (cliente) ========== */
-body.board-page {
-  background-color: #0a0908 !important;
-  background-image:
-    linear-gradient(165deg, rgba(8, 7, 6, 0.7) 0%, rgba(12, 10, 8, 0.5) 45%, rgba(8, 7, 6, 0.75) 100%),
-    url('/assets/bg-bar.jpg') !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-}
+/* fundo mesa: ver body.board-page no bloco de fundos por área */
 
 body.board-page .board-header .menu-title {
   font-family: Inter, system-ui, sans-serif;
@@ -305,7 +295,7 @@ body.board-page .burger-hint {
 
 /* Login */
 body .login-shell .login-card {
-  background: rgba(22, 20, 18, 0.55) !important;
+  background: rgba(22, 20, 18, 0.34) !important;
   backdrop-filter: blur(22px) saturate(1.3);
   -webkit-backdrop-filter: blur(22px) saturate(1.3);
   border: var(--glass-border) !important;
@@ -324,7 +314,7 @@ body .login-lock {
 }
 
 .sessao-fold.open {
-  background: rgba(28, 26, 24, 0.58) !important;
+  background: rgba(28, 26, 24, 0.36) !important;
 }
 
 .order-body,
@@ -353,7 +343,7 @@ body .login-lock {
 
 /* KPI accent */
 .kpi-card.accent {
-  background: linear-gradient(165deg, rgba(28, 26, 24, 0.5), rgba(249, 115, 22, 0.15)) !important;
+  background: linear-gradient(165deg, rgba(28, 26, 24, 0.32), rgba(249, 115, 22, 0.15)) !important;
   border-color: rgba(249, 115, 22, 0.35) !important;
 }
 
@@ -414,7 +404,7 @@ body .login-lock {
   gap: 12px 16px;
   padding: 10px 14px;
   margin-bottom: 22px;
-  background: rgba(18, 16, 14, 0.45);
+  background: rgba(18, 16, 14, 0.28);
   backdrop-filter: blur(20px) saturate(1.3);
   -webkit-backdrop-filter: blur(20px) saturate(1.3);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -483,7 +473,7 @@ body .login-lock {
   border-radius: 22px !important;
 }
 .inner-glass {
-  background: rgba(12, 10, 9, 0.35) !important;
+  background: rgba(12, 10, 9, 0.22) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: none !important;
   border-radius: 16px !important;
@@ -560,23 +550,23 @@ body .login-lock {
   text-align: left;
   padding: 16px 14px !important;
   border-radius: 16px !important;
-  background: rgba(12, 10, 9, 0.4) !important;
+  background: rgba(12, 10, 9, 0.26) !important;
 }
 .kpi-card .kpi-icon {
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  margin-bottom: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.1);
   position: relative;
 }
 .kpi-card .kpi-icon::after {
   content: '';
   position: absolute;
-  inset: 11px;
-  border: 2px solid currentColor;
-  border-radius: 6px;
-  opacity: 0.9;
+  inset: 14px;
+  border: 2.5px solid currentColor;
+  border-radius: 7px;
+  opacity: 0.95;
 }
 .kpi-i-fat {
   color: #4ade80 !important;
@@ -696,76 +686,77 @@ body .login-lock {
 
 /* ========== Fundos por área (foto + overlay + doodle sutil) ========== */
 body.page-admin {
-  background-image:
-    radial-gradient(ellipse at 20% 0%, rgba(249, 115, 22, 0.12), transparent 45%),
-    linear-gradient(165deg, rgba(8, 7, 6, 0.78) 0%, rgba(12, 10, 8, 0.58) 40%, rgba(8, 7, 6, 0.82) 100%),
-    url('/assets/bg-bar.jpg') !important;
+  background-color: #120e0c !important;
+  background-image: url('/assets/bg-admin.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
 }
 body.page-caixa {
-  background-image:
-    radial-gradient(ellipse at 80% 10%, rgba(74, 222, 128, 0.1), transparent 40%),
-    linear-gradient(160deg, rgba(6, 12, 10, 0.82), rgba(8, 10, 8, 0.62) 50%, rgba(6, 8, 6, 0.85)),
-    url('/assets/bg-bar.jpg') !important;
-  background-position: 30% center !important;
+  background-color: #0c100e !important;
+  background-image: url('/assets/bg-caixa.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
 }
 body.page-cozinha {
-  background-image:
-    radial-gradient(ellipse at 50% 0%, rgba(251, 146, 60, 0.14), transparent 40%),
-    linear-gradient(180deg, rgba(12, 8, 6, 0.85), rgba(10, 8, 6, 0.65) 50%, rgba(8, 6, 5, 0.88)),
-    url('/assets/bg-bar.jpg') !important;
-  background-position: 70% 40% !important;
+  background-color: #14100c !important;
+  background-image: url('/assets/bg-cozinha.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
 }
 body.page-garcom {
-  background-image:
-    radial-gradient(ellipse at 10% 80%, rgba(56, 189, 248, 0.1), transparent 40%),
-    linear-gradient(145deg, rgba(6, 8, 12, 0.84), rgba(8, 10, 12, 0.6) 45%, rgba(6, 8, 10, 0.86)),
-    url('/assets/bg-bar.jpg') !important;
-  background-position: 50% 60% !important;
+  background-color: #0c0e14 !important;
+  background-image: url('/assets/bg-garcom.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
 }
 body.page-login {
-  background-image:
-    linear-gradient(165deg, rgba(8, 7, 6, 0.75), rgba(12, 10, 8, 0.55) 50%, rgba(8, 7, 6, 0.8)),
-    url('/assets/bg-bar.jpg') !important;
+  background-color: #100e0e !important;
+  background-image: url('/assets/bg-login.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
 }
 body.board-page {
-  background-image:
-    radial-gradient(ellipse at 50% 0%, rgba(249, 115, 22, 0.08), transparent 50%),
-    linear-gradient(165deg, rgba(8, 7, 6, 0.72) 0%, rgba(12, 10, 8, 0.52) 45%, rgba(8, 7, 6, 0.78) 100%),
-    url('/assets/bg-bar.jpg') !important;
+  background-color: #100c0a !important;
+  background-image: url('/assets/bg-mesa.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
 }
 
-/* doodle pattern overlay (SVG data) */
-body.page-admin::before,
-body.page-caixa::before,
-body.page-cozinha::before,
-body.page-garcom::before,
-body.page-login::before,
-body.board-page::before {
-  content: '';
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  opacity: 0.07;
-  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Ccircle cx='12' cy='14' r='6'/%3E%3Cpath d='M40 10h18v12H40z'/%3E%3Cpath d='M58 48c4 0 8 3 8 8s-4 8-8 8-8-3-8-8 4-8 8-8z'/%3E%3Cpath d='M8 52l8-6 8 6v10H8z'/%3E%3Cpath d='M48 22l4 8h-8z'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 120px 120px;
-}
-body.page-caixa::before {
-  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Crect x='10' y='18' width='22' height='16' rx='2'/%3E%3Cpath d='M14 18v-4h14v4'/%3E%3Ccircle cx='55' cy='28' r='10'/%3E%3Cpath d='M50 28h10M55 23v10'/%3E%3Cpath d='M12 50h24M12 56h16'/%3E%3C/g%3E%3C/svg%3E");
-}
-body.page-cozinha::before {
-  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Cpath d='M20 50c0-12 8-18 8-28'/%3E%3Cpath d='M28 50c0-12 8-18 8-28'/%3E%3Cpath d='M36 50c0-12 8-18 8-28'/%3E%3Crect x='16' y='50' width='32' height='8' rx='2'/%3E%3Ccircle cx='58' cy='24' r='8'/%3E%3Cpath d='M54 30l-4 14h16l-4-14'/%3E%3C/g%3E%3C/svg%3E");
-}
-body.page-garcom::before {
-  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Ccircle cx='28' cy='18' r='8'/%3E%3Cpath d='M16 48c2-12 10-16 12-16s10 4 12 16'/%3E%3Cpath d='M48 22h18M57 22v28'/%3E%3Cpath d='M50 50h14'/%3E%3C/g%3E%3C/svg%3E");
-}
-body.board-page::before {
-  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Cpath d='M20 36c8-16 20-16 28 0l-4 20H24z'/%3E%3Cpath d='M28 28c2-8 10-10 12-2'/%3E%3Ccircle cx='58' cy='22' r='6'/%3E%3Cpath d='M50 50h20v8H50z'/%3E%3C/g%3E%3C/svg%3E");
-  opacity: 0.06;
-}
+/* doodles agora são a própria imagem de fundo em /assets/bg-*.jpg */
 .wrap,
 .board,
 main {
   position: relative;
   z-index: 1;
 }
+
+
+/* Logo placeholder */
+.logo-mark {
+  width: 72px !important;
+  height: 72px !important;
+  padding: 6px;
+  text-align: center;
+}
+.logo-placeholder {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fbbf24;
+  max-width: 100%;
+}
+.logo-star { display: none; }
+
+/* Ícones de título um pouco maiores */
+.ico-cal::before { width: 22px !important; height: 22px !important; }
+.ico-fire::before, .ico-gear::before { font-size: 1.15rem !important; }
+.dot-live { width: 10px !important; height: 10px !important; }
