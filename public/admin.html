@@ -198,7 +198,7 @@ async function loadDashboard(){
       <div class="kpi-card success"><div class="kpi-icon kpi-i-bag"></div><div class="kpi-label">Pedidos Hoje</div><div class="kpi-value">${d.pedidosTotal||0}</div></div>
       <div class="kpi-card warning"><div class="kpi-icon kpi-i-mesa"></div><div class="kpi-label">Mesas Ocupadas</div><div class="kpi-value">${ocup}</div><div class="kpi-hint">de ${mesasTot||ocup} mesas</div></div>`;
     const maxQ=Math.max(1,...(d.topProdutos||[]).map(x=>x.quantidade));
-    top.innerHTML=(d.topProdutos&&d.topProdutos.length)?d.topProdutos.map(p=>`<li><span>${esc(p.nome)}</span><div class="bar"><span style="width:${Math.round(100*p.quantidade/maxQ)}%"></span></div><b>${p.quantidade}×</b></li>`).join(''):'<li class="muted empty-msg">Nenhum pedido registrado hoje.</li>';
+    top.innerHTML=(d.topProdutos&&d.topProdutos.length)?d.topProdutos.map(p=>`<li><span>${esc(p.nome)}</span><div class="bar"><span style="width:${Math.round(100*p.quantidade/maxQ)}%"></span></div><b>${p.quantidade}×</b></li>`).join(''):'<li class="empty-state-big"><span class="big-ico" aria-hidden="true">🍺</span><span class="empty-title">Nenhum produto vendido hoje</span><span class="empty-sub">Os pedidos realizados aparecerão aqui.</span></li>';
     const st=d.pedidosPorStatus||{};
     const ativos=(st.recebido||0)+(st.em_producao||0)+(st.concluido||0);
     const mov=ativos>=8?'Alto':ativos>=3?'Médio':'Baixo';
@@ -364,8 +364,8 @@ async function loadPedidosBoard(){
   const by={recebido:[],em_producao:[],concluido:[]};
   for(const p of list){if(by[p.status])by[p.status].push(p);}
   if(statsEl)statsEl.innerHTML=list.length?'<span class="badge">'+list.length+' ativo(s)</span>':'<span class="badge">Fila limpa</span>';
-  if(!list.length){el.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="big">✅</div><div>Nenhum pedido em andamento.</div></div>';return;}
-  el.innerHTML=STATUS_COLS.map(col=>{const items=by[col.key]||[];return '<div class="pk-col"><div class="pk-col-head"><h3 style="margin:0;font-size:.95rem">'+col.icon+' '+col.label+'</h3><span class="pk-count">'+items.length+'</span></div>'+(items.length?items.map(pedidoCardAtivo).join(''):'<p class="muted">Vazio</p>')+'</div>';}).join('');
+  if(!list.length){el.innerHTML='<div class="empty-state-big" style="grid-column:1/-1"><span class="big-ico" aria-hidden="true">✅</span><span class="empty-title">Nenhum pedido em andamento</span><span class="empty-sub">Aproveite o momento de calmaria!</span></div>';return;}
+  el.innerHTML=STATUS_COLS.map(col=>{const items=by[col.key]||[];return '<div class="pk-col"><div class="pk-col-head"><h3 style="margin:0;font-size:.95rem">'+col.icon+' '+col.label+'</h3><span class="pk-count">'+items.length+'</span></div>'+(items.length?items.map(pedidoCardAtivo).join(''):'<div class="empty-col"><span class="big-ico" aria-hidden="true">—</span>Vazio</div>')+'</div>';}).join('');
 }
 async function buscarHistorico(){
   const from=document.getElementById('histFrom').value,to=document.getElementById('histTo').value,el=document.getElementById('pedidosHistorico');
