@@ -6,10 +6,12 @@ body.board-page .board{max-width:560px;margin:0 auto;padding:20px 16px 130px}
 .board-frame{border:2px solid rgba(240,235,224,.22);border-radius:8px;padding:8px 6px 16px;background:radial-gradient(ellipse at 20% 10%,rgba(255,255,255,.03),transparent 50%),linear-gradient(180deg,#222 0%,#1a1a1a 100%);box-shadow:inset 0 0 40px rgba(0,0,0,.35)}
 .chalk-cat{border-bottom:1px dashed rgba(240,235,224,.18)}
 .chalk-cat:last-child{border-bottom:0}
-.chalk-cat__head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 12px;border:0;background:transparent;cursor:pointer;text-align:left;font-family:Kalam,cursive;color:#f0ebe0;font-size:1.35rem;font-weight:700;letter-spacing:.04em}
+.chalk-cat__head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 12px;border:0;background:transparent;cursor:pointer;text-align:left;font-family:Kalam,cursive;color:#f0ebe0;font-size:1.3rem;font-weight:700;letter-spacing:.04em}
 .chalk-cat__head:hover{color:#fff}
-.chalk-cat__head .chev{font-size:.9rem;opacity:.6;transition:transform .25s ease}
+.chalk-cat__head .cat-count{font-family:var(--font-mono,ui-monospace,monospace);font-size:.75rem;font-weight:600;opacity:.55;margin-left:6px;letter-spacing:0}
+.chalk-cat__head .chev{font-size:.9rem;opacity:.6;transition:transform .25s ease;flex-shrink:0}
 .chalk-cat.open .chalk-cat__head .chev{transform:rotate(180deg)}
+.chalk-cat.open .chalk-cat__head{color:#fff}
 .chalk-cat__body{display:none;padding:0 10px 16px}
 .chalk-cat.open .chalk-cat__body{display:block}
 .chalk-item{border:1px solid rgba(240,235,224,.12);border-radius:10px;padding:12px;margin-bottom:10px;background:rgba(255,255,255,.03)}

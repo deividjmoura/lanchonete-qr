@@ -11,6 +11,11 @@
     .prod-row:last-child{border-bottom:0}
     .prod-thumb{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line);flex-shrink:0;background:var(--surface-2)}
     .prod-thumb-lg{max-width:160px;max-height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+    .cat-acc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:0;background:transparent;cursor:pointer;text-align:left;color:var(--text);font:inherit}
+    .cat-acc-head:hover{background:var(--surface-2)}
+    .cat-acc-chev{opacity:.55;font-size:.85rem;transition:transform .2s ease}
+    .cat-accordion.open .cat-acc-chev{transform:rotate(180deg)}
+    .cat-acc-body{padding:0 16px 14px;border-top:1px solid var(--line)}
   </style>
 </head>
 <body>
@@ -155,10 +160,36 @@ async function loadCardapio(){
   cardapioCache=await(await fetch('/api/admin/cardapio')).json();
   document.getElementById('prodCat').innerHTML=cardapioCache.map(c=>'<option value="'+c.id+'">'+esc(c.nome)+'</option>').join('');
   const root=document.getElementById('cardapio');
+  const openId=root.dataset.openCat||'';
   root.innerHTML=cardapioCache.map(cat=>{
-    const prods=cat.produtos.length?cat.produtos.map(p=>renderProduto(p)).join(''):'<p class="muted">Nenhum produto.</p>';
-    return '<div class="panel" style="margin-bottom:16px"><h2 style="margin:0">'+esc(cat.nome)+'</h2>'+prods+'</div>';
-  }).join('');
+    const n=(cat.produtos&&cat.produtos.length)||0;
+    const isOpen=String(cat.id)===String(openId);
+    const prods=n?cat.produtos.map(p=>renderProduto(p)).join(''):'<p class="muted">Nenhum produto.</p>';
+    return '<div class="panel cat-accordion'+(isOpen?' open':'')+'" data-cat-id="'+cat.id+'" style="margin-bottom:12px;padding:0;overflow:hidden">'+
+      '<button type="button" class="cat-acc-head" onclick="toggleAdminCat(this)">'+
+      '<span><b>'+esc(cat.nome)+'</b> <span class="muted" style="font-weight:600;font-size:.85rem">· '+n+' item(ns)</span></span>'+
+      '<span class="cat-acc-chev" aria-hidden="true">▼</span></button>'+
+      '<div class="cat-acc-body" style="'+(isOpen?'':'display:none')+'">'+prods+'</div></div>';
+  }).join('')||'<p class="muted">Nenhuma categoria.</p>';
+}
+function toggleAdminCat(btn){
+  const panel=btn&&btn.closest('.cat-accordion');
+  if(!panel)return;
+  const body=panel.querySelector('.cat-acc-body');
+  const root=document.getElementById('cardapio');
+  const wasOpen=panel.classList.contains('open');
+  document.querySelectorAll('#cardapio .cat-accordion.open').forEach(function(el){
+    el.classList.remove('open');
+    const b=el.querySelector('.cat-acc-body');
+    if(b)b.style.display='none';
+  });
+  if(!wasOpen){
+    panel.classList.add('open');
+    if(body)body.style.display='block';
+    if(root)root.dataset.openCat=panel.dataset.catId||'';
+  }else if(root){
+    root.dataset.openCat='';
+  }
 }
 async function loadGarcons(){
   const list=await(await fetch('/api/admin/garcons')).json();

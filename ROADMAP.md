@@ -77,6 +77,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 ## ⬜ Próximo
 
 ### Polimento contínuo
+- [x] Cardápio mesa e admin: categorias **recolhidas** (acordeão; uma aberta por vez)
 - [ ] Revisar impressão de comanda (cozinha/garçom) se necessário
 - [ ] Aposentar restos legados (`data/db.json` = só seed de referência)
 - [ ] Testes de fumaça: mesa → cozinha → garçom → parciais → PIX → fechar
@@ -97,6 +98,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Multi-loja | Um banco, vários pontos |
 | App garçom PWA | Offline leve + push |
 | Variantes nativas no admin | Hoje bebidas usam adicionais + UX Escolher |
+| **Menu / sidebar de navegação** | Admin e ops: lateral com seções; mesa: chips/âncoras de categoria fixas no topo para cardápio grande |
 
 ---
 
