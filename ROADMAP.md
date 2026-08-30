@@ -19,6 +19,7 @@ v2.3 ████████████████████  Relatório PD
 v2.4 ████████████████████  Estoque                 ✅
 v2.5 ████████████████████  Desconto / taxa / foto  ✅
 v2.6 ████████████████████  PIX mesa + caixa        ✅
+v2.6+████████████████████  Escolher (bebidas)      ✅
 v2.7 ░░░░░░░░░░░░░░░░░░░░  Divisão de conta        ⬜
 v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · delivery      ⬜
 ```
@@ -27,7 +28,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 
 ---
 
-## ✅ Feito (v2.0 → v2.6)
+## ✅ Feito (v2.0 → v2.6+)
 
 ### Fundação
 - [x] PostgreSQL no **Neon** + migrations (`0001` … `0008`)
@@ -37,6 +38,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 
 ### Fluxo operacional
 - [x] Cliente: cardápio, personalizar, carrinho, total da mesa
+- [x] **Escolher** para bebidas/variantes (opção única · rádio)
 - [x] Cozinha: fila `recebido` → `em_producao` → `concluido`
 - [x] Garçom: `concluido` → `entregue` (soma no total da sessão)
 - [x] Caixa: fechar conta, formas de pagamento, desconto / taxa
@@ -61,6 +63,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Normalização CPF/CNPJ/telefone/nome/cidade (EMV)
 - [x] Botão **Já paguei no PIX** → avisa o caixa
 - [x] Caixa: badge + toast + beep + destaque + PIX pré-selecionado
+- [x] Bloco de pagamento **sempre** na conta da mesa (explica se total 0 ou PIX off)
 
 ---
 
@@ -86,6 +89,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Delivery / retirada | Fora do fluxo de mesa |
 | Multi-loja | Um banco, vários pontos |
 | App garçom PWA | Offline leve + push |
+| Variantes nativas no admin | Hoje bebidas usam adicionais + UX Escolher |
 
 ---
 
@@ -97,24 +101,19 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Banco | PostgreSQL (Neon free-tier) |
 | Tempo real | SSE (`LQRRealtime`) |
 | PIX | Estático EMV (sem gateway por enquanto) |
+| Bebidas / tamanhos | Adicionais + botão **Escolher** (rádio) |
 | Commits | Conventional Commits |
-| UI mesa | Shell HTML + CSS/JS em módulos (tamanho) |
+| Docs | README visual + ROADMAP; atualizar após cada feature |
+| UI mesa | Shell HTML + CSS/JS em módulos |
 
 ---
 
 ## 📈 Capacidade (referência)
 
-Com o stack atual (SSE + Neon free):
-
-- **Simultâneos:** dezenas de mesas ativas com pouco delay é realista; centenas exigem cuidado com conexões SSE e CU-hours do Neon
-- **Storage free Neon (~0,5 GB):** histórico de pedidos enche ao longo dos meses → use **purge** no admin e relatórios em PDF antes de apagar
+- **Simultâneos:** dezenas de mesas com pouco delay; centenas exigem cuidado com SSE e CU-hours do Neon
+- **Storage free (~0,5 GB):** use **purge** no admin + relatório PDF antes de apagar histórico
 
 ---
-
-## 📝 Notas
-
-- O antigo `PLANO.md` foi **substituído** por este arquivo + o [README.md](./README.md).
-- Quando um item do “Próximo” fechar, marque aqui e atualize a barra no README.
 
 <div align="center">
 
