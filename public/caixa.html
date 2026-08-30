@@ -30,6 +30,8 @@
     details.pedido summary{cursor:pointer;font-weight:700}
     .pix-box{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:var(--radius);background:var(--surface-2);text-align:center}
     .pix-box img{display:block;margin:0 auto;border-radius:12px;background:#fff;padding:8px}
+    .sessao-card.pix-wait{border-color:#16a34a;box-shadow:0 0 0 2px rgba(22,163,74,.25)}
+    .badge.pix{background:#dcfce7;color:#166534;font-weight:700}
   </style>
 </head>
 <body>
@@ -137,10 +139,10 @@ function card(s) {
     ? `<span class="badge warn">${s.pedidosPendentes} em andamento</span>`
     : `<span class="badge ok">Pronto para fechar</span>`;
   const pixAviso = s.pixInformadoEm
-    ? `<span class="badge ok" title="Cliente tocou em Já paguei no PIX">PIX informado pelo cliente</span>`
+    ? `<span class="badge pix" title="Cliente tocou em Já paguei no PIX">PIX informado pelo cliente</span>`
     : '';
   const pixOk = window.LQRPix && LQRPix.disponivel();
-  return `<article class="sessao-card ${s.podeFechar ? '' : 'blocked'}" data-id="${s.id}" data-total="${Number(s.valorTotal)}">
+  return `<article class="sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pix="${s.pixInformadoEm ? '1' : '0'}">
     <div class="sessao-head"><div><div class="big">Mesa ${s.mesa}</div>
       <div class="muted" style="font-size:.85rem">Aberta em ${fmtHora(s.abertaEm)} · sessão #${s.id}</div>
       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${bloqueio}${pixAviso}</div></div>
@@ -172,6 +174,22 @@ function toast(msg, kind) {
   toast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
 }
 let closing = false;
+const pixAvisados = new Set();
+let pixPrimeiroLoad = true;
+function beepPix() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 880;
+    g.gain.value = 0.08;
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    setTimeout(() => { try { o.stop(); ctx.close(); } catch (_) {} }, 180);
+  } catch (_) {}
+}
 const load = (window.LQRRealtime && LQRRealtime.createLoader
   ? LQRRealtime.createLoader
   : (fn) => {
@@ -187,9 +205,30 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   const res = await fetch('/api/caixa/sessoes');
   if (!res.ok) throw new Error('Falha ao carregar');
   const sessoes = await res.json();
+  const novos = [];
+  for (const s of sessoes) {
+    if (s.pixInformadoEm && !pixAvisados.has(s.id)) {
+      pixAvisados.add(s.id);
+      if (!pixPrimeiroLoad) novos.push(s);
+    }
+    if (!s.pixInformadoEm) pixAvisados.delete(s.id);
+  }
+  if (novos.length) {
+    const mesas = novos.map((s) => s.mesa).join(', ');
+    toast(
+      novos.length === 1
+        ? `Mesa ${mesas}: cliente informou pagamento PIX`
+        : `Mesas ${mesas}: PIX informado pelo cliente`,
+      'ok'
+    );
+    beepPix();
+  }
+  pixPrimeiroLoad = false;
   const totalAberto = sessoes.reduce((s, x) => s + Number(x.valorTotal || 0), 0);
+  const pixPend = sessoes.filter((s) => s.pixInformadoEm).length;
   document.getElementById('stats').textContent = sessoes.length
-    ? `${sessoes.length} mesa(s) aberta(s) · total em aberto ${money(totalAberto)}`
+    ? `${sessoes.length} mesa(s) aberta(s) · total em aberto ${money(totalAberto)}` +
+      (pixPend ? ` · ${pixPend} PIX aguardando confirmação` : '')
     : 'Nenhuma mesa com conta aberta';
   const root = document.getElementById('lista');
   if (!sessoes.length) {
