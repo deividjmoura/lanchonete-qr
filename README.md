@@ -1,6 +1,6 @@
 # 🍔 Lanchonete QR
 
-> Sistema de pedidos por **QR Code** para lanchonetes — do cardápio no celular do cliente até a cozinha, o garçom e o caixa.
+> Sistema de pedidos por **QR Code** para lanchonetes — do cardápio no celular até a cozinha, o garçom e o caixa.
 
 ```text
 Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Conta da mesa ──▶ Caixa
@@ -8,28 +8,18 @@ Cliente (QR) ──▶ Pedido ──▶ Cozinha ──▶ Garçom ──▶ Cont
 
 ---
 
-## 📊 Progresso
+## Progresso
 
 | Fase | Status |
 |------|:------:|
-| **MVP Core** | ✅ |
-| **Auth + dashboard + PDF/purge + estoque** | ✅ |
-| **Polimento** (print, desconto, fotos) | ✅ |
-| **PIX na mesa + caixa** | ✅ |
-| **Divisão de conta** | ⬜ depois |
-
-### ✅ Pronto
-
-| Módulo | Detalhe |
-|--------|---------|
-| Mesa | Cardápio, personalizar, fotos, **PIX na conta** |
-| Cozinha / Garçom | Fila + imprimir comanda |
-| Caixa | Desconto/taxa + PIX (config via `.env`) |
-| Admin | Dashboard, estoque, PDF, purge |
+| MVP Core | ✅ |
+| Auth · dashboard · PDF/purge · estoque · polimento | ✅ |
+| **PIX** (mesa + caixa + aviso ao caixa) | ✅ |
+| Divisão de conta | ⬜ depois |
 
 ---
 
-## 💳 PIX
+## PIX
 
 No `.env`:
 
@@ -39,15 +29,22 @@ PIX_NOME=Nome no extrato
 PIX_CIDADE=SuaCidade
 ```
 
-- **Mesa** → Conta → QR + copiar código (total da sessão)
-- **Caixa** → forma PIX no fechamento (usa o valor a cobrar)
-- Cliente paga e **mostra comprovante no caixa** (sem gateway automático)
+```bash
+npm run db:migrate   # inclui 0008_pix_informado.sql
+```
 
-API: `GET /api/config/pix`
+| Onde | O que faz |
+|------|-----------|
+| **Mesa → Conta** | QR + copiar código · botão **Já paguei no PIX** avisa o caixa |
+| **Caixa** | Badge *PIX informado pelo cliente* · fecha a conta (desconto/taxa) |
+
+A sessão **não** fecha sozinha — o caixa confirma o pagamento.
+
+API: `GET /api/config/pix` · `POST /api/mesas/:token/pix-informado`
 
 ---
 
-## 🚀 Instalação
+## Instalação
 
 ```bash
 npm install && cp .env.example .env
@@ -57,21 +54,13 @@ npm start
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 | Versão | Foco | Status |
 |--------|------|:------:|
-| v2.0–v2.6 | MVP → polimento → PIX | ✅ |
+| v2.0–v2.6 | MVP → PIX | ✅ |
 | **v2.7+** | Divisão de conta | ⬜ |
 | **v3** | Gateway, delivery, multi-loja | ⬜ |
-
-### Changelog
-
-| Data | Mudança |
-|------|---------|
-| 2026-08-30 | **PIX** configurável; QR na mesa + caixa; mesa modular (`mesa-*.css`, `mesa-app-*.js`) |
-| 2026-08-30 | Print garçom; faturamento com `valor_cobrado` |
-| 2026-08-29 | Print cozinha · desconto/taxa · estoque · PDF |
 
 ---
 
