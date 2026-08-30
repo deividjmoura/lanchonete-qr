@@ -41,8 +41,8 @@
           const d = await r.json();
           this.config = {
             chave: this.normalizarChave(d.chave),
-            nome: String(d.nome || 'LANCHONETE').trim().slice(0, 25) || 'LANCHONETE',
-            cidade: String(d.cidade || 'BRASIL').trim().slice(0, 15) || 'BRASIL',
+            nome: this.normalizarNome(d.nome),
+            cidade: this.normalizarCidade(d.cidade),
           };
         }
       } catch (_) { /* keep defaults */ }
@@ -51,6 +51,21 @@
 
     disponivel() {
       return Boolean(this.config.chave);
+    },
+
+    /** EMV: até 15 chars, sem acento. */
+    normalizarCidade(cidade) {
+      let s = String(cidade || 'BRASIL').trim().toUpperCase();
+      s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      s = s.replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+      return (s.slice(0, 15) || 'BRASIL');
+    },
+
+    normalizarNome(nome) {
+      let s = String(nome || 'LANCHONETE').trim().toUpperCase();
+      s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      s = s.replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+      return (s.slice(0, 25) || 'LANCHONETE');
     },
 
     montarPayload(valor) {
