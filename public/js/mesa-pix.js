@@ -25,17 +25,22 @@
       div.style.cssText =
         'margin-top:16px;padding:14px;border:1px dashed rgba(240,235,224,.25);border-radius:12px;text-align:center';
 
-      if (total > 0 && LQRPix.disponivel()) {
+      if (total <= 0) {
+        div.innerHTML =
+          '<div style="font-weight:700;margin-bottom:6px">Pagamento</div>' +
+          '<p class="muted" style="font-size:.85rem;margin:0">Quando os pedidos forem <b>entregues</b>, o total aparece aqui com QR Code PIX para pagar na mesa.</p>';
+        sheet.appendChild(div);
+      } else if (LQRPix.disponivel()) {
         const payload = LQRPix.montarPayload(total);
         const qr = LQRPix.qrUrl(total);
         const ja = s.pixInformadoEm
           ? '<p class="muted" style="margin:12px 0 0;font-size:.85rem;color:#86efac">✓ Você avisou que pagou. Aguarde o caixa confirmar.</p>'
           : '<button class="btn" type="button" style="width:100%;margin-top:10px" id="btnPixPago">Já paguei no PIX · avisar o caixa</button>';
         div.innerHTML =
-          '<div style="font-weight:700;margin-bottom:6px">Pagar com PIX</div>' +
+          '<div style="font-weight:700;margin-bottom:6px">💳 Pagar com PIX</div>' +
           '<p class="muted" style="font-size:.85rem;margin:0 0 10px">Valor da conta · ' +
           br(total) +
-          '. Após pagar, toque em “Já paguei” ou mostre o comprovante no caixa.</p>' +
+          '. Escaneie o QR, pague e toque em “Já paguei” (ou mostre o comprovante no caixa).</p>' +
           '<img src="' + qr + '" alt="QR PIX" width="200" height="200" style="border-radius:12px;background:#fff;padding:8px" loading="lazy">' +
           '<button class="btn primary" type="button" style="width:100%;margin-top:12px" id="btnCopiarPixMesa">Copiar código PIX</button>' +
           ja;
@@ -84,9 +89,10 @@
             }
           });
         }
-      } else if (total > 0) {
+      } else {
         div.innerHTML =
-          '<p class="muted" style="margin:0;font-size:.85rem">Pagamento no caixa · chame o atendente.</p>';
+          '<div style="font-weight:700;margin-bottom:6px">Pagamento</div>' +
+          '<p class="muted" style="font-size:.85rem;margin:0">PIX ainda não configurado neste servidor. Pague no caixa ou chame o atendente.</p>';
         sheet.appendChild(div);
       }
     };
