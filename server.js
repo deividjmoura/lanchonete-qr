@@ -29,6 +29,7 @@ const {
 const {
   listSessoesAbertas,
   fecharSessao,
+  registrarPagamento,
   ErroCaixa,
 } = require('./db/caixa');
 const {
@@ -333,6 +334,16 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/caixa/sessoes' && req.method === 'GET') {
       return json(res, 200, await listSessoesAbertas());
+    }
+    if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/pagamentos$/)) && req.method === 'POST') {
+      try {
+        const out = await registrarPagamento(Number(m[1]), await body(req));
+        broadcast('update', { type: 'pagamento_parcial', sessaoId: Number(m[1]) });
+        return json(res, 201, out);
+      } catch (e) {
+        if (e instanceof ErroCaixa) return json(res, e.status, { error: e.message });
+        throw e;
+      }
     }
     if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/fechar$/)) && req.method === 'POST') {
       try {
