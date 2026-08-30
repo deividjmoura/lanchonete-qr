@@ -110,15 +110,24 @@
                 pagoBtn.textContent = 'Já paguei no PIX · avisar o caixa';
                 return;
               }
-              if (window.sessaoData) window.sessaoData.pixInformadoEm = d.pixInformadoEm || new Date().toISOString();
+              if (window.sessaoData) {
+                window.sessaoData.pixInformadoEm = d.pixInformadoEm || new Date().toISOString();
+                if (d.valorPago != null) window.sessaoData.valorPago = Number(d.valorPago);
+                if (d.valorRestante != null) window.sessaoData.valorRestante = Number(d.valorRestante);
+                if (d.valorTotal != null) window.sessaoData.totalDevido = Number(d.valorTotal);
+              }
               if (typeof showToast === 'function') showToast('Caixa avisado · obrigado!', 2800);
-              pagoBtn.replaceWith(
-                Object.assign(document.createElement('p'), {
-                  className: 'muted',
-                  style: 'margin:12px 0 0;font-size:.85rem;color:#86efac',
-                  textContent: '✓ Você avisou que pagou. Aguarde o caixa confirmar.',
-                })
-              );
+              if (typeof loadSessao === 'function') {
+                await loadSessao();
+              } else {
+                pagoBtn.replaceWith(
+                  Object.assign(document.createElement('p'), {
+                    className: 'muted',
+                    style: 'margin:12px 0 0;font-size:.85rem;color:#86efac',
+                    textContent: '✓ Você avisou que pagou. Aguarde o caixa confirmar.',
+                  })
+                );
+              }
             } catch (e) {
               alert('Falha de rede');
               pagoBtn.disabled = false;
