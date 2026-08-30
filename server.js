@@ -279,6 +279,15 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { staff, home: homeDoPapel(staff.papel) });
     }
 
+    // PIX público (QR mesa + caixa)
+    if (p === '/api/config/pix' && req.method === 'GET') {
+      return json(res, 200, {
+        chave: process.env.PIX_CHAVE || '',
+        nome: process.env.PIX_NOME || 'LANCHONETE',
+        cidade: process.env.PIX_CIDADE || 'BRASIL',
+      });
+    }
+
     try {
       if (p.startsWith('/api/admin')) {
         await exigirAcesso(req, 'admin');
@@ -364,9 +373,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/admin/relatorio' && req.method === 'GET') {
       try {
         const q = new URL(req.url, 'http://localhost').searchParams;
-        const from = q.get('from');
-        const to = q.get('to');
-        return json(res, 200, await relatorioVendas({ from, to }));
+        return json(res, 200, await relatorioVendas({ from: q.get('from'), to: q.get('to') }));
       } catch (e) {
         if (e.status) return json(res, e.status, { error: e.message });
         throw e;
