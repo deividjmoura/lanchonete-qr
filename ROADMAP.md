@@ -161,7 +161,8 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Preview `/ros/preview`
 - [x] Login staff no visual ROS
 - [x] Mesa (QR cliente) — skin ROS cream (`ros/mesa.css`)
-- [ ] Cozinha / caixa / admin
+- [x] Cozinha + Garçom (KDS escuro `ros/ops.css`)
+- [ ] Caixa / admin
 
 ## 📈 Capacidade (referência)
 

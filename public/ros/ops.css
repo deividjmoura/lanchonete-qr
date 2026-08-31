@@ -1,0 +1,258 @@
+/**
+ * Restaurant OS — Kitchen Display + Garçom (ops)
+ * Dark, large type, high contrast. Print styles unchanged in page <style>.
+ */
+body.page-cozinha.ros-ops,
+body.page-garcom.ros-ops {
+  font-family: var(--ros-font) !important;
+  background: var(--ros-bg) !important;
+  color: var(--ros-text) !important;
+  min-height: 100dvh;
+}
+
+body.ros-ops .wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+body.ros-ops .top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ros-line);
+}
+
+body.ros-ops .brand {
+  font-family: var(--ros-font) !important;
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em;
+  color: var(--ros-text) !important;
+}
+
+body.ros-ops .muted,
+body.ros-ops .top .muted,
+body.ros-ops #stats {
+  color: var(--ros-text-muted) !important;
+  font-size: 0.85rem !important;
+}
+
+body.ros-ops .top .nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+body.ros-ops .btn {
+  font-family: var(--ros-font) !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--ros-line-strong);
+  background: var(--ros-surface-2);
+  color: var(--ros-text-secondary);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+body.ros-ops .btn:hover {
+  background: var(--ros-surface-3);
+  color: var(--ros-text);
+}
+
+body.ros-ops .btn.primary,
+body.ros-ops .btn.btn-text-icon.primary {
+  background: linear-gradient(135deg, var(--ros-action), #ff8f4a) !important;
+  color: #0c0b0a !important;
+  border: none !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 18px var(--ros-action-soft);
+}
+
+body.ros-ops .btn.dark {
+  background: var(--ros-surface) !important;
+  color: var(--ros-text) !important;
+}
+
+body.ros-ops .btn-icon {
+  min-width: 44px;
+  padding: 0 12px;
+}
+
+body.ros-ops .kgrid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px !important;
+}
+
+body.ros-ops details.order-card,
+body.ros-ops .order,
+body.ros-ops article.order {
+  background: var(--ros-surface) !important;
+  border: 1px solid var(--ros-line) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--ros-shadow) !important;
+  padding: 0 !important;
+  overflow: hidden;
+  color: var(--ros-text) !important;
+}
+
+body.ros-ops details.order-card.new,
+body.ros-ops .order.new {
+  border-left: 4px solid var(--ros-action) !important;
+  box-shadow: 0 0 0 1px rgba(255, 107, 44, 0.15), var(--ros-shadow) !important;
+}
+
+body.ros-ops details.order-card.warn {
+  border-left: 4px solid var(--ros-warning) !important;
+}
+
+body.ros-ops details.order-card.hot {
+  border-left: 4px solid var(--ros-danger) !important;
+  animation: ros-pulse-border 1.6s ease-in-out infinite;
+}
+
+@keyframes ros-pulse-border {
+  50% { box-shadow: 0 0 24px rgba(240, 113, 120, 0.25); }
+}
+
+body.ros-ops details.order-card > summary {
+  padding: 16px 18px !important;
+  cursor: pointer;
+  list-style: none;
+  background: transparent !important;
+  border: none !important;
+}
+
+body.ros-ops details.order-card > summary::-webkit-details-marker { display: none; }
+
+body.ros-ops .order-sum-left .big {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+  color: var(--ros-text) !important;
+}
+
+body.ros-ops .order-sum-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--ros-text-muted);
+}
+
+body.ros-ops .order-preview {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: var(--ros-text-secondary);
+  line-height: 1.35;
+}
+
+body.ros-ops .order-body {
+  padding: 0 18px 16px !important;
+  border-top: 1px solid var(--ros-line);
+}
+
+body.ros-ops .order-body .row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ros-line);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+body.ros-ops .order-body .row:last-of-type { border-bottom: none; }
+
+body.ros-ops .item-extra {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ros-text-muted);
+}
+
+body.ros-ops .item-extra .com,
+body.ros-ops .com { color: var(--ros-success) !important; }
+body.ros-ops .item-extra .sem,
+body.ros-ops .sem { color: var(--ros-danger) !important; }
+body.ros-ops .ponto { color: var(--ros-warning) !important; font-weight: 700; }
+
+body.ros-ops .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+body.ros-ops .badge.recebido {
+  background: var(--ros-action-soft) !important;
+  color: var(--ros-action) !important;
+}
+body.ros-ops .badge.em_producao {
+  background: var(--ros-gold-soft) !important;
+  color: var(--ros-gold) !important;
+}
+body.ros-ops .badge.concluido {
+  background: var(--ros-success-soft) !important;
+  color: var(--ros-success) !important;
+}
+body.ros-ops .badge.entregue {
+  background: var(--ros-surface-3) !important;
+  color: var(--ros-text-secondary) !important;
+}
+
+body.ros-ops .age {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+body.ros-ops .age.warn { color: var(--ros-warning) !important; }
+body.ros-ops .age.hot { color: var(--ros-danger) !important; }
+
+body.ros-ops .order-body .nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+body.ros-ops .toast {
+  font-family: var(--ros-font) !important;
+  background: var(--ros-surface-2) !important;
+  color: var(--ros-text) !important;
+  border: 1px solid var(--ros-line) !important;
+  border-radius: 12px !important;
+}
+
+/* Empty state */
+body.ros-ops #orders:empty::after {
+  content: 'Nenhum pedido na fila';
+  display: block;
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--ros-text-muted);
+  font-size: 1rem;
+}
+
+@media (min-width: 900px) {
+  body.page-cozinha.ros-ops .order-sum-left .big {
+    font-size: 1.5rem !important;
+  }
+  body.page-cozinha.ros-ops .order-body .row {
+    font-size: 1.1rem;
+  }
+}
