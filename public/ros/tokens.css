@@ -1,0 +1,91 @@
+/**
+ * Restaurant OS — Design tokens (v3)
+ * Branch: design/premium-os
+ */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+
+:root {
+  --ros-bg: #0c0b0a;
+  --ros-bg-elevated: #141210;
+  --ros-surface: #1a1816;
+  --ros-surface-2: #221f1c;
+  --ros-surface-3: #2a2622;
+  --ros-glass: rgba(26, 24, 22, 0.72);
+  --ros-glass-border: rgba(255, 255, 255, 0.06);
+  --ros-cream: #f5f0e8;
+  --ros-text: #f5f0e8;
+  --ros-text-secondary: #a39e96;
+  --ros-text-muted: #6e6962;
+  --ros-line: rgba(245, 240, 232, 0.08);
+  --ros-line-strong: rgba(245, 240, 232, 0.14);
+  --ros-gold: #d4a853;
+  --ros-gold-soft: rgba(212, 168, 83, 0.14);
+  --ros-gold-glow: rgba(212, 168, 83, 0.35);
+  --ros-gold-hover: #e0bc6e;
+  --ros-success: #2dd4a0;
+  --ros-success-soft: rgba(45, 212, 160, 0.12);
+  --ros-action: #ff6b2c;
+  --ros-action-hover: #ff8250;
+  --ros-action-soft: rgba(255, 107, 44, 0.14);
+  --ros-danger: #f07178;
+  --ros-danger-soft: rgba(240, 113, 120, 0.12);
+  --ros-info: #5b9fd4;
+  --ros-warning: #e8b84a;
+  --ros-font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --ros-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ros-display: clamp(1.75rem, 3.5vw, 2.5rem);
+  --ros-h1: clamp(1.35rem, 2.5vw, 1.75rem);
+  --ros-h2: 1.2rem;
+  --ros-h3: 1.05rem;
+  --ros-body: 0.9375rem;
+  --ros-sm: 0.8125rem;
+  --ros-xs: 0.6875rem;
+  --ros-1: 4px; --ros-2: 8px; --ros-3: 12px; --ros-4: 16px;
+  --ros-5: 20px; --ros-6: 24px; --ros-8: 32px; --ros-10: 40px; --ros-12: 48px;
+  --ros-radius-sm: 10px;
+  --ros-radius: 14px;
+  --ros-radius-lg: 20px;
+  --ros-radius-xl: 28px;
+  --ros-pill: 999px;
+  --ros-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --ros-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --ros-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ros-duration: 220ms;
+  --ros-sidebar-w: 260px;
+  --ros-sidebar-collapsed: 76px;
+  --ros-header-h: 64px;
+  --brand-primary: var(--ros-gold);
+  --brand-action: var(--ros-action);
+}
+
+[data-ros-theme="cream"] {
+  --ros-bg: #f3eee6;
+  --ros-bg-elevated: #faf7f2;
+  --ros-surface: #ffffff;
+  --ros-surface-2: #f7f3ec;
+  --ros-surface-3: #efe9df;
+  --ros-glass: rgba(255, 255, 255, 0.78);
+  --ros-glass-border: rgba(26, 24, 22, 0.08);
+  --ros-text: #141210;
+  --ros-text-secondary: #5c564f;
+  --ros-text-muted: #8a837a;
+  --ros-line: rgba(20, 18, 16, 0.08);
+  --ros-line-strong: rgba(20, 18, 16, 0.14);
+  --ros-shadow: 0 4px 24px rgba(20, 18, 16, 0.08);
+  --ros-shadow-lg: 0 16px 40px rgba(20, 18, 16, 0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body.ros {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--ros-font);
+  font-size: var(--ros-body);
+  line-height: 1.5;
+  color: var(--ros-text);
+  background: var(--ros-bg);
+  -webkit-font-smoothing: antialiased;
+}
+body.ros a { color: var(--ros-gold); text-decoration: none; }
+body.ros a:hover { color: var(--ros-gold-hover); }

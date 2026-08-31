@@ -154,6 +154,15 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 
 ---
 
+
+## 🎨 Design · Restaurant OS (`design/premium-os`)
+
+- [x] Tokens + componentes (`public/ros/`)
+- [x] Preview `/ros/preview`
+- [x] Login staff no visual ROS
+- [ ] Mesa (QR cliente)
+- [ ] Cozinha / caixa / admin
+
 ## 📈 Capacidade (referência)
 
 - **Simultâneos:** dezenas de mesas com pouco delay; centenas exigem cuidado com SSE e CU-hours do Neon

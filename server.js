@@ -592,6 +592,7 @@ const server = http.createServer(async (req, res) => {
     if (file === '/caixa') file = '/caixa.html';
     if (file === '/admin') file = '/admin.html';
     if (file === '/login') file = '/login.html';
+    if (file === '/ros' || file === '/ros/preview') file = '/ros/preview.html';
     const publicRoot = path.resolve(ROOT, 'public');
     const fp = path.resolve(publicRoot, '.' + (file.startsWith('/') ? file : '/' + file));
     if (!fp.startsWith(publicRoot + path.sep) && fp !== publicRoot) {

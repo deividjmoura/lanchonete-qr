@@ -54,6 +54,11 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 
 ---
 
+
+## 🎨 Design preview (branch `design/premium-os`)
+
+Restaurant OS: `/ros/preview` · Login já no visual novo nesta branch. A `main` permanece estável.
+
 ## 🚀 Tecnologias
 
 <div align="center">

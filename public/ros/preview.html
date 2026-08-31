@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Restaurant OS · Design Preview</title>
+  <link rel="stylesheet" href="/ros/tokens.css">
+  <link rel="stylesheet" href="/ros/components.css">
+  <style>
+    .preview-banner {
+      padding: 10px 20px; font-size: 12px; font-weight: 600;
+      background: var(--ros-gold-soft); color: var(--ros-gold);
+      border-bottom: 1px solid rgba(212,168,83,.25); text-align: center;
+    }
+    .split-preview {
+      display: grid; grid-template-columns: 1fr minmax(280px, 360px);
+      gap: 24px; align-items: start;
+    }
+    @media (max-width: 1000px) { .split-preview { grid-template-columns: 1fr; } }
+    .phone {
+      border-radius: 28px; border: 1px solid var(--ros-line-strong);
+      background: #f3eee6; overflow: hidden; box-shadow: var(--ros-shadow-lg);
+    }
+    .phone-bar {
+      height: 28px; display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: #8a837a; border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+    .phone-body { padding: 16px; max-height: 640px; overflow-y: auto; }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--ros-success); box-shadow: 0 0 8px var(--ros-success);
+    }
+  </style>
+</head>
+<body class="ros">
+  <div class="preview-banner">
+    Branch <code>design/premium-os</code> · Preview ·
+    <a href="/login" style="color:inherit;text-decoration:underline">Login ROS</a>
+  </div>
+  <div class="ros-shell">
+    <aside class="ros-sidebar">
+      <div class="ros-sidebar__brand">
+        <div class="ros-logo-slot">LOGO</div>
+        <div>
+          <div class="ros-sidebar__name">[PLACE RESTAURANT LOGO HERE]</div>
+          <div class="ros-sidebar__tag">Restaurant OS</div>
+        </div>
+      </div>
+      <nav class="ros-nav">
+        <div class="ros-nav__section">Operações</div>
+        <a class="is-active" href="#">Dashboard</a>
+        <a href="#">Pedidos</a>
+        <a href="#">Cozinha</a>
+        <a href="#">Mesas</a>
+        <div class="ros-nav__section">Catálogo</div>
+        <a href="#">Produtos</a>
+        <a href="#">Categorias</a>
+        <div class="ros-nav__section">Gestão</div>
+        <a href="#">Relatórios</a>
+        <a href="#">Configurações</a>
+      </nav>
+    </aside>
+    <div class="ros-main">
+      <header class="ros-header">
+        <div>
+          <div class="ros-header__title">Dashboard</div>
+          <div class="ros-header__sub">Visão do dia</div>
+        </div>
+        <div class="ros-header__actions">
+          <span class="ros-badge ros-badge--success"><span class="status-dot"></span> Aberto</span>
+          <button type="button" class="ros-btn ros-btn--ghost">Notificações</button>
+        </div>
+      </header>
+      <div class="ros-content">
+        <div class="split-preview">
+          <div>
+            <section class="ros-hero">
+              <span class="ros-badge ros-badge--gold">Restaurant OS</span>
+              <h1 style="margin-top:12px">Bom dia, <span style="color:var(--ros-gold)">[Nome]</span></h1>
+              <p>Receita, mesas e cozinha — visual premium.</p>
+            </section>
+            <div class="ros-grid" style="margin-bottom:24px">
+              <div class="ros-kpi"><span class="ros-kpi__label">Receita</span><span class="ros-kpi__value">R$ 4.280</span><span class="ros-kpi__trend">↑ 12%</span></div>
+              <div class="ros-kpi"><span class="ros-kpi__label">Pedidos</span><span class="ros-kpi__value">128</span><span class="ros-kpi__trend">↑ 8%</span></div>
+              <div class="ros-kpi"><span class="ros-kpi__label">Mesas</span><span class="ros-kpi__value">14</span><span class="ros-kpi__trend" style="color:var(--ros-text-muted)">de 24</span></div>
+              <div class="ros-kpi"><span class="ros-kpi__label">Ticket</span><span class="ros-kpi__value">R$ 33,40</span><span class="ros-kpi__trend is-down">↓ 2%</span></div>
+            </div>
+            <div class="ros-grid">
+              <article class="ros-order">
+                <div class="ros-order__head"><div class="ros-order__mesa">Mesa 7</div><span class="ros-badge ros-badge--action">Novo</span></div>
+                <div class="ros-order__items">2× Smash · 1× Milkshake</div>
+                <button type="button" class="ros-btn ros-btn--action">Aceitar</button>
+              </article>
+              <article class="ros-order">
+                <div class="ros-order__head"><div class="ros-order__mesa">Mesa 3</div><span class="ros-badge ros-badge--gold">Preparando</span></div>
+                <div class="ros-order__items">1× X-Bacon</div>
+              </article>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:var(--ros-xs);color:var(--ros-text-muted);margin:0 0 8px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">QR cliente</p>
+            <div class="phone">
+              <div class="phone-bar">mesa · QR</div>
+              <div class="phone-body">
+                <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px">
+                  <div class="ros-logo-slot" style="border-color:rgba(180,140,50,.4)">LOGO</div>
+                  <div><strong style="color:#141210">[Restaurante]</strong><br><span style="font-size:12px;color:#8a837a">Mesa 5</span></div>
+                </div>
+                <div class="ros-chip-row">
+                  <button type="button" class="ros-chip is-active">Burgers</button>
+                  <button type="button" class="ros-chip">Bebidas</button>
+                  <button type="button" class="ros-chip">Combos</button>
+                </div>
+                <article class="ros-product" style="background:#fff;border-color:rgba(0,0,0,.08)">
+                  <div class="ros-product__img" style="background:#1a1816"></div>
+                  <div>
+                    <h3 class="ros-product__name" style="color:#141210">Smash Classic</h3>
+                    <p class="ros-product__desc">Blend 120g, queijo, molho</p>
+                    <div class="ros-product__row">
+                      <span class="ros-product__price">R$ 28,90</span>
+                      <button type="button" class="ros-btn ros-btn--action" style="min-height:36px;padding:0 12px">Add</button>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
