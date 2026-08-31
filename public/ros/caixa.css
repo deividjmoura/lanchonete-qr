@@ -1,0 +1,289 @@
+/**
+ * Restaurant OS — Caixa
+ * Dark ops shell + clear payment hierarchy.
+ */
+body.page-caixa.ros-caixa {
+  font-family: var(--ros-font) !important;
+  background: var(--ros-bg) !important;
+  color: var(--ros-text) !important;
+  min-height: 100dvh;
+}
+
+body.ros-caixa .wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+body.ros-caixa .top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ros-line);
+}
+
+body.ros-caixa .brand {
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em;
+  color: var(--ros-text) !important;
+}
+
+body.ros-caixa .muted,
+body.ros-caixa #stats {
+  color: var(--ros-text-muted) !important;
+  font-size: 0.85rem !important;
+}
+
+body.ros-caixa .top .nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.ros-caixa .btn {
+  font-family: var(--ros-font) !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--ros-line-strong);
+  background: var(--ros-surface-2);
+  color: var(--ros-text-secondary);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+body.ros-caixa .btn:hover {
+  background: var(--ros-surface-3);
+  color: var(--ros-text);
+}
+
+body.ros-caixa .btn.primary {
+  background: linear-gradient(135deg, var(--ros-action), #ff8f4a) !important;
+  color: #0c0b0a !important;
+  border: none !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 18px var(--ros-action-soft);
+}
+
+body.ros-caixa .btn.dark {
+  background: var(--ros-surface) !important;
+  color: var(--ros-text) !important;
+}
+
+body.ros-caixa .grid-caixa {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px !important;
+}
+
+body.ros-caixa .sessao-card,
+body.ros-caixa article.sessao-fold {
+  background: var(--ros-surface) !important;
+  border: 1px solid var(--ros-line) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--ros-shadow) !important;
+  color: var(--ros-text) !important;
+  overflow: hidden;
+}
+
+body.ros-caixa .sessao-card.pix-wait {
+  border-color: rgba(45, 212, 160, 0.45) !important;
+  box-shadow: 0 0 0 2px rgba(45, 212, 160, 0.15), var(--ros-shadow) !important;
+}
+
+body.ros-caixa .sessao-card.blocked {
+  opacity: 0.9;
+}
+
+body.ros-caixa .sessao-sum {
+  padding: 16px 18px !important;
+  background: transparent !important;
+  color: inherit !important;
+  border: none !important;
+  width: 100%;
+  cursor: pointer;
+}
+
+body.ros-caixa .sessao-sum:hover {
+  background: var(--ros-surface-2) !important;
+}
+
+body.ros-caixa .order-sum-left .big {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+  color: var(--ros-text) !important;
+}
+
+body.ros-caixa .valor-big {
+  font-family: var(--ros-mono) !important;
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  color: var(--ros-gold) !important;
+}
+
+body.ros-caixa .order-body {
+  border-top: 1px solid var(--ros-line) !important;
+  padding: 12px 18px 18px !important;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+body.ros-caixa .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+body.ros-caixa .badge.warn {
+  background: rgba(232, 184, 74, 0.15) !important;
+  color: var(--ros-warning) !important;
+}
+body.ros-caixa .badge.ok {
+  background: var(--ros-success-soft) !important;
+  color: var(--ros-success) !important;
+}
+body.ros-caixa .badge.pix {
+  background: var(--ros-success-soft) !important;
+  color: var(--ros-success) !important;
+}
+body.ros-caixa .badge.parcial {
+  background: var(--ros-gold-soft) !important;
+  color: var(--ros-gold) !important;
+}
+
+body.ros-caixa .itens-list li {
+  border-bottom-color: var(--ros-line) !important;
+  color: var(--ros-text-secondary);
+}
+
+body.ros-caixa .adjust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+body.ros-caixa .adjust-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ros-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+body.ros-caixa .adjust-row input,
+body.ros-caixa input[type="number"],
+body.ros-caixa .split-box input {
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--ros-line-strong);
+  background: var(--ros-surface-2);
+  color: var(--ros-text);
+  font-family: var(--ros-font);
+}
+
+body.ros-caixa .cobrado-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--ros-gold-soft);
+  border: 1px solid rgba(212, 168, 83, 0.25);
+}
+
+body.ros-caixa .valor-cobrado {
+  font-family: var(--ros-mono);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--ros-gold);
+}
+
+body.ros-caixa .pay-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+body.ros-caixa .pay-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ros-line-strong) !important;
+  border-radius: 999px !important;
+  padding: 8px 14px !important;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--ros-text-secondary);
+  background: var(--ros-surface-2);
+  margin: 0;
+}
+
+body.ros-caixa .pay-row input:checked + span,
+body.ros-caixa .pay-row label:has(input:checked) {
+  border-color: rgba(212, 168, 83, 0.45) !important;
+  background: var(--ros-gold-soft) !important;
+  color: var(--ros-gold) !important;
+}
+
+body.ros-caixa .pix-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--ros-surface-2);
+  border: 1px solid var(--ros-line);
+  text-align: center;
+}
+
+body.ros-caixa .actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.ros-caixa .split-box {
+  margin-top: 14px !important;
+  padding: 14px !important;
+  border: 1px solid var(--ros-line) !important;
+  border-radius: 14px !important;
+  background: var(--ros-surface-2) !important;
+}
+
+body.ros-caixa .toast {
+  font-family: var(--ros-font) !important;
+  border-radius: 12px !important;
+}
+
+body.ros-caixa details.pedido {
+  background: var(--ros-surface);
+  border-radius: 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--ros-line);
+}
+
+body.ros-caixa details.pedido summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ros-text-secondary);
+}
