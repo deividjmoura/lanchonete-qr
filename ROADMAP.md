@@ -160,7 +160,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Tokens + componentes (`public/ros/`)
 - [x] Preview `/ros/preview`
 - [x] Login staff no visual ROS
-- [ ] Mesa (QR cliente)
+- [x] Mesa (QR cliente) — skin ROS cream (`ros/mesa.css`)
 - [ ] Cozinha / caixa / admin
 
 ## 📈 Capacidade (referência)
