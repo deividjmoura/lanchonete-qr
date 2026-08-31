@@ -84,8 +84,9 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 ### Fotos leves (v2.9)
 - [x] Upload de arquivo no admin (**Escolher arquivo** / **Upload**)
 - [x] Link https também otimizado no servidor
-- [x] **sharp**: max ~480px, WebP ~q72 → `public/uploads/`
-- [x] Banco guarda só o path (`/uploads/….webp`)
+- [x] **sharp**: max ~480px, WebP ~q72
+- [x] Foto **persistida no Postgres** (data-URL) — sobrevive a redeploy
+- [x] HTTPS externo ainda suportado
 
 ### UX cards / acordeão (v2.9)
 - [x] Cozinha, mesa (conta), caixa: cards **recolhidos** por padrão
@@ -102,7 +103,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 ### Polimento residual
 - [ ] Revisar impressão de comanda (cozinha/garçom) se necessário
 - [ ] Aposentar restos legados (`data/db.json` = só seed de referência)
-- [ ] Limpeza de arquivos órfãos em `/uploads` ao excluir produto (opcional)
+- [x] Não depende de disco efêmero para fotos novas
 
 ### v3 — Gateway · delivery
 - [ ] Gateway PIX (confirmação automática)
@@ -115,6 +116,14 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 
 | Ideia | Nota |
 |-------|------|
+| **WhatsApp** (avisos / pedidos) | Notificar cozinha, garçom ou cliente (API oficial ou bridge) |
+
+### WhatsApp (planejado — após fotos estáveis)
+- [ ] Aviso de **pedido novo** para cozinha/admin
+- [ ] Opcional: status pronto/entregue para o cliente
+- [ ] API oficial Meta ou serviço intermediário
+- [ ] Config no `.env` (token, número, templates)
+
 | Gateway PIX (MP / PagSeguro) | Confirmação automática de pagamento |
 | Delivery / retirada | Fora do fluxo de mesa |
 | Multi-loja | Um banco, vários pontos |
@@ -134,7 +143,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Banco | PostgreSQL (Neon free-tier) |
 | Tempo real | SSE (`LQRRealtime`) |
 | PIX | Estático EMV (sem gateway por enquanto) |
-| Fotos | sharp → WebP em disco; path no Postgres |
+| Fotos | sharp → WebP data-URL no Postgres (persistente) |
 | Voz ops | Web Speech API (`voz-ops.js`) |
 | Bebidas / tamanhos | Adicionais + botão **Escolher** (rádio) |
 | Auth staff | Cookie httpOnly + tabela `staff_sessoes` |

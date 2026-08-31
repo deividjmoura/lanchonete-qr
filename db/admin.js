@@ -6,9 +6,19 @@ function normalizeFotoUrl(raw) {
   if (raw === null || raw === '') return null;
   const s = String(raw).trim();
   if (!s) return null;
+  // data-URL (foto otimizada no Postgres — sobrevive a redeploy)
+  if (/^data:image\/(webp|jpeg|jpg|png|gif);base64,/i.test(s)) {
+    if (s.length > 400000) {
+      throw new ErroAdmin(413, 'Foto em base64 muito grande (máx ~300 KB otimizado)');
+    }
+    return s;
+  }
   if (s.startsWith('/') && !s.startsWith('//')) return s.slice(0, 500);
-  if (/^https?:\/\//i.test(s)) return s.slice(0, 500);
-  throw new ErroAdmin(400, 'URL da foto inválida (use https://… ou /caminho)');
+  if (/^https?:\/\//i.test(s)) return s.slice(0, 2000);
+  throw new ErroAdmin(
+    400,
+    'URL da foto inválida (use upload no admin, https://… ou /caminho)'
+  );
 }
 
 class ErroAdmin extends Error {

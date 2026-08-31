@@ -1,7 +1,10 @@
 /**
  * Otimização de fotos de cardápio.
- * Redimensiona (máx 480px no lado maior) e grava WebP leve em public/uploads/.
- * Serve bem thumbs no celular sem pesar o banco (só o path) nem a lista do cardápio.
+ * Redimensiona (máx 480px) → WebP leve e grava o resultado como data-URL
+ * em foto_url (Postgres). Assim a imagem sobrevive a redeploy / disco efêmero.
+ *
+ * URLs https:// externas continuam válidas (não baixamos de novo no cardápio).
+ * Paths /uploads/... antigos ainda são aceitos se o arquivo existir no disco.
  */
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +15,11 @@ const UPLOAD_DIR = path.join(__dirname, '..', 'public', 'uploads');
 const MAX_EDGE = Number(process.env.FOTO_MAX_EDGE || 480);
 const WEBP_QUALITY = Number(process.env.FOTO_WEBP_QUALITY || 72);
 const MAX_INPUT_BYTES = Number(process.env.FOTO_MAX_INPUT_BYTES || 6 * 1024 * 1024);
+/** Tamanho máximo do WebP otimizado antes de virar data-URL (~280 KB). */
+const MAX_OUTPUT_BYTES = Number(process.env.FOTO_MAX_OUTPUT_BYTES || 280 * 1024);
 const FETCH_TIMEOUT_MS = 12_000;
+/** true = também grava cópia em public/uploads (só útil em dev local). */
+const ALSO_WRITE_DISK = process.env.FOTO_ALSO_DISK === '1';
 
 class ErroFoto extends Error {
   constructor(status, message) {
@@ -104,17 +111,33 @@ async function otimizarBuffer(buf) {
   }
 }
 
+/**
+ * Otimiza e devolve data-URL WebP para gravar em produtos.foto_url (persistente no Neon).
+ */
 async function salvarFotoOtimizada(buf) {
-  await ensureUploadDir();
   const out = await otimizarBuffer(buf);
-  const name = crypto.randomBytes(12).toString('hex') + '.webp';
-  const fp = path.join(UPLOAD_DIR, name);
-  await fs.promises.writeFile(fp, out);
+  if (out.length > MAX_OUTPUT_BYTES) {
+    throw new ErroFoto(
+      413,
+      'Imagem otimizada ainda grande demais. Use uma foto mais simples ou menor.'
+    );
+  }
+  const fotoUrl = 'data:image/webp;base64,' + out.toString('base64');
+
+  if (ALSO_WRITE_DISK) {
+    try {
+      await ensureUploadDir();
+      const name = crypto.randomBytes(12).toString('hex') + '.webp';
+      await fs.promises.writeFile(path.join(UPLOAD_DIR, name), out);
+    } catch (_) {}
+  }
+
   return {
-    fotoUrl: '/uploads/' + name,
+    fotoUrl,
     bytes: out.length,
     widthMax: MAX_EDGE,
     format: 'webp',
+    storage: 'db',
   };
 }
 
@@ -134,7 +157,7 @@ async function processarUploadFoto(body) {
   return salvarFotoOtimizada(buf);
 }
 
-/** Remove arquivo local antigo se for /uploads/... (não apaga URLs externas). */
+/** Remove arquivo local antigo se for /uploads/... (legado). */
 async function tentarRemoverUploadLocal(fotoUrl) {
   if (!fotoUrl || typeof fotoUrl !== 'string') return;
   if (!fotoUrl.startsWith('/uploads/')) return;

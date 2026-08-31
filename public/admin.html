@@ -105,7 +105,7 @@
           <input id="prodFoto" type="text" inputmode="url" autocomplete="off" placeholder="ou cole um link https://… ou /uploads/…" style="min-width:200px;flex:1">
           <button class="btn" type="button" id="btnOtimizarFotoNovo" onclick="otimizarFotoNovo()">Otimizar link</button>
         </div>
-        <p class="muted" style="margin:10px 0 0;font-size:.8rem">Arquivo ou link → redimensiona (~480px), grava WebP em <code>/uploads</code>. Só o caminho fica no banco.</p>
+        <p class="muted" style="margin:10px 0 0;font-size:.8rem">Arquivo ou link → redimensiona (~480px WebP) e <b>salva no banco</b> (não some no redeploy). Links https:// externos também valem.</p>
         <div id="prodFotoPreview" style="margin-top:10px"></div>
         <input type="hidden" id="prodFotoFinal" value="">
       </div>

@@ -497,7 +497,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/admin/produtos' && req.method === 'POST') {
       try {
-        const out = await criarProduto(await body(req));
+        const out = await criarProduto(await body(req, { maxBytes: Number(process.env.FOTO_MAX_BODY_BYTES || 8 * 1024 * 1024) }));
         invalidarCardapio();
         return json(res, 201, out);
       } catch (e) {
@@ -507,7 +507,10 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)$/)) && req.method === 'PATCH') {
       try {
-        const out = await atualizarProduto(Number(m[1]), await body(req));
+        const out = await atualizarProduto(
+          Number(m[1]),
+          await body(req, { maxBytes: Number(process.env.FOTO_MAX_BODY_BYTES || 8 * 1024 * 1024) })
+        );
         invalidarCardapio();
         return json(res, 200, out);
       } catch (e) {

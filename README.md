@@ -91,17 +91,15 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 
 ## 📷 Fotos no cardápio (admin)
 
-1. Aba **Cardápio** → **Novo produto** ou **Editar** um item  
-2. **Escolher arquivo** (upload) **ou** colar um link https  
-3. A imagem é otimizada no servidor (**~480px**, **WebP**) e salva em `/uploads`  
-4. No banco fica só o caminho (`/uploads/….webp`) — leve no celular e no storage  
+1. **Escolher arquivo** ou colar link `https://…`
+2. Servidor otimiza (**~480px**, **WebP**)
+3. A foto **fica no Postgres** (`data:image/webp;base64,…` em `foto_url`) — **não some no redeploy**
+4. Links externos `https://…` também são aceitos
 
-```http
-POST /api/admin/upload-foto
-Body: { "data": "data:image/jpeg;base64,…" }  // ou { "url": "https://…" }
-```
+`POST /api/admin/upload-foto` → `{ fotoUrl, bytes, storage: "db" }`
 
-> Requer `npm install` (dependência **sharp**). Pasta `public/uploads/` precisa ser gravável.
+> Requer `npm install` (**sharp**). Fotos antigas em `/uploads/…` podem ter sumido: **reenvie** no admin.
+
 
 ---
 
@@ -207,7 +205,7 @@ Detalhes em **[ROADMAP.md](./ROADMAP.md)**.
 
 | Agora | Depois |
 |:-----:|:------:|
-| ✅ **v2.9** — voz, fotos WebP, exclusão, UX cards | ⬜ Gateway PIX |
+| ✅ **v2.9+** — fotos persistentes no banco | ⬜ WhatsApp · Gateway PIX |
 | ✅ PIX · divisão · estoque · dashboard | ⬜ Delivery · multi-loja |
 
 ---
