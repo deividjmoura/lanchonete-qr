@@ -163,7 +163,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Mesa (QR cliente) — skin ROS cream (`ros/mesa.css`)
 - [x] Cozinha + Garçom (KDS escuro `ros/ops.css`)
 - [x] Caixa (`ros/caixa.css`)
-- [ ] Admin
+- [x] Admin (`ros/admin.css`)
 
 ## 📈 Capacidade (referência)
 

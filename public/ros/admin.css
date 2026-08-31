@@ -1,0 +1,290 @@
+/**
+ * Restaurant OS — Admin shell
+ * Skins existing tabs/sections without changing JS.
+ */
+body.page-admin.ros-admin {
+  font-family: var(--ros-font) !important;
+  background: var(--ros-bg) !important;
+  color: var(--ros-text) !important;
+  min-height: 100dvh;
+}
+
+body.ros-admin .wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 16px 48px;
+}
+
+/* Top brand + tabs → premium bar */
+body.ros-admin .glass-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: 18px;
+  background: var(--ros-glass) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--ros-glass-border) !important;
+  box-shadow: var(--ros-shadow);
+}
+
+body.ros-admin .logo-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, var(--ros-gold-soft), transparent);
+  border: 1px dashed rgba(212, 168, 83, 0.4);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+body.ros-admin .logo-placeholder {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--ros-gold);
+  text-align: center;
+  line-height: 1.15;
+  font-family: var(--ros-font);
+}
+
+body.ros-admin .admin-tabs,
+body.ros-admin .glass-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+body.ros-admin .admin-tabs button {
+  font-family: var(--ros-font) !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  padding: 10px 14px !important;
+  border-radius: 10px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--ros-text-secondary) !important;
+  cursor: pointer;
+  position: relative;
+}
+
+body.ros-admin .admin-tabs button:hover {
+  background: var(--ros-surface-2) !important;
+  color: var(--ros-text) !important;
+}
+
+body.ros-admin .admin-tabs button.active {
+  background: var(--ros-gold-soft) !important;
+  color: var(--ros-gold) !important;
+}
+
+body.ros-admin .admin-tabs button.active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ros-gold);
+  box-shadow: 0 0 8px var(--ros-gold-glow);
+}
+
+body.ros-admin .glass-nav .btn,
+body.ros-admin .nav .btn {
+  font-family: var(--ros-font) !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--ros-line-strong) !important;
+  background: var(--ros-surface-2) !important;
+  color: var(--ros-text-secondary) !important;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+body.ros-admin .btn.primary {
+  background: linear-gradient(135deg, var(--ros-action), #ff8f4a) !important;
+  color: #0c0b0a !important;
+  border: none !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 16px var(--ros-action-soft);
+}
+
+body.ros-admin .btn.ghost,
+body.ros-admin .btn-ghost {
+  background: transparent !important;
+  border: 1px solid var(--ros-line-strong) !important;
+  color: var(--ros-text-secondary) !important;
+}
+
+body.ros-admin .panel,
+body.ros-admin .inner-glass {
+  background: var(--ros-surface) !important;
+  border: 1px solid var(--ros-line) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--ros-shadow) !important;
+  color: var(--ros-text) !important;
+}
+
+body.ros-admin h2,
+body.ros-admin h3,
+body.ros-admin .card-title {
+  font-family: var(--ros-font) !important;
+  color: var(--ros-text) !important;
+  letter-spacing: -0.02em;
+}
+
+body.ros-admin .muted,
+body.ros-admin .meta-row {
+  color: var(--ros-text-muted) !important;
+}
+
+body.ros-admin input,
+body.ros-admin select,
+body.ros-admin textarea {
+  font-family: var(--ros-font) !important;
+  background: var(--ros-surface-2) !important;
+  border: 1px solid var(--ros-line-strong) !important;
+  color: var(--ros-text) !important;
+  border-radius: 10px !important;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+body.ros-admin label {
+  color: var(--ros-text-muted) !important;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+body.ros-admin .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+body.ros-admin .kpi-card,
+body.ros-admin #kpiGrid > * {
+  background: var(--ros-surface) !important;
+  border: 1px solid var(--ros-line) !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+}
+
+body.ros-admin .live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--ros-success-soft);
+  color: var(--ros-success);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+body.ros-admin .dot-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ros-success);
+  box-shadow: 0 0 8px var(--ros-success);
+}
+
+body.ros-admin .date-badge {
+  background: var(--ros-gold-soft) !important;
+  color: var(--ros-gold) !important;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+body.ros-admin .prod-row {
+  border-bottom-color: var(--ros-line) !important;
+}
+
+body.ros-admin .prod-thumb,
+body.ros-admin .prod-thumb-lg {
+  border-color: var(--ros-line) !important;
+  background: var(--ros-surface-2) !important;
+}
+
+body.ros-admin .cat-acc-head {
+  color: var(--ros-text) !important;
+}
+
+body.ros-admin .cat-acc-head:hover {
+  background: var(--ros-surface-2) !important;
+}
+
+body.ros-admin .cat-acc-body {
+  border-top-color: var(--ros-line) !important;
+}
+
+body.ros-admin .foto-upload-box {
+  border-color: rgba(212, 168, 83, 0.35) !important;
+  background: var(--ros-surface-2) !important;
+  border-radius: 14px !important;
+}
+
+body.ros-admin .chip,
+body.ros-admin .chip.on {
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+body.ros-admin .chip.on {
+  background: var(--ros-gold-soft) !important;
+  color: var(--ros-gold) !important;
+}
+
+body.ros-admin .pedidos-kanban {
+  display: grid;
+  gap: 10px;
+}
+
+body.ros-admin .pk-card,
+body.ros-admin .pedidos-kanban article {
+  background: var(--ros-surface-2) !important;
+  border: 1px solid var(--ros-line) !important;
+  border-radius: 12px !important;
+}
+
+body.ros-admin .qrgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+body.ros-admin .admin-section {
+  animation: ros-fade 0.25s var(--ros-ease);
+}
+
+@keyframes ros-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+body.ros-admin .toast {
+  font-family: var(--ros-font) !important;
+  border-radius: 12px !important;
+}
+
+@media (min-width: 960px) {
+  body.ros-admin .wrap {
+    padding: 24px 24px 64px;
+  }
+  body.ros-admin .glass-nav {
+    padding: 14px 20px;
+  }
+}
