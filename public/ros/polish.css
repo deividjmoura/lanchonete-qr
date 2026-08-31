@@ -123,6 +123,7 @@ body.ros-mesa .burger-dock {
   transition: box-shadow 0.25s ease, transform 0.2s ease;
 }
 body.ros-mesa .burger-btn.bounce,
+body.ros-mesa .burger-btn.pop,
 body.ros-mesa .burger-btn:active {
   animation: ros-dock-pop 0.45s ease;
 }
