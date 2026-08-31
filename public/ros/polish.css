@@ -1,0 +1,208 @@
+/**
+ * Restaurant OS — fine polish (motion, focus, scroll, density)
+ * Load after tokens + page skin.
+ */
+
+/* Selection */
+body.ros,
+body.ros-mesa,
+body.ros-ops,
+body.ros-caixa,
+body.ros-admin {
+  accent-color: var(--ros-gold, #d4a853);
+}
+body.ros ::selection,
+body.ros-mesa ::selection,
+body.ros-ops ::selection,
+body.ros-caixa ::selection,
+body.ros-admin ::selection {
+  background: rgba(212, 168, 83, 0.35);
+  color: inherit;
+}
+
+/* Focus visible — keyboard only */
+body.ros-mesa :focus-visible,
+body.ros-ops :focus-visible,
+body.ros-caixa :focus-visible,
+body.ros-admin :focus-visible,
+body.ros :focus-visible {
+  outline: 2px solid var(--ros-gold, #d4a853);
+  outline-offset: 2px;
+}
+body.ros-mesa :focus:not(:focus-visible),
+body.ros-ops :focus:not(:focus-visible),
+body.ros-caixa :focus:not(:focus-visible),
+body.ros-admin :focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Thin scrollbars */
+body.ros-mesa *,
+body.ros-ops *,
+body.ros-caixa *,
+body.ros-admin * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 168, 83, 0.35) transparent;
+}
+body.ros-mesa *::-webkit-scrollbar,
+body.ros-ops *::-webkit-scrollbar,
+body.ros-caixa *::-webkit-scrollbar,
+body.ros-admin *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+body.ros-mesa *::-webkit-scrollbar-thumb,
+body.ros-ops *::-webkit-scrollbar-thumb,
+body.ros-caixa *::-webkit-scrollbar-thumb,
+body.ros-admin *::-webkit-scrollbar-thumb {
+  background: rgba(212, 168, 83, 0.35);
+  border-radius: 999px;
+}
+
+/* Smooth page */
+@media (prefers-reduced-motion: no-preference) {
+  body.ros-mesa,
+  body.ros-ops,
+  body.ros-caixa,
+  body.ros-admin {
+    scroll-behavior: smooth;
+  }
+  body.ros-mesa .chalk-cat,
+  body.ros-ops details.order-card,
+  body.ros-caixa .sessao-card,
+  body.ros-admin .panel {
+    transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
+  }
+  body.ros-mesa .chalk-item:active,
+  body.ros-ops details.order-card:active {
+    transform: scale(0.992);
+  }
+  body.ros-admin .admin-tabs button {
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  body.ros-caixa .sessao-sum,
+  body.ros-ops details.order-card > summary {
+    transition: background 0.15s ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.ros-ops details.order-card.hot {
+    animation: none !important;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Buttons — consistent press */
+body.ros-mesa .btn,
+body.ros-ops .btn,
+body.ros-caixa .btn,
+body.ros-admin .btn,
+.ros-btn {
+  transition: filter 0.15s ease, transform 0.12s ease, box-shadow 0.2s ease, background 0.15s ease;
+}
+body.ros-mesa .btn:active,
+body.ros-ops .btn:active,
+body.ros-caixa .btn:active,
+body.ros-admin .btn:active,
+.ros-btn:active {
+  transform: scale(0.97);
+}
+
+/* Mesa: open category elevation */
+body.ros-mesa .chalk-cat.open {
+  box-shadow: 0 8px 28px rgba(20, 18, 16, 0.08) !important;
+  border-color: rgba(212, 168, 83, 0.25) !important;
+}
+
+/* Mesa: dock bounce hint */
+body.ros-mesa .burger-dock {
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+body.ros-mesa .burger-btn.bounce,
+body.ros-mesa .burger-btn:active {
+  animation: ros-dock-pop 0.45s ease;
+}
+@keyframes ros-dock-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Ops: card hover lift (desktop) */
+@media (hover: hover) and (min-width: 900px) {
+  body.ros-ops details.order-card:hover {
+    border-color: rgba(245, 240, 232, 0.14) !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4) !important;
+  }
+  body.ros-caixa .sessao-card:hover {
+    border-color: rgba(245, 240, 232, 0.14) !important;
+  }
+}
+
+/* Caixa: PIX wait soft glow */
+body.ros-caixa .sessao-card.pix-wait {
+  animation: ros-pix-glow 2.4s ease-in-out infinite;
+}
+@keyframes ros-pix-glow {
+  50% {
+    box-shadow: 0 0 0 2px rgba(45, 212, 160, 0.28), 0 8px 32px rgba(45, 212, 160, 0.12);
+  }
+}
+
+/* Admin: denser KPI numbers */
+body.ros-admin .kpi-grid strong,
+body.ros-admin #kpiGrid .valor,
+body.ros-admin #kpiGrid [class*="value"] {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Admin: sticky glass nav */
+body.ros-admin .glass-nav {
+  position: sticky;
+  top: 8px;
+  z-index: 40;
+}
+
+/* Login card entrance */
+@media (prefers-reduced-motion: no-preference) {
+  body.ros .ros-login-card {
+    animation: ros-card-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+@keyframes ros-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Safe area padding */
+body.ros-mesa .board {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+}
+body.ros-ops .wrap,
+body.ros-caixa .wrap,
+body.ros-admin .wrap {
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Empty / muted code tags */
+body.ros-ops code,
+body.ros-caixa code,
+body.ros-admin code {
+  font-family: var(--ros-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+  background: rgba(245, 240, 232, 0.06);
+  color: var(--ros-gold, #d4a853);
+}

@@ -164,6 +164,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Cozinha + Garçom (KDS escuro `ros/ops.css`)
 - [x] Caixa (`ros/caixa.css`)
 - [x] Admin (`ros/admin.css`)
+- [x] Polimento fino (`ros/polish.css` — focus, motion, PIX glow, sticky nav)
 
 ## 📈 Capacidade (referência)
 

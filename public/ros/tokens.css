@@ -89,3 +89,11 @@ body.ros {
 }
 body.ros a { color: var(--ros-gold); text-decoration: none; }
 body.ros a:hover { color: var(--ros-gold-hover); }
+
+body.ros {
+  color-scheme: dark;
+}
+[data-ros-theme="cream"],
+body.ros-mesa {
+  color-scheme: light;
+}
