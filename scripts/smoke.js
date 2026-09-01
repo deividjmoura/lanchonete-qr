@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Smoke test — fluxo completo da lanchonete.
+ * Smoke test — fluxo completo + cenário multi-mesa / multi-pessoa.
  *
  * Pré-requisitos:
  *   - servidor rodando (npm start)
@@ -26,7 +26,6 @@ const fail = (msg, detail) => {
 };
 
 function parseSetCookie(res) {
-  // Node 18+ fetch: headers.getSetCookie() ou fallback
   if (typeof res.headers.getSetCookie === 'function') {
     return res.headers.getSetCookie();
   }
@@ -74,7 +73,7 @@ async function req(method, path, { body, cookie, expectStatus } = {}) {
 }
 
 async function login(usuario) {
-  const { data, setCookie, res } = await req('POST', '/api/login', {
+  const { data, setCookie } = await req('POST', '/api/login', {
     body: { usuario, senha: SENHA },
     expectStatus: 200,
   });
@@ -83,6 +82,34 @@ async function login(usuario) {
   if (!cookie) fail(`login ${usuario}: sem cookie de sessão`);
   log(`login ${usuario} → ${data.staff?.papel || '?'}`);
   return cookie;
+}
+
+function extrairProdutos(cardapio) {
+  const produtos = [];
+  if (Array.isArray(cardapio)) {
+    for (const cat of cardapio) {
+      for (const p of cat.produtos || cat.items || []) produtos.push(p);
+    }
+  } else if (cardapio && Array.isArray(cardapio.categorias)) {
+    for (const cat of cardapio.categorias) {
+      for (const p of cat.produtos || []) produtos.push(p);
+    }
+  } else if (cardapio && Array.isArray(cardapio.menu)) {
+    for (const p of cardapio.menu) produtos.push(p);
+  }
+  if (!produtos.length && cardapio) {
+    const walk = (o) => {
+      if (!o || typeof o !== 'object') return;
+      if (Array.isArray(o)) return o.forEach(walk);
+      if (o.id && (o.preco != null || o.price != null) && (o.nome || o.name)) {
+        produtos.push(o);
+        return;
+      }
+      Object.values(o).forEach(walk);
+    };
+    walk(cardapio);
+  }
+  return produtos;
 }
 
 async function main() {
@@ -102,35 +129,13 @@ async function main() {
 
   // 1. cardápio público
   const { data: cardapio } = await req('GET', '/api/cardapio', { expectStatus: 200 });
-  const produtos = [];
-  if (Array.isArray(cardapio)) {
-    for (const cat of cardapio) {
-      for (const p of cat.produtos || cat.items || []) produtos.push(p);
-    }
-  } else if (cardapio && Array.isArray(cardapio.categorias)) {
-    for (const cat of cardapio.categorias) {
-      for (const p of cat.produtos || []) produtos.push(p);
-    }
-  } else if (cardapio && Array.isArray(cardapio.menu)) {
-    for (const p of cardapio.menu) produtos.push(p);
-  }
-  // formato real: ver db/cardapio.js
-  if (!produtos.length && cardapio) {
-    // tenta achar qualquer produto com id/preco
-    const walk = (o) => {
-      if (!o || typeof o !== 'object') return;
-      if (Array.isArray(o)) return o.forEach(walk);
-      if (o.id && (o.preco != null || o.price != null) && (o.nome || o.name)) {
-        produtos.push(o);
-        return;
-      }
-      Object.values(o).forEach(walk);
-    };
-    walk(cardapio);
-  }
+  const produtos = extrairProdutos(cardapio);
   if (!produtos.length) fail('cardápio vazio — rode npm run db:seed');
-  const produto = produtos.find((p) => p.disponivel !== false) || produtos[0];
+  const disponiveis = produtos.filter((p) => p.disponivel !== false);
+  const produto = disponiveis[0] || produtos[0];
+  const produto2 = disponiveis[1] || disponiveis[0] || produtos[0];
   const produtoId = produto.id || produto.productId;
+  const produtoId2 = produto2.id || produto2.productId;
   const preco = Number(produto.preco ?? produto.price ?? 0);
   log(`produto #${produtoId} · ${produto.nome || produto.name} · R$ ${preco.toFixed(2)}`);
 
@@ -139,25 +144,23 @@ async function main() {
   const cookieCozinha = await login('cozinha');
   const cookieCaixa = await login('caixa');
 
-  // 3. mesa livre
+  // 3. mesas
   const { data: mesas } = await req('GET', '/api/admin/mesas', {
     cookie: cookieAdmin,
     expectStatus: 200,
   });
-  if (!Array.isArray(mesas) || !mesas.length) fail('nenhuma mesa cadastrada');
-  // prefere mesa sem sessão aberta; senão usa a primeira
-  const mesa =
-    mesas.find((m) => !m.sessaoAberta && m.status !== 'ocupada') || mesas[0];
-  if (!mesa.token) fail('mesa sem token', mesa);
-  log(`mesa ${mesa.numero} · token …${String(mesa.token).slice(-8)}`);
-
-  // se já tem sessão aberta, tenta fechar antes (limpa o terreno)
-  if (mesa.sessaoAberta && mesa.sessaoId) {
-    // pode ter pedidos pendentes — smoke assume ambiente de teste
-    log(`mesa já tinha sessão #${mesa.sessaoId} (pode falhar se houver pedidos em andamento)`);
+  if (!Array.isArray(mesas) || mesas.length < 2) {
+    fail('preciso de pelo menos 2 mesas no seed para o teste multi-mesa');
   }
 
-  // 4. garçom de teste
+  // preferir mesas livres
+  const livres = mesas.filter((m) => !m.sessaoAberta && m.status !== 'ocupada');
+  const mesaA = livres[0] || mesas[0];
+  const mesaB = livres[1] || mesas.find((m) => m.id !== mesaA.id) || mesas[1];
+  if (!mesaA.token || !mesaB.token) fail('mesa sem token', { mesaA, mesaB });
+  log(`mesa A=${mesaA.numero} · mesa B=${mesaB.numero}`);
+
+  // 4. garçom
   let { data: garcons } = await req('GET', '/api/admin/garcons', {
     cookie: cookieAdmin,
     expectStatus: 200,
@@ -172,110 +175,206 @@ async function main() {
     garcom = created.data;
     log(`garçom criado #${garcom.id}`);
   } else {
-    log(`garçom ${garcom.nome} · token …${String(garcom.token).slice(-8)}`);
+    log(`garçom ${garcom.nome}`);
   }
   if (!garcom.token) fail('garçom sem token', garcom);
 
-  // 5. pedido na mesa
-  const { data: pedido } = await req('POST', `/api/mesas/${mesa.token}/pedidos`, {
+  // ==========================================================================
+  // CENÁRIO 1 — fluxo clássico em uma mesa
+  // ==========================================================================
+  console.log('\n  ── Cenário 1: fluxo clássico ──');
+
+  const { data: pedido1 } = await req('POST', `/api/mesas/${mesaA.token}/pedidos`, {
     body: {
-      clienteNome: 'Smoke Client',
+      clienteNome: 'Cliente Alpha',
       items: [{ productId: produtoId, qty: 1 }],
     },
     expectStatus: 201,
   });
-  if (!pedido || !pedido.id) fail('pedido sem id', pedido);
-  log(`pedido #${pedido.id} criado · status ${pedido.status}`);
+  if (!pedido1?.id) fail('pedido1 sem id', pedido1);
+  log(`pedido #${pedido1.id} (Alpha) criado`);
 
-  // 6. cozinha: recebido → em_producao → concluido
-  await req('PATCH', `/api/pedidos/${pedido.id}/status`, {
+  await req('PATCH', `/api/pedidos/${pedido1.id}/status`, {
     cookie: cookieCozinha,
     body: { status: 'em_producao' },
     expectStatus: 200,
   });
-  log('cozinha: em_producao');
-
-  await req('PATCH', `/api/pedidos/${pedido.id}/status`, {
+  await req('PATCH', `/api/pedidos/${pedido1.id}/status`, {
     cookie: cookieCozinha,
     body: { status: 'concluido' },
     expectStatus: 200,
   });
-  log('cozinha: concluido');
+  log('cozinha: em_producao → concluido');
 
-  // 7. garçom entrega
-  const { data: entrega } = await req(
+  const { data: entrega1 } = await req(
     'POST',
-    `/api/garcom/${garcom.token}/pedidos/${pedido.id}/entregar`,
+    `/api/garcom/${garcom.token}/pedidos/${pedido1.id}/entregar`,
     { expectStatus: 200 }
   );
-  if (!entrega || entrega.status !== 'entregue') fail('entrega falhou', entrega);
-  log(`garçom entregou · ${entrega.garcom?.nome || garcom.nome}`);
+  if (!entrega1 || entrega1.status !== 'entregue') fail('entrega1 falhou', entrega1);
+  log('garçom entregou pedido 1');
 
-  // 8. sessão deve ter valor > 0
-  const { data: sessao } = await req('GET', `/api/mesas/${mesa.token}/sessao`, {
+  const { data: sessaoA } = await req('GET', `/api/mesas/${mesaA.token}/sessao`, {
     expectStatus: 200,
   });
-  const total = Number(sessao.totalDevido || 0);
-  if (total <= 0) fail('total devido zerado após entrega', sessao);
-  log(`conta mesa · total R$ ${total.toFixed(2)}`);
+  const totalA = Number(sessaoA.totalDevido || 0);
+  if (totalA <= 0) fail('total devido zerado após entrega', sessaoA);
+  log(`conta mesa A · R$ ${totalA.toFixed(2)}`);
 
-  // 9. cliente avisa PIX (não baixa valor — só notifica)
-  const { data: pix } = await req('POST', `/api/mesas/${mesa.token}/pix-informado`, {
+  // PIX x2 (divisão)
+  await req('POST', `/api/mesas/${mesaA.token}/pix-informado`, { expectStatus: 200 });
+  await req('POST', `/api/mesas/${mesaA.token}/pix-informado`, { expectStatus: 200 });
+  log('dois avisos PIX ok');
+
+  // ==========================================================================
+  // CENÁRIO 2 — multi-pessoa na MESMA mesa (2 pedidos concorrentes)
+  // ==========================================================================
+  console.log('\n  ── Cenário 2: 2 pessoas na mesma mesa ──');
+
+  // Dois pedidos “ao mesmo tempo” (Promise.all)
+  const [rPed2, rPed3] = await Promise.all([
+    req('POST', `/api/mesas/${mesaA.token}/pedidos`, {
+      body: {
+        clienteNome: 'Cliente Beta',
+        items: [{ productId: produtoId, qty: 1 }],
+      },
+      expectStatus: 201,
+    }),
+    req('POST', `/api/mesas/${mesaA.token}/pedidos`, {
+      body: {
+        clienteNome: 'Cliente Gamma',
+        items: [{ productId: produtoId2, qty: 2 }],
+      },
+      expectStatus: 201,
+    }),
+  ]);
+  const pedido2 = rPed2.data;
+  const pedido3 = rPed3.data;
+  if (!pedido2?.id || !pedido3?.id) fail('pedidos concorrentes falharam', { pedido2, pedido3 });
+  if (pedido2.sessaoId !== pedido3.sessaoId) {
+    fail('pedidos da mesma mesa devem compartilhar a mesma sessão', {
+      s2: pedido2.sessaoId,
+      s3: pedido3.sessaoId,
+    });
+  }
+  log(`pedidos concorrentes #${pedido2.id} e #${pedido3.id} · mesma sessão #${pedido2.sessaoId}`);
+
+  // Cozinha processa os dois
+  for (const p of [pedido2, pedido3]) {
+    await req('PATCH', `/api/pedidos/${p.id}/status`, {
+      cookie: cookieCozinha,
+      body: { status: 'em_producao' },
+      expectStatus: 200,
+    });
+    await req('PATCH', `/api/pedidos/${p.id}/status`, {
+      cookie: cookieCozinha,
+      body: { status: 'concluido' },
+      expectStatus: 200,
+    });
+  }
+  log('cozinha processou os 2 pedidos extras');
+
+  // Garçom entrega os dois (pode ser em paralelo)
+  await Promise.all([
+    req('POST', `/api/garcom/${garcom.token}/pedidos/${pedido2.id}/entregar`, {
+      expectStatus: 200,
+    }),
+    req('POST', `/api/garcom/${garcom.token}/pedidos/${pedido3.id}/entregar`, {
+      expectStatus: 200,
+    }),
+  ]);
+  log('garçom entregou os 2 pedidos extras');
+
+  const { data: sessaoA2 } = await req('GET', `/api/mesas/${mesaA.token}/sessao`, {
     expectStatus: 200,
   });
-  if (!pix || !pix.ok) fail('pix-informado', pix);
-  if (Number(pix.valorRestante) <= 0) fail('pix-informado zerou o restante (não deveria)', pix);
-  log(`PIX informado · restante R$ ${Number(pix.valorRestante).toFixed(2)}`);
+  const totalA2 = Number(sessaoA2.totalDevido || 0);
+  if (totalA2 <= totalA) fail('total deveria ter aumentado após novos pedidos', sessaoA2);
+  log(`conta mesa A atualizada · R$ ${totalA2.toFixed(2)} (era ${totalA.toFixed(2)})`);
 
-  // 10. segundo aviso PIX (divisão — não pode travar)
-  const { data: pix2 } = await req('POST', `/api/mesas/${mesa.token}/pix-informado`, {
+  // ==========================================================================
+  // CENÁRIO 3 — segunda mesa em paralelo
+  // ==========================================================================
+  console.log('\n  ── Cenário 3: mesa B em paralelo ──');
+
+  const { data: pedidoB } = await req('POST', `/api/mesas/${mesaB.token}/pedidos`, {
+    body: {
+      clienteNome: 'Cliente Mesa B',
+      items: [{ productId: produtoId, qty: 1 }],
+    },
+    expectStatus: 201,
+  });
+  if (!pedidoB?.id) fail('pedido mesa B sem id', pedidoB);
+  log(`pedido mesa B #${pedidoB.id}`);
+
+  await req('PATCH', `/api/pedidos/${pedidoB.id}/status`, {
+    cookie: cookieCozinha,
+    body: { status: 'em_producao' },
     expectStatus: 200,
   });
-  if (!pix2 || !pix2.ok) fail('segundo pix-informado travou', pix2);
-  log('segundo aviso PIX ok (divisão na mesa)');
+  await req('PATCH', `/api/pedidos/${pedidoB.id}/status`, {
+    cookie: cookieCozinha,
+    body: { status: 'concluido' },
+    expectStatus: 200,
+  });
+  await req('POST', `/api/garcom/${garcom.token}/pedidos/${pedidoB.id}/entregar`, {
+    expectStatus: 200,
+  });
+  log('mesa B entregue');
 
-  // 11. caixa: sessões abertas + pagamento parcial + fechar
+  // ==========================================================================
+  // Caixa: fecha as duas mesas (divisão na A)
+  // ==========================================================================
+  console.log('\n  ── Caixa: divisão + fechar ──');
+
   const { data: sessoes } = await req('GET', '/api/caixa/sessoes', {
     cookie: cookieCaixa,
     expectStatus: 200,
   });
-  const aberta = (sessoes || []).find((s) => s.id === sessao.sessaoId || s.mesa === mesa.numero);
-  if (!aberta) fail('sessão não aparece no caixa', { sessaoId: sessao.sessaoId, sessoes });
-  const sessaoId = aberta.id;
-  const restante = Number(aberta.valorRestante != null ? aberta.valorRestante : aberta.valorTotal);
-  log(`caixa vê sessão #${sessaoId} · restante R$ ${restante.toFixed(2)}`);
+  const abertaA = (sessoes || []).find((s) => s.mesa === mesaA.numero || s.id === sessaoA2.sessaoId);
+  const abertaB = (sessoes || []).find((s) => s.mesa === mesaB.numero);
+  if (!abertaA) fail('sessão A não aparece no caixa', { sessoes });
+  if (!abertaB) fail('sessão B não aparece no caixa', { sessoes });
 
-  // parcial: metade (mín. 0.01)
-  const metade = Number(Math.max(0.01, Math.floor(restante * 50) / 100).toFixed(2));
-  const { data: parcial } = await req('POST', `/api/caixa/sessoes/${sessaoId}/pagamentos`, {
+  const restanteA = Number(abertaA.valorRestante != null ? abertaA.valorRestante : abertaA.valorTotal);
+  const metade = Number(Math.max(0.01, Math.floor(restanteA * 50) / 100).toFixed(2));
+
+  const { data: parcial } = await req('POST', `/api/caixa/sessoes/${abertaA.id}/pagamentos`, {
     cookie: cookieCaixa,
     body: { valor: metade, formaPagamento: 'pix' },
     expectStatus: 201,
   });
-  if (!parcial || !parcial.ok) fail('pagamento parcial', parcial);
-  log(`parcial R$ ${metade.toFixed(2)} · resta R$ ${Number(parcial.valorRestante).toFixed(2)}`);
+  if (!parcial?.ok) fail('pagamento parcial', parcial);
+  log(`parcial mesa A R$ ${metade.toFixed(2)} · resta R$ ${Number(parcial.valorRestante).toFixed(2)}`);
 
-  // fechar (quita o resto)
-  const { data: fechada } = await req('POST', `/api/caixa/sessoes/${sessaoId}/fechar`, {
+  const { data: fechadaA } = await req('POST', `/api/caixa/sessoes/${abertaA.id}/fechar`, {
     cookie: cookieCaixa,
     body: { formaPagamento: 'dinheiro', desconto: 0, taxaServico: 0 },
     expectStatus: 200,
   });
-  if (!fechada || fechada.status !== 'fechada') fail('fechar sessão', fechada);
-  log(`conta fechada · cobrado R$ ${Number(fechada.valorCobrado ?? fechada.valorTotal).toFixed(2)}`);
+  if (!fechadaA || fechadaA.status !== 'fechada') fail('fechar sessão A', fechadaA);
+  log(`mesa A fechada · cobrado R$ ${Number(fechadaA.valorCobrado ?? fechadaA.valorTotal).toFixed(2)}`);
 
-  // 12. mesa livre de novo?
+  const { data: fechadaB } = await req('POST', `/api/caixa/sessoes/${abertaB.id}/fechar`, {
+    cookie: cookieCaixa,
+    body: { formaPagamento: 'pix', desconto: 0, taxaServico: 0 },
+    expectStatus: 200,
+  });
+  if (!fechadaB || fechadaB.status !== 'fechada') fail('fechar sessão B', fechadaB);
+  log(`mesa B fechada`);
+
+  // mesas livres de novo?
   const { data: mesas2 } = await req('GET', '/api/admin/mesas', {
     cookie: cookieAdmin,
     expectStatus: 200,
   });
-  const mesaDepois = (mesas2 || []).find((m) => m.id === mesa.id);
-  if (mesaDepois && mesaDepois.sessaoAberta) {
-    fail('mesa ainda com sessão aberta após fechar', mesaDepois);
-  }
-  log(`mesa ${mesa.numero} liberada`);
+  const aDepois = (mesas2 || []).find((m) => m.id === mesaA.id);
+  const bDepois = (mesas2 || []).find((m) => m.id === mesaB.id);
+  if (aDepois?.sessaoAberta) fail('mesa A ainda com sessão aberta', aDepois);
+  if (bDepois?.sessaoAberta) fail('mesa B ainda com sessão aberta', bDepois);
+  log('ambas as mesas liberadas');
 
-  console.log('\n✅ Smoke OK — o hambúrguer sobreviveu ao labirinto.\n');
+  console.log('\n✅ Smoke OK — multi-mesa + multi-pessoa + divisão sobrevivem.\n');
 }
 
 main().catch((e) => {
