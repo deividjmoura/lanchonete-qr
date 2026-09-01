@@ -163,6 +163,7 @@ const server = http.createServer(async (req, res) => {
     const p = u.pathname;
 
     if (p === '/api/cardapio' && req.method === 'GET') {
+      res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
       return json(res, 200, await getCardapio());
     }
     if (p === '/api/cardapio/destaques' && req.method === 'GET') {

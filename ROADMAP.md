@@ -150,6 +150,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · WA
 ### PWA + notificações (v3 — planejado)
 - [ ] Manifest + service worker nos painéis ops
 - [ ] Web Push (VAPID) para pedido novo / PIX / chamada garçom
+- [ ] **Garçom:** push quando pedido fica **pronto/concluído** e quando há **chamada da mesa** (além da voz com aba aberta)
 - [ ] Som de alerta no dispositivo mesmo com navegador em segundo plano (limites do iOS a validar)
 - [ ] Fallback: manter **voz Web Speech** quando a aba estiver aberta (já existe)
 

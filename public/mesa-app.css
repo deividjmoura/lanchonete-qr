@@ -1105,3 +1105,23 @@ body.board-page .mesa-sticky-head {
 .pix-box--ok .pix-box__title {
   color: #86efac;
 }
+
+.mesa-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 16px;
+  color: rgba(245, 240, 232, 0.75);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.mesa-loading__spin {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(251, 146, 60, 0.25);
+  border-top-color: #fb923c;
+  border-radius: 50%;
+  animation: mesa-spin 0.7s linear infinite;
+}
+@keyframes mesa-spin { to { transform: rotate(360deg); } }

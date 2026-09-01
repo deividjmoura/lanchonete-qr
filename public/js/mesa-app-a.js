@@ -5,28 +5,38 @@ let categorias=[],produtos=[],cart=[],totalDevido=0,cartOpen=false,sessaoData=nu
 /** Último status visto por pedido — para toast de mudança */
 let lastStatusMap={};
 
-/* Preferências de UI no navegador (após consentimento de cookies) */
+/* UI só nesta aba/página (sessionStorage + id da página — não compartilha entre clientes) */
+function lqPageId(){
+  try{
+    let id=sessionStorage.getItem('lq-page-id');
+    if(!id){
+      id=(Math.random().toString(36).slice(2)+Date.now().toString(36));
+      sessionStorage.setItem('lq-page-id', id);
+    }
+    return id;
+  }catch(_){ return 'local'; }
+}
 function lqCanStore(){
-  try{ return localStorage.getItem('lq-cookie-ok')==='1'; }catch(_){ return false; }
+  /* expandido/categoria: sempre sessionStorage desta aba — não depende de cookie */
+  return true;
 }
 function lqGetJson(key, fallback){
   try{
-    if(!lqCanStore()) return fallback;
-    const raw=localStorage.getItem(key);
+    const raw=sessionStorage.getItem(key);
     if(!raw) return fallback;
     return JSON.parse(raw);
   }catch(_){ return fallback; }
 }
 function lqSetJson(key, val){
-  try{ if(!lqCanStore()) return; localStorage.setItem(key, JSON.stringify(val)); }catch(_){}
+  try{ sessionStorage.setItem(key, JSON.stringify(val)); }catch(_){}
 }
 function lqLoadContaOpen(){
   const token=(location.pathname.split('/').filter(Boolean).pop())||'';
-  return lqGetJson('lq-conta-open-'+token, []);
+  return lqGetJson('lq-conta-open-'+token+'-'+lqPageId(), []);
 }
 function lqSaveContaOpen(ids){
   const token=(location.pathname.split('/').filter(Boolean).pop())||'';
-  lqSetJson('lq-conta-open-'+token, Array.from(ids||[]));
+  lqSetJson('lq-conta-open-'+token+'-'+lqPageId(), Array.from(ids||[]));
 }
 function getClienteNome(){if(clienteNome)return clienteNome;try{clienteNome=sessionStorage.getItem('lq-cliente-nome-'+token)||'';}catch(_){}return clienteNome;}
 function setClienteNome(nome){clienteNome=String(nome||'').trim().slice(0,80);try{sessionStorage.setItem('lq-cliente-nome-'+token,clienteNome);}catch(_){}}
@@ -182,8 +192,31 @@ function openSessao(){
 }
 function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}
-async function loadCardapio(){const r=await fetch('/api/cardapio');if(!r.ok){document.getElementById('menu').innerHTML='<div style="padding:20px;color:#a89f8c">Não foi possível carregar o cardápio.</div>';return;}categorias=await r.json();produtos=categorias.flatMap(c=>c.produtos||[]);await loadDestaques();renderMenu();}
-let mesaCatFilter=(function(){try{const v=lqGetJson('lq-mesa-cat',null);return v||'all';}catch(_){return 'all';}})();
+async function loadCardapio(){
+  const menuEl=document.getElementById('menu');
+  if(menuEl && !menuEl.innerHTML.trim()){
+    menuEl.innerHTML='<div class="mesa-loading" aria-live="polite"><span class="mesa-loading__spin"></span> Carregando cardápio…</div>';
+  }
+  // Cardápio e destaques em paralelo; pinta o menu assim que o cardápio chegar
+  const pCard=fetch('/api/cardapio').then(async r=>{
+    if(!r.ok) throw new Error('cardapio');
+    return r.json();
+  });
+  const pDest=loadDestaques();
+  try{
+    categorias=await pCard;
+    produtos=categorias.flatMap(c=>c.produtos||[]);
+    renderMenu(); // primeiro paint rápido (destaques podem vir depois)
+  }catch(_){
+    if(menuEl) menuEl.innerHTML='<div style="padding:20px;color:#a89f8c">Não foi possível carregar o cardápio.</div>';
+    return;
+  }
+  await pDest;
+  // re-pinta se destaques mudaram a área de sugestões
+  if(typeof renderMenuBody==='function' && document.getElementById('menuBody')) renderMenuBody();
+  else renderMenu();
+}
+let mesaCatFilter=(function(){try{const v=lqGetJson('lq-mesa-cat-'+lqPageId(),null);return v||'all';}catch(_){return 'all';}})();
 let mesaDestaques=null; // null=loading, []=vazio, array=itens
 let mesaDestaquesMsg='';
 let mesaSearch='';
@@ -282,7 +315,7 @@ function productPhotoUrl(p, catNome){
 }
 function setMesaCat(id){
   mesaCatFilter=String(id||'all');
-  lqSetJson('lq-mesa-cat', mesaCatFilter);
+  lqSetJson('lq-mesa-cat-'+lqPageId(), mesaCatFilter);
   renderMenu();
 }
 function setMesaSearch(q){
