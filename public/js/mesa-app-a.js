@@ -228,10 +228,8 @@ function demoPhoto(p, catNome){
   return '/assets/demo/burger.jpg';
 }
 function productPhotoUrl(p, catNome){
-  const u=p.fotoUrl||p.foto_url||'';
-  // fotos quebradas / antigas de upload local → usa demo
-  if(!u || u.startsWith('/uploads/') || u.startsWith('data:image') && u.length<80) return demoPhoto(p, catNome);
-  return u;
+  // Demo coerente por nome até o cliente enviar fotos oficiais
+  return demoPhoto(p, catNome);
 }
 function setMesaCat(id){
   mesaCatFilter=String(id||'all');
@@ -317,10 +315,9 @@ function renderMenu(){
       actions=`<button class="btn-add" type="button" onclick="event.stopPropagation();quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button>`;
     }
     return `<article class="prod-card" role="button" tabindex="0" onclick="openProductDetail(${p.id})">
-      <div class="prod-card__media"><img src="${esc(foto)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'"></div>
+      <div class="prod-card__media"><img src="${esc(foto)}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/assets/demo/dog-classic.jpg'"></div>
       <div class="prod-card__body">
         <h3>${esc(p.nome)}</h3>
-        <p class="desc">${esc(p.descricao||'')}</p>
         <div class="prod-card__row"><span class="price">${br(p.preco)}</span>${actions}</div>
       </div>
     </article>`;
