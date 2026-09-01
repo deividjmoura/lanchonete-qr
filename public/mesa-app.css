@@ -349,3 +349,48 @@ body.board-page .board-frame {
   line-height: 1.4;
   text-align: center;
 }
+
+/* Indicador de expansão nos pedidos da conta */
+.pedido-block details > summary.pedido-sum {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.pedido-block details > summary.pedido-sum::-webkit-details-marker { display: none; }
+.pedido-sum-status {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.expand-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(245, 242, 238, 0.55);
+  letter-spacing: 0.02em;
+}
+.expand-hint .expand-chev {
+  display: inline-block;
+  transition: transform 0.18s ease;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.pedido-block details[open] > summary .expand-chev {
+  transform: rotate(180deg);
+}
+.pedido-block details[open] > summary .expand-label {
+  /* quando aberto, troca o texto via CSS content */
+}
+.pedido-block details[open] > summary .expand-label {
+  font-size: 0;
+}
+.pedido-block details[open] > summary .expand-label::after {
+  content: 'ocultar';
+  font-size: 0.72rem;
+}
+.pedido-block details > summary.pedido-sum:hover .expand-hint {
+  color: rgba(251, 146, 60, 0.95);
+}

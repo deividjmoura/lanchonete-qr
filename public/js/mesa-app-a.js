@@ -96,7 +96,16 @@ function openSessao(){
       :'';
     const nItens=(p.itens||[]).reduce((a,it)=>a+(Number(it.quantidade)||1),0);
     const openDef='';
-    return `<div class="pedido-block"><details${openDef}><summary style="list-style:none;cursor:pointer"><div class="row" style="justify-content:space-between;gap:8px;width:100%"><b>#${p.id}</b><span><span class="status-pill ${esc(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>${editado}</span></div><div class="muted" style="font-size:.8rem;margin-top:4px">${nItens} item${nItens===1?'':'s'} · ${br(p.totalPedido||0)}</div></summary><div style="margin-top:10px">${itens}<div class="pedido-item"><span class="muted">Subtotal</span><b>${br(p.totalPedido||0)}</b></div>${acoes}</div></details></div>`;
+    return `<div class="pedido-block"><details${openDef}><summary class="pedido-sum">
+      <div class="row" style="justify-content:space-between;gap:8px;width:100%;align-items:flex-start">
+        <b>#${p.id}</b>
+        <span class="pedido-sum-status">
+          <span class="status-pill ${esc(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>${editado}
+          <span class="expand-hint" aria-hidden="true"><span class="expand-chev">▾</span><span class="expand-label">ver itens</span></span>
+        </span>
+      </div>
+      <div class="muted" style="font-size:.8rem;margin-top:4px">${nItens} item${nItens===1?'':'s'} · ${br(p.totalPedido||0)}</div>
+    </summary><div style="margin-top:10px">${itens}<div class="pedido-item"><span class="muted">Subtotal</span><b>${br(p.totalPedido||0)}</b></div>${acoes}</div></details></div>`;
   }).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Nenhum pedido ainda.</div>';
   const pago=Number(s.valorPago||0);
   const rest=s.valorRestante!=null?Number(s.valorRestante):Math.max(0,Number(s.totalDevido||0)-pago);
