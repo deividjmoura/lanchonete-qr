@@ -313,11 +313,9 @@ function renderMenu(){
       const prods=(c.produtos||[]).map(p=>{p._catNome=c.nome;return p;});
       if(!prods.length) return '';
       const cards=prods.map(p=>cardHtml(p,c)).join('');
-      // 2 linhas + scroll lateral quando há vários itens
-      const scrollClass=prods.length>2?'prod-scroll prod-scroll--2row':'prod-scroll';
       return `<section class="cat-section">
         <h2 class="mesa-section-title">${esc(c.nome)}</h2>
-        <div class="${scrollClass}">${cards}</div>
+        <div class="prod-grid">${cards}</div>
       </section>`;
     }).join('')||'<div class="mesa-empty">Nenhum item nesta categoria.</div>';
   }
@@ -355,12 +353,15 @@ function openProductDetail(id){
   }else{
     actions=`<button class="btn primary btn-chip full" type="button" onclick="quickAdd(${p.id});closeModal()">+ Adicionar ao pedido</button>`;
   }
-  document.getElementById('modal').innerHTML=`
+  const root=document.getElementById('modal');
+  root.innerHTML=`
     <div class="modal-root product-detail-root" role="dialog" aria-modal="true">
       <div class="modal-backdrop product-detail-backdrop" onclick="closeModal()"></div>
       <div class="modal-sheet product-detail-sheet">
         <button class="close" type="button" onclick="closeModal()" aria-label="Fechar">×</button>
-        <div class="product-detail-media"><img src="${esc(foto)}" alt="" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'"></div>
+        <div class="product-detail-media">
+          <img src="${esc(foto)}" alt="" width="640" height="440" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'">
+        </div>
         <div class="product-detail-body">
           <h2>${esc(p.nome)}</h2>
           <p class="muted detail-desc">${esc(p.descricao||'Sem descrição.')}</p>
