@@ -8,7 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="/favicons/cozinha.svg">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
-<link rel="stylesheet" href="/theme-glass.css">
+  <link rel="stylesheet" href="/icons.css">
+  <link rel="stylesheet" href="/theme-glass.css">
   <style>
     @media print {
       body * { visibility: hidden !important; }
@@ -26,14 +27,18 @@
 </head>
 <body class="page-cozinha">
 <main class="wrap no-print">
-  <div class="top">
-    <div>
-      <div class="brand">👨‍🍳 Cozinha</div>
-      <div class="muted">Fila <code>recebido</code> → <code>em_producao</code> → <code>concluido</code> · ao vivo (SSE)</div>
+  <div class="glass-nav">
+    <div class="logo-mark" title="Cozinha">
+      <span class="i-kitchen ico-lg" style="width:1.6rem;height:1.6rem;color:#fbbf24" aria-hidden="true"></span>
     </div>
-    <div class="nav">
-      <a class="btn" href="/admin">Admin</a>
-      <a class="btn dark" href="/">Início</a>
+    <div style="flex:1;min-width:0">
+      <div class="brand" style="margin:0">Cozinha</div>
+      <div class="muted" style="font-size:.85rem">Fila ao vivo · recebido → preparo → pronto</div>
+    </div>
+    <div class="nav glass-actions ops-actions">
+      <a class="btn btn-ghost" href="/admin" title="Admin"><span class="i-admin ico" aria-hidden="true"></span>Admin</a>
+      <a class="btn btn-ghost" href="/caixa" title="Caixa"><span class="i-cash ico" aria-hidden="true"></span>Caixa</a>
+      <a class="btn btn-ghost" href="/" title="Início"><span class="i-home ico" aria-hidden="true"></span>Início</a>
     </div>
   </div>
 
@@ -71,7 +76,6 @@ const ACAO = {
   em_producao: 'Marcar concluído',
 };
 
-/** Cache local para impressão (evita re-fetch). */
 let pedidosCache = [];
 
 function fmtHora(iso) {
@@ -128,7 +132,7 @@ const esc = (s) => {
     return SafeDOM.escapeHtml(s);
   }
   return String(s ?? '').replace(/[&<>"']/g, (m) => ({
-    '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#039;',
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
   }[m]));
 };
 
@@ -151,7 +155,7 @@ function card(p) {
   const editado = (p.editadoEm || p.editado_em)
     ? '<span class="badge" style="background:#fef3c7;color:#92400e">Editado</span>'
     : '';
-  const acaoIcon = p.status === 'recebido' ? '▶' : '✓';
+  const acaoIco = p.status === 'recebido' ? 'i-play' : 'i-check';
   const acaoShort = p.status === 'recebido' ? 'Preparar' : 'Pronto';
   return `<details class="order-card order ${isNew ? 'new' : ''} ${ageClass(min)}" data-id="${p.id}">
     <summary>
@@ -172,10 +176,10 @@ function card(p) {
       ${p.observacao_geral ? `<p style="margin-top:8px"><b>Obs.:</b> ${esc(p.observacao_geral)}</p>` : ''}
       <p class="muted" style="margin-top:6px;font-size:.8rem">${fmtHora(p.criado_em)}</p>
       <div class="nav">
-        <button class="btn btn-icon" type="button" data-print="${p.id}" title="Imprimir comanda" aria-label="Imprimir comanda">🖨</button>
+        <button class="btn btn-icon" type="button" data-print="${p.id}" title="Imprimir comanda" aria-label="Imprimir comanda"><span class="i-print ico" aria-hidden="true"></span></button>
         ${
           proximo
-            ? `<button class="btn primary btn-text-icon" data-advance="${p.id}" data-status="${proximo}" title="${acao}"><span class="ico">${acaoIcon}</span> ${acaoShort}</button>`
+            ? `<button class="btn primary btn-chip" data-advance="${p.id}" data-status="${proximo}" title="${acao}"><span class="${acaoIco} ico" aria-hidden="true"></span> ${acaoShort}</button>`
             : ''
         }
       </div>
@@ -309,7 +313,6 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
         : `${chegaram.length} pedidos novos · Mesas ${mesas}`
     );
     beepNovo();
-    // Voz: mesa + nome do cliente (um anúncio por pedido novo)
     if (window.anunciarCozinha) {
       for (const p of chegaram) {
         anunciarCozinha({ mesa: p.mesa, clienteNome: p.cliente_nome || p.clienteNome || '' });
@@ -338,7 +341,7 @@ async function avancar(id, status) {
   const btn = document.querySelector(`[data-advance="${id}"]`);
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '…';
+    btn.innerHTML = '…';
   }
   const art = document.querySelector(`[data-id="${id}"]`);
   if (art && status === 'concluido') art.remove();
@@ -348,8 +351,8 @@ async function avancar(id, status) {
     const nav = art.querySelector('.nav');
     if (nav) {
       nav.innerHTML =
-        `<button class="btn btn-icon" type="button" data-print="${id}" title="Imprimir comanda" aria-label="Imprimir">🖨</button>` +
-        `<button class="btn primary btn-text-icon" data-advance="${id}" data-status="concluido" title="${ACAO.em_producao}"><span class="ico">✓</span> Pronto</button>`;
+        `<button class="btn btn-icon" type="button" data-print="${id}" title="Imprimir comanda" aria-label="Imprimir"><span class="i-print ico" aria-hidden="true"></span></button>` +
+        `<button class="btn primary btn-chip" data-advance="${id}" data-status="concluido" title="${ACAO.em_producao}"><span class="i-check ico" aria-hidden="true"></span> Pronto</button>`;
     }
   }
   try {
