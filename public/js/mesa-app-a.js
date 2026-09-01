@@ -355,9 +355,16 @@ function renderMenu(){
       const prods=(c.produtos||[]).map(p=>{p._catNome=c.nome;return p;});
       if(!prods.length) return '';
       const cards=prods.map(p=>cardHtml(p,c)).join('');
+      // ≥3 itens: carrossel 2 linhas (compacto + scroll lateral só na faixa)
+      // 1–2 itens: grid simples sem scroll horizontal
+      const many=prods.length>2;
+      const listClass=many?'prod-scroll prod-scroll--2row':'prod-grid prod-grid--few';
       return `<section class="cat-section">
-        <h2 class="mesa-section-title">${esc(c.nome)}</h2>
-        <div class="prod-grid">${cards}</div>
+        <div class="cat-section__head">
+          <h2 class="mesa-section-title">${esc(c.nome)}</h2>
+          ${many?`<span class="cat-section__hint">deslize →</span>`:''}
+        </div>
+        <div class="${listClass}">${cards}</div>
       </section>`;
     }).join('')||'<div class="mesa-empty">Nenhum item nesta categoria.</div>';
   }
@@ -369,12 +376,13 @@ function renderMenu(){
     bodyHtml;
   const input=document.getElementById('mesaSearchInput');
   if(input){
-    input.addEventListener('input',()=>setMesaSearch(input.value));
-    if(mesaSearch){
-      const len=input.value.length;
-      input.focus();
-      try{input.setSelectionRange(len,len);}catch(_){}
-    }
+    let t=null;
+    input.addEventListener('input',function(){
+      clearTimeout(t);
+      const v=input.value;
+      t=setTimeout(function(){ setMesaSearch(v); }, 180);
+    });
+    // não refocus a cada render — evita salto e teclado piscando
   }
 }
 
@@ -424,18 +432,23 @@ function closeModal(){document.getElementById('modal').innerHTML='';document.bod
 
 /** Logo + categorias encolhem com o scroll (contínuo, sem pulo); busca sticky */
 (function mesaScrollCompact(){
-  /* Só a logo some no scroll; categorias ficam fixas (evita salto de layout) */
+  /* Logo só esmaece (sem colapsar altura = sem puxão no scroll) */
+  let ticking=false;
   function update(){
+    ticking=false;
     const y = window.scrollY || document.documentElement.scrollTop || 0;
     const head = document.querySelector('.mesa-sticky-head');
     if(!head) return;
-    const span = 56;
-    const t = Math.max(0, Math.min(1, y / span));
-    head.classList.toggle('is-scrolled', t > 0.15);
-    head.classList.toggle('is-hidden', t > 0.92);
-    head.style.setProperty('--logo-hide', String(t));
+    const t = Math.max(0, Math.min(1, y / 72));
+    head.style.setProperty('--logo-hide', t.toFixed(3));
+    head.classList.toggle('is-scrolled', t > 0.12);
   }
-  window.addEventListener('scroll', update, {passive:true});
+  function onScroll(){
+    if(ticking) return;
+    ticking=true;
+    requestAnimationFrame(update);
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
   window.addEventListener('resize', update, {passive:true});
   document.addEventListener('DOMContentLoaded', update);
   const _rm = typeof renderMenu === 'function' ? renderMenu : null;

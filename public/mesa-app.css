@@ -642,38 +642,6 @@ body.board-page {
 
 
 
-/* —— Scroll: só logo some; chips ficam —— */
-body.board-page .mesa-sticky-head {
-  transition: opacity 0.2s ease, transform 0.2s ease, max-height 0.25s ease, margin 0.25s ease, padding 0.25s ease;
-  overflow: hidden;
-  will-change: opacity, transform;
-}
-body.board-page .mesa-sticky-head.is-scrolled {
-  opacity: calc(1 - (var(--logo-hide, 0) * 0.85));
-  transform: translateY(calc(var(--logo-hide, 0) * -10px));
-}
-body.board-page .mesa-sticky-head.is-hidden {
-  opacity: 0 !important;
-  pointer-events: none;
-  max-height: 0 !important;
-  margin: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  border: 0 !important;
-}
-/* Categorias: sempre visíveis, sem animar altura */
-body.board-page .cat-chips {
-  height: auto !important;
-  max-height: none !important;
-  opacity: 1 !important;
-  overflow-x: auto !important;
-  overflow-y: visible !important;
-  pointer-events: auto !important;
-  margin-bottom: 12px !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}
-
 /* —— Dock: remove quadrado fantasma nos botões pedir/total —— */
 body.board-page .burger-dock .burger-btn,
 body.board-page .burger-dock .conta-btn {
@@ -712,4 +680,152 @@ body.board-page .conta-btn .badge-total:not(.show) {
   padding: 0 !important;
   overflow: hidden !important;
   border: 0 !important;
+}
+
+
+/* ========== Mesa UX v2: 2 linhas / chips / scroll suave ========== */
+
+/* Chips: até ~2 linhas, SEM scroll horizontal da página */
+body.board-page .cat-chips {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  max-height: none !important;
+  height: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  margin: 0 0 14px !important;
+  padding: 4px 0 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  -webkit-overflow-scrolling: auto !important;
+}
+body.board-page .cat-chip {
+  flex: 0 1 auto !important;
+  max-width: calc(50% - 6px) !important; /* ~2 por linha em telas estreitas */
+  width: auto !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+}
+body.board-page .cat-chip .chip-label {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  min-width: 0;
+}
+@media (min-width: 400px) {
+  body.board-page .cat-chip {
+    max-width: calc(33.33% - 8px) !important; /* até 3 por linha */
+  }
+}
+
+/* Produtos por categoria: carrossel 2 linhas (altura limitada) */
+body.board-page .prod-scroll {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-template-rows: auto;
+  grid-auto-columns: minmax(150px, 46vw);
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 14px;
+  margin: 0 -2px 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(251,146,60,.4) transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  touch-action: pan-x;
+  scroll-snap-type: x proximity;
+}
+body.board-page .prod-scroll--2row {
+  grid-template-rows: auto auto;
+}
+body.board-page .prod-scroll .prod-card {
+  width: 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+  /* menos blur = menos travada no mobile */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(22, 20, 18, 0.92) !important;
+}
+body.board-page .prod-grid--few {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+body.board-page .cat-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+body.board-page .cat-section__head .mesa-section-title {
+  margin: 0 !important;
+}
+body.board-page .cat-section__hint {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(251, 146, 60, 0.85);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+body.board-page .cat-section {
+  margin-bottom: 18px;
+}
+
+/* Logo: esmaece sem colapsar altura (sem puxão) */
+body.board-page .mesa-sticky-head {
+  transition: opacity 0.18s ease, transform 0.18s ease !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+body.board-page .mesa-sticky-head.is-scrolled {
+  opacity: calc(1 - (var(--logo-hide, 0) * 0.75));
+  transform: translateY(calc(var(--logo-hide, 0) * -6px));
+}
+body.board-page .mesa-sticky-head.is-hidden {
+  /* não zera altura — só some visualmente se ainda usar a classe */
+  opacity: 0.15 !important;
+  pointer-events: none;
+  max-height: none !important;
+  margin: inherit !important;
+  padding-top: inherit !important;
+  padding-bottom: inherit !important;
+}
+
+/* Busca sticky leve; evita “grudar” demais */
+body.board-page .mesa-search {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background: rgba(12, 10, 9, 0.82) !important;
+}
+
+/* Página: scroll vertical limpo */
+body.board-page {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+body.board-page .board {
+  overflow-x: hidden !important;
+  touch-action: pan-y;
+}
+body.board-page .board-frame {
+  overflow-x: hidden !important;
+}
+/* Carrosséis isolam o eixo X para não “brigar” com o scroll da página */
+body.board-page .mesa-sugestoes__scroll {
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
 }
