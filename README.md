@@ -42,11 +42,11 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 | 📦 Estoque · Dashboard · PDF/purge | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 💠 PIX (QR + aviso multi) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
 | 📷 Fotos WebP (upload + link) | ![done](https://img.shields.io/badge/100%25-22c55e?style=flat-square) |
-| 🚀 Gateway · Delivery | ![todo](https://img.shields.io/badge/planejado-f59e0b?style=flat-square) |
+| 🚀 Gateway · Delivery · WhatsApp · PWA | ![todo](https://img.shields.io/badge/planejado-f59e0b?style=flat-square) |
 
 **Visão geral**
 
-`████████████████████` **v2 completo** · próximo: gateway / delivery (v3)
+`████████████████████` **v2 completo** · próximo: gateway · delivery · WhatsApp · PWA/push (v3)
 
 📌 Detalhes → **[ROADMAP.md](./ROADMAP.md)**
 
@@ -273,7 +273,7 @@ Detalhes em **[ROADMAP.md](./ROADMAP.md)**.
 
 | Agora | Depois |
 |:-----:|:------:|
-| ✅ **v2.9+** — fotos persistentes no banco | ⬜ WhatsApp · Gateway PIX |
+| ✅ **v2.9+** — fotos persistentes no banco | ⬜ WhatsApp · Gateway · PWA/push |
 | ✅ PIX · divisão · estoque · dashboard | ⬜ Delivery · multi-loja |
 
 ---

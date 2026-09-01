@@ -23,7 +23,7 @@ v2.6+████████████████████  Escolher (beb
 v2.7 ████████████████████  Divisão de conta        ✅
 v2.8 ████████████████████  PIX multi-aviso + alertas ops ✅
 v2.9 ████████████████████  Voz · upload WebP · UX  ✅
-v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · delivery      ⬜
+v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · WA · PWA      ⬜
 ```
 
 **Barra do v2:** `████████████████████` **100%** (polimento contínuo à parte)
@@ -103,16 +103,23 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 ## ⬜ Próximo
 
 ### Polimento residual
+- [x] Confirmar PIX no caixa (rota + botão → `sessao_pagamentos`)
+- [x] PIX na conta só no expandido (pedido e total)
+- [x] Busca mesa pin após scroll; logo/chips desvanecem
+- [x] Script `npm run fotos:fix` (corrige `foto_url` em lote)
 - [ ] Revisar impressão de comanda (cozinha/garçom) se necessário
 - [ ] Aposentar restos legados (`data/db.json` = só seed de referência)
 - [x] Não depende de disco efêmero para fotos novas
 - [x] SSL Neon/Render: normalização `sslmode=verify-full` (sem SECURITY WARNING)
 - [x] `npm run db:reset-senha` para alinhar staff com `.env`
 
-### v3 — Gateway · delivery
-- [ ] Gateway PIX (confirmação automática)
+### v3 — Gateway · delivery · alertas fora do browser
+- [ ] Gateway PIX (confirmação automática — MP / PagSeguro / similar)
 - [ ] Delivery / retirada
 - [ ] Multi-loja
+- [ ] **WhatsApp** — avisos em texto (pedido novo, PIX informado, status)
+- [ ] **PWA ops** (caixa / cozinha / garçom) + **push** no aparelho
+- [ ] Estratégia de **voz fora da aba** (limitação atual documentada abaixo)
 
 ---
 
@@ -120,14 +127,9 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 
 | Ideia | Nota |
 |-------|------|
-| **WhatsApp** (avisos / pedidos) | Notificar cozinha, garçom ou cliente (API oficial ou bridge) |
-
-### WhatsApp (planejado — após fotos estáveis)
-- [ ] Aviso de **pedido novo** para cozinha/admin
-- [ ] Opcional: status pronto/entregue para o cliente
-- [ ] API oficial Meta ou serviço intermediário
-- [ ] Config no `.env` (token, número, templates)
-
+| **WhatsApp** (avisos / pedidos) | Texto + som padrão do app; **não** substitui TTS do navegador |
+| **PWA + Web Push** | Notificação com o SO fechado (caixa/cozinha); base para alerta sonoro |
+| **Voz offline / sempre ligada** | Tablet na cozinha com aba aberta **ou** app nativo; TTS no browser só com página ativa |
 | Gateway PIX (MP / PagSeguro) | Confirmação automática de pagamento |
 | Delivery / retirada | Fora do fluxo de mesa |
 | Multi-loja | Um banco, vários pontos |
@@ -136,6 +138,28 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | CRM básico | Cliente recorrente (telefone) + cupom simples |
 | Multi-idioma | Cardápio dinâmico — esforço baixo, turismo |
 | **Menu / sidebar de navegação** | Admin e ops: lateral com seções; mesa: chips/âncoras de categoria |
+
+### WhatsApp (v3 — planejado)
+- [ ] Aviso de **pedido novo** para cozinha/admin (texto)
+- [ ] Aviso de **PIX informado** pelo cliente (texto → caixa)
+- [ ] Opcional: status pronto/entregue para o cliente
+- [ ] API oficial Meta ou serviço intermediário (bridge)
+- [ ] Config no `.env` (token, número, templates)
+- [ ] **Escopo claro:** notificação WhatsApp = mensagem + som do app; voz “Mesa X…” continua no painel web/PWA
+
+### PWA + notificações (v3 — planejado)
+- [ ] Manifest + service worker nos painéis ops
+- [ ] Web Push (VAPID) para pedido novo / PIX / chamada garçom
+- [ ] Som de alerta no dispositivo mesmo com navegador em segundo plano (limites do iOS a validar)
+- [ ] Fallback: manter **voz Web Speech** quando a aba estiver aberta (já existe)
+
+### Voz — o que já funciona vs v3
+| Situação | Hoje (v2) | v3 |
+|----------|-----------|-----|
+| Aba caixa/cozinha **aberta** | ✅ TTS (`voz-ops.js`) | Mantém |
+| App **fechado** / outra tela | ❌ Sem voz custom | Push e/ou WhatsApp texto; voz full só com PWA/app dedicado |
+| WhatsApp no celular da equipe | — | ✅ Aviso texto; som genérico do WhatsApp |
+
 
 ---
 
@@ -148,7 +172,8 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Tempo real | SSE (`LQRRealtime`) |
 | PIX | Estático EMV (sem gateway por enquanto) |
 | Fotos | sharp → WebP data-URL no Postgres (persistente) |
-| Voz ops | Web Speech API (`voz-ops.js`) |
+| Voz ops | Web Speech API (`voz-ops.js`) — só com aba aberta |
+| Alertas fora do browser | v3: WhatsApp texto e/ou PWA + Web Push |
 | Bebidas / tamanhos | Adicionais + botão **Escolher** (rádio) |
 | Auth staff | Cookie httpOnly + tabela `staff_sessoes` |
 | Commits | Conventional Commits |
