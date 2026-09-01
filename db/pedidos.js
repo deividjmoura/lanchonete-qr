@@ -1,6 +1,7 @@
 // Criação de pedido, avanço de status, cancelar/editar (cliente) e leitura de sessão/fila.
 const pool = require('./pool');
 const { TRANSICOES, getMesaPorToken, getOuAbrirSessao, getProdutoComRegras } = require('./queries');
+const { ensurePixAvisosTable } = require('./pix-cliente');
 
 class ErroPedido extends Error {
   constructor(status, message) {
@@ -400,6 +401,7 @@ async function getSessao(token) {
         abertaEm: sessao.aberta_em,
         clienteNome: sessao.cliente_nome || null,
         pixInformadoEm: sessao.pix_informado_em || null,
+        pixAvisos: [],
         pedidos: [],
         totalDevido: 0,
         valorPago: 0,
@@ -500,6 +502,26 @@ async function getSessao(token) {
     const valorPago = Number(Number(pagRows[0].pago || 0).toFixed(2));
     const valorRestante = Number(Math.max(0, totalDevido - valorPago).toFixed(2));
 
+    await ensurePixAvisosTable(client).catch(function () {});
+    const { rows: avisoRows } = await client.query(
+      `SELECT id, pedido_id, valor, cliente_nome, status, criado_em, confirmado_em
+       FROM pix_avisos
+       WHERE sessao_id = $1 AND status = 'pendente'
+       ORDER BY criado_em DESC`,
+      [sessao.id]
+    );
+    const pixAvisos = avisoRows.map(function (a) {
+      return {
+        id: a.id,
+        pedidoId: a.pedido_id,
+        valor: Number(a.valor),
+        clienteNome: a.cliente_nome || null,
+        status: a.status,
+        criadoEm: a.criado_em,
+        confirmadoEm: a.confirmado_em || null,
+      };
+    });
+
     return {
       mesa: mesa.numero,
       sessaoAberta: true,
@@ -507,6 +529,7 @@ async function getSessao(token) {
       abertaEm: sessao.aberta_em,
       clienteNome: sessao.cliente_nome || null,
       pixInformadoEm: sessao.pix_informado_em || null,
+      pixAvisos: pixAvisos,
       pedidos: pedidosComItens,
       totalDevido,
       valorPago,

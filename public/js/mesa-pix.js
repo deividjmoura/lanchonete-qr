@@ -94,14 +94,50 @@
           return;
         }
         if (typeof showToast === 'function') {
-          showToast('Caixa avisado do seu PIX · ' + money(d.valorAvisado || payload.valor || 0), 3200);
+          showToast('Aguardando confirmação do caixa · ' + money(d.valorAvisado || payload.valor || 0), 3600);
         }
+        // Atualiza conta: mostra “aguardando” e valores quando o caixa confirmar (SSE)
         if (typeof loadSessao === 'function') await loadSessao();
+        else if (typeof openSessao === 'function' && window.sessaoData) openSessao();
       } catch (e) {
         alert('Falha de rede');
         btn.disabled = false;
         btn.textContent = prev;
       }
+    });
+  }
+
+  function waitingHtml(valor, quem) {
+    return (
+      '<div class="pix-box pix-box--waiting">' +
+      '<div class="pix-box__title">Aguardando confirmação do caixa</div>' +
+      '<p class="muted" style="font-size:.85rem;margin:0 0 6px">Valor informado: <b>' +
+      money(valor) +
+      '</b>' +
+      (quem ? ' · ' + String(quem).replace(/</g, '') : '') +
+      '</p>' +
+      '<p class="muted" style="font-size:.8rem;margin:0">Assim que o caixa confirmar, o valor some do total desta mesa.</p>' +
+      '</div>'
+    );
+  }
+
+  function paidOkHtml(msg) {
+    return (
+      '<div class="pix-box pix-box--ok">' +
+      '<div class="pix-box__title">Pagamento registrado</div>' +
+      '<p class="muted" style="font-size:.85rem;margin:0">' +
+      (msg || 'O caixa confirmou o PIX. Obrigado!') +
+      '</p></div>'
+    );
+  }
+
+  function findPendAviso(s, pedidoId) {
+    const list = Array.isArray(s.pixAvisos) ? s.pixAvisos : [];
+    return list.find(function (a) {
+      if (a.status && a.status !== 'pendente') return false;
+      if (pedidoId) return Number(a.pedidoId) === Number(pedidoId);
+      // total da mesa: aviso sem pedidoId
+      return a.pedidoId == null || a.pedidoId === '' || Number(a.pedidoId) === 0;
     });
   }
 
@@ -115,12 +151,18 @@
       '';
 
     document.querySelectorAll('.pix-pedido').forEach(function (el) {
-      if (el.getAttribute('data-pix-ready')) return;
+      el.removeAttribute('data-pix-ready');
       const valor = Number(el.getAttribute('data-valor') || 0);
       const status = el.getAttribute('data-status') || 'entregue';
       const pedidoId = Number(el.getAttribute('data-pedido-id') || 0);
       if (status !== 'entregue' || !(valor > 0.009)) {
         el.innerHTML = '';
+        el.setAttribute('data-pix-ready', '1');
+        return;
+      }
+      const pend = findPendAviso(s, pedidoId);
+      if (pend) {
+        el.innerHTML = waitingHtml(pend.valor || valor, pend.clienteNome || cliente);
         el.setAttribute('data-pix-ready', '1');
         return;
       }
@@ -146,16 +188,33 @@
     });
 
     const totalEl = document.querySelector('.pix-mesa-total');
-    if (totalEl && !totalEl.getAttribute('data-pix-ready')) {
+    if (totalEl) {
+      totalEl.removeAttribute('data-pix-ready');
       const pago = Number(s.valorPago || 0);
       const rest =
         s.valorRestante != null
           ? Number(s.valorRestante)
           : Math.max(0, Number(s.totalDevido || 0) - pago);
 
+      const pendTotal = findPendAviso(s, null);
+      // também considerar qualquer pendente de total (sem pedido) ou flag da sessão
+      const anyPend = (Array.isArray(s.pixAvisos) ? s.pixAvisos : []).filter(function (a) {
+        return !a.status || a.status === 'pendente';
+      });
+
       if (!(rest > 0.009)) {
-        totalEl.innerHTML =
-          '<p class="muted" style="font-size:.85rem;margin:8px 0 0">Nada a pagar no momento (só entram itens já <b>entregues</b>).</p>';
+        totalEl.innerHTML = paidOkHtml(
+          pago > 0.009
+            ? 'Conta quitada no sistema (R$ ' + money(pago).replace('R$ ', '') + ' pagos).'
+            : 'Nada a pagar no momento (só entram itens já <b>entregues</b>).'
+        );
+        totalEl.setAttribute('data-pix-ready', '1');
+        return;
+      }
+
+      if (pendTotal || (s.pixInformadoEm && anyPend.some(function (a) { return !a.pedidoId; }))) {
+        const av = pendTotal || anyPend.find(function (a) { return !a.pedidoId; }) || anyPend[0];
+        totalEl.innerHTML = waitingHtml((av && av.valor) || rest, (av && av.clienteNome) || cliente);
         totalEl.setAttribute('data-pix-ready', '1');
         return;
       }

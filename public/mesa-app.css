@@ -1089,3 +1089,19 @@ body.board-page .mesa-sticky-head {
 .pix-total-details > summary.pix-total-sum::-webkit-details-marker { display: none; }
 .pix-total-details[open] > summary .expand-chev { transform: rotate(180deg); display: inline-block; }
 .pix-total-details .pix-mesa-total { padding: 0 12px 12px; }
+
+
+.pix-box--waiting {
+  border-color: rgba(251, 191, 36, 0.45) !important;
+  background: rgba(251, 191, 36, 0.1) !important;
+}
+.pix-box--waiting .pix-box__title {
+  color: #fbbf24;
+}
+.pix-box--ok {
+  border-color: rgba(74, 222, 128, 0.35) !important;
+  background: rgba(74, 222, 128, 0.08) !important;
+}
+.pix-box--ok .pix-box__title {
+  color: #86efac;
+}
