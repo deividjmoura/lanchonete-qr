@@ -145,16 +145,17 @@ Abre em `http://localhost:3000`.
 ### Variáveis importantes
 
 ```env
-DATABASE_URL=postgres://...
+DATABASE_URL=postgres://usuario:senha@host/db
 DATABASE_SSL=true
 STAFF_SEED_PASSWORD=troque-esta-senha
 
-PIX_CHAVE=12345678901
-PIX_NOME=LANCHONETE QR
-PIX_CIDADE=PENHA SC
+# Exemplos fictícios — use os dados do seu estabelecimento no .env local
+PIX_CHAVE=00000000000
+PIX_NOME=NOME DO RECEBEDOR
+PIX_CIDADE=CIDADE
 ```
 
-> 💡 CPF com pontos/traço também funciona. Nome e cidade são limpos pro EMV.
+> 💡 CPF/CNPJ com pontos ou traço também funcionam (normalizamos no EMV). **Não commite** chave real, CPF ou cidade no repositório.
 
 ### Scripts úteis
 

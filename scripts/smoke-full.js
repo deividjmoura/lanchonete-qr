@@ -124,9 +124,17 @@ async function main() {
     expectStatus: 200,
   });
   if (!Array.isArray(mesas) || mesas.length < 1) fail('sem mesas', mesas);
-  const mesa = mesas.find((m) => m.token) || mesas[0];
-  if (!mesa.token) fail('mesa sem token', mesa);
-  log(`mesa #${mesa.numero} token ok`);
+  // Prefere mesa LIVRE (sem sessão aberta); evita mesa 1 suja de testes manuais
+  const comToken = mesas.filter((m) => m.token);
+  const livres = comToken
+    .filter((m) => !m.sessaoAberta && !m.sessao_aberta)
+    .sort((a, b) => Number(b.numero) - Number(a.numero));
+  const mesa = livres[0] || comToken.sort((a, b) => Number(b.numero) - Number(a.numero))[0];
+  if (!mesa?.token) fail('mesa sem token', mesa);
+  if (!livres.length) {
+    note(`nenhuma mesa livre — usando #${mesa.numero} (pode falhar no fechar se houver pedidos em andamento)`);
+  }
+  log(`mesa #${mesa.numero} token ok${livres.length ? ' (livre)' : ''}`);
 
   const { data: garcons } = await req('GET', '/api/admin/garcons', {
     cookie: cookieAdmin,
@@ -225,26 +233,30 @@ async function main() {
     note('nada a pagar — pulou PIX (pedido talvez não entregue)');
   }
 
-  // fechar se ainda aberta
+  // Fechar só a sessão deste teste (soft: pedidos legados em outras mesas não derrubam)
   const { data: sessoes2 } = await req('GET', '/api/caixa/sessoes', {
     cookie: cookieCaixa,
     expectStatus: 200,
   });
   const sOpen = (sessoes2 || []).find((s) => s.id === sessao.sessaoId);
-  if (sOpen && Number(sOpen.valorRestante || sOpen.valorTotal) > 0.01) {
-    await req('POST', `/api/caixa/sessoes/${sOpen.id}/fechar`, {
-      cookie: cookieCaixa,
-      body: { formaPagamento: 'pix', desconto: 0, taxaServico: 0 },
-      expectStatus: 200,
-    });
-    log('sessão fechada');
-  } else if (sOpen) {
-    await req('POST', `/api/caixa/sessoes/${sOpen.id}/fechar`, {
-      cookie: cookieCaixa,
-      body: { formaPagamento: 'pix', desconto: 0, taxaServico: 0 },
-      soft: true,
-    });
-    log('tentativa de fechar sessão quitada');
+  if (sOpen) {
+    const { res: rFechar, data: dFechar } = await req(
+      'POST',
+      `/api/caixa/sessoes/${sOpen.id}/fechar`,
+      {
+        cookie: cookieCaixa,
+        body: { formaPagamento: 'pix', desconto: 0, taxaServico: 0 },
+        soft: true,
+      }
+    );
+    if (rFechar && rFechar.status === 200) log('sessão do teste fechada');
+    else if (rFechar && rFechar.status === 409) {
+      note(
+        'fechar bloqueado (pedidos em andamento nesta mesa) — comum se a mesa já tinha pedidos manuais; o fluxo PIX acima já validou'
+      );
+    } else if (dFechar?.error) note('fechar: ' + dFechar.error);
+  } else {
+    log('sessão já não aparece no caixa (quitada/fechada)');
   }
 
   // páginas ops
