@@ -1,9 +1,9 @@
 body.board-page{background:#1c1c1c;min-height:100vh}
-body.board-page .board{max-width:560px;margin:0 auto;padding:20px 16px 130px}
+body.board-page .board{max-width:none;width:100%;margin:0;padding:8px 12px 130px;box-sizing:border-box}
 .board-header{text-align:center;margin-bottom:18px}
 .board-header .menu-title{font-family:"Special Elite",Kalam,cursive;font-size:clamp(2.4rem,10vw,3.4rem);color:#f0ebe0;letter-spacing:.12em;text-shadow:0 2px 0 rgba(0,0,0,.4);margin:0;line-height:1}
 .board-header .mesa-line{font-family:Kalam,cursive;color:#c8bfa8;font-size:1.05rem;margin-top:4px}
-.board-frame{border:2px solid rgba(240,235,224,.22);border-radius:8px;padding:8px 6px 16px;background:radial-gradient(ellipse at 20% 10%,rgba(255,255,255,.03),transparent 50%),linear-gradient(180deg,#222 0%,#1a1a1a 100%);box-shadow:inset 0 0 40px rgba(0,0,0,.35)}
+.board-frame{border:none;border-radius:0;padding:0;background:transparent;box-shadow:none}
 .chalk-cat{border-bottom:1px dashed rgba(240,235,224,.18)}
 .chalk-cat:last-child{border-bottom:0}
 .chalk-cat__head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 12px;border:0;background:transparent;cursor:pointer;text-align:left;font-family:Kalam,cursive;color:#f0ebe0;font-size:1.3rem;font-weight:700;letter-spacing:.04em}

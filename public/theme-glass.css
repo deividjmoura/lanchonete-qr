@@ -331,6 +331,12 @@ body.board-page .board-frame {
   border-radius: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+}
+body.board-page .board {
+  max-width: none !important;
+  width: 100% !important;
 }
 
 body.board-page .chalk-cat {

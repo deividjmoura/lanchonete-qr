@@ -1,14 +1,15 @@
 
-/* Mesa: sem “aquário”, header que some no scroll, só busca sticky */
+/* Mesa full-bleed: só margem lateral leve, sem caixa/aquário */
 body.board-page .board {
   width: 100% !important;
-  max-width: 520px !important;
-  margin: 0 auto !important;
-  padding: 8px 14px 120px !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 8px 12px 120px !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   border-radius: 0 !important;
+  box-sizing: border-box !important;
 }
 body.board-page .board-frame {
   background: transparent !important;
@@ -20,9 +21,11 @@ body.board-page .board-frame {
   padding: 0 !important;
   margin: 0 !important;
   overflow: visible !important;
+  max-width: none !important;
+  width: 100% !important;
 }
 body.board-page .mesa-sticky-head {
-  position: relative; /* NÃO sticky — some com o scroll */
+  position: relative;
   width: 100%;
   padding: 10px 0 6px;
   margin: 0;
@@ -31,19 +34,8 @@ body.board-page .mesa-sticky-head {
   -webkit-backdrop-filter: none !important;
   border: none !important;
   box-shadow: none !important;
-  transform-origin: top center;
-  transition: opacity .12s linear, transform .12s linear, max-height .12s linear;
-  will-change: opacity, transform;
-}
-body.board-page .mesa-sticky-head.is-compact {
-  opacity: 0;
-  transform: scale(0.86) translateY(-12px);
-  pointer-events: none;
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  margin: 0;
   overflow: hidden;
+  /* altura controlada via JS (scroll contínuo) — sem pulo */
 }
 body.board-page .mesa-logo-row {
   width: 100% !important;
@@ -98,7 +90,7 @@ body.board-page .board-header {
   border: 1px solid rgba(255,255,255,.10) !important;
 }
 
-/* Categorias NÃO fixas — somem suavemente no scroll */
+/* Categorias: rolam com a página; altura via JS */
 .cat-chips {
   position: relative !important;
   top: auto !important;
@@ -108,18 +100,7 @@ body.board-page .board-header {
   border: none !important;
   padding-top: 4px !important;
   margin-bottom: 10px !important;
-  transform-origin: top center;
-  transition: opacity .12s linear, transform .12s linear, max-height .12s linear, margin .12s linear;
-  will-change: opacity, transform;
-}
-.cat-chips.is-compact {
-  opacity: 0;
-  transform: scale(0.92) translateY(-8px);
-  pointer-events: none;
-  max-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
+  overflow: hidden;
 }
 
 /* Chips de categoria */
@@ -642,7 +623,7 @@ body.modal-open::before {
   border-radius: 50%;
 }
 
-/* anti-aquário: derruba vidro/borda do theme-glass */
+/* anti-aquário: sem caixa central limitada */
 body.board-page main.board,
 body.board-page .board,
 body.board-page .board-frame,
@@ -652,4 +633,10 @@ body.board-page #menu {
   border-radius: 0 !important;
   box-shadow: none !important;
   outline: none !important;
+  max-width: none !important;
+  width: 100% !important;
 }
+body.board-page {
+  overflow-x: hidden;
+}
+
