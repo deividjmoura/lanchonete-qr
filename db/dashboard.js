@@ -153,4 +153,36 @@ async function resumoDia(opts = {}) {
   };
 }
 
-module.exports = { resumoDia };
+
+/** Top produtos do dia (público — só id, nome, qtd). */
+async function topProdutosHoje(limit = 6) {
+  const lim = Math.min(12, Math.max(1, Number(limit) || 6));
+  const { rows } = await pool.query(
+    `SELECT pr.id,
+            pr.nome,
+            pr.descricao,
+            pr.preco,
+            pr.foto_url AS "fotoUrl",
+            SUM(ip.quantidade)::int AS quantidade
+     FROM itens_pedido ip
+     JOIN produtos pr ON pr.id = ip.produto_id
+     JOIN pedidos p ON p.id = ip.pedido_id
+     WHERE p.criado_em::date = CURRENT_DATE
+       AND p.status <> 'cancelado'
+     GROUP BY pr.id, pr.nome, pr.descricao, pr.preco, pr.foto_url
+     ORDER BY quantidade DESC, pr.nome ASC
+     LIMIT $1`,
+    [lim]
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    nome: r.nome,
+    descricao: r.descricao || '',
+    preco: Number(r.preco || 0),
+    fotoUrl: r.fotoUrl || null,
+    quantidade: r.quantidade,
+  }));
+}
+
+module.exports = { resumoDia, topProdutosHoje };
+

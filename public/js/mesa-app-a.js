@@ -106,9 +106,36 @@ function openSessao(){
 }
 function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}
-async function loadCardapio(){const r=await fetch('/api/cardapio');if(!r.ok){document.getElementById('menu').innerHTML='<div style="padding:20px;color:#a89f8c">Não foi possível carregar o cardápio.</div>';return;}categorias=await r.json();produtos=categorias.flatMap(c=>c.produtos||[]);renderMenu();}
+async function loadCardapio(){const r=await fetch('/api/cardapio');if(!r.ok){document.getElementById('menu').innerHTML='<div style="padding:20px;color:#a89f8c">Não foi possível carregar o cardápio.</div>';return;}categorias=await r.json();produtos=categorias.flatMap(c=>c.produtos||[]);await loadDestaques();renderMenu();}
 let mesaCatFilter='all';
+let mesaDestaques=null; // null=loading, []=vazio, array=itens
+let mesaDestaquesMsg='';
 let mesaSearch='';
+
+const FIRST_MSGS=[
+  'Parabéns — você é o primeiro cliente do dia. Ainda sem sugestões por aqui!',
+  'O dia mal começou e você já chegou: sem ranking ainda, escolha o que der vontade.',
+  'Pista livre: ainda não rolou venda hoje. Você abre o placar!',
+  'Sugestões do dia? Ainda no forno. Enquanto isso, o cardápio está todo seu.',
+  'Silêncio no placar de vendas… por enquanto. Que tal ser o nº 1 de hoje?',
+];
+function randomFirstMsg(){
+  return FIRST_MSGS[Math.floor(Math.random()*FIRST_MSGS.length)];
+}
+async function loadDestaques(){
+  try{
+    const r=await fetch('/api/cardapio/destaques?limit=6');
+    if(!r.ok){mesaDestaques=[];mesaDestaquesMsg=randomFirstMsg();return;}
+    const d=await r.json();
+    const itens=Array.isArray(d.itens)?d.itens:[];
+    mesaDestaques=itens;
+    mesaDestaquesMsg=itens.length? '':randomFirstMsg();
+  }catch(_){
+    mesaDestaques=[];
+    mesaDestaquesMsg=randomFirstMsg();
+  }
+}
+
 const CAT_ICONS={
   'Hot Dogs':'🌭','Sanduíches':'🍔','Porções':'🍟','Bebidas':'🥤','Drinks':'🍸',
   'Energéticos':'⚡','Cervejas':'🍺','Combos':'🧺','Sobremesas':'🍨'
@@ -116,47 +143,47 @@ const CAT_ICONS={
 function demoPhoto(p, catNome){
   const nome=String(p.nome||'').toLowerCase();
   const cat=String(catNome||p._catNome||'').toLowerCase();
-  const n=nome+' '+cat;
-  // hot dogs
-  if(/dog vegetariano/.test(n)) return '/assets/demo/dog3.jpg';
-  if(/dog bacon|dog especial|dog duplo/.test(n)) return '/assets/demo/dog2.jpg';
-  if(/dog|hot\s*dog/.test(n)) return '/assets/demo/hotdog.jpg';
-  // sanduíches
-  if(/x-bacon|bacon/.test(nome) && /sandu|x-/.test(n)) return '/assets/demo/xbacon.jpg';
-  if(/x-salada|salada/.test(nome)) return '/assets/demo/salad.jpg';
-  if(/x-tudo|x-frango|frango grelhado/.test(n)) return '/assets/demo/burger.jpg';
-  if(/misto/.test(n)) return '/assets/demo/misto.jpg';
-  if(/natural/.test(n)) return '/assets/demo/natural.jpg';
-  if(/x-|sandu|burger|hamb/.test(n)) return '/assets/demo/burger.jpg';
-  // porções
-  if(/onion|anel/.test(n)) return '/assets/demo/onion.jpg';
-  if(/polenta/.test(n)) return '/assets/demo/polenta.jpg';
-  if(/mandioca/.test(n)) return '/assets/demo/mandioca.jpg';
-  if(/passarinho|frango a/.test(n)) return '/assets/demo/chicken.jpg';
-  if(/cheddar|batata com/.test(n)) return '/assets/demo/fries.jpg';
-  if(/batata frita grande/.test(n)) return '/assets/demo/fries.jpg';
-  if(/batata|frita|porção|porcao/.test(n)) return '/assets/demo/fries.jpg';
-  // combos
-  if(/combo/.test(n)) return '/assets/demo/combo.jpg';
-  // bebidas específicas
-  if(/coca|cola/.test(n)) return '/assets/demo/soda-cola.jpg';
-  if(/fanta|laranja|guaraná|guarana|sprite/.test(n) && /refri/.test(n)) return '/assets/demo/soda-orange.jpg';
-  if(/refrigerante/.test(n)) return '/assets/demo/soda-cola.jpg';
-  if(/suco/.test(n)) return '/assets/demo/juice.jpg';
-  if(/água|agua|coco/.test(n)) return '/assets/demo/water.jpg';
-  if(/milk|shake/.test(n)) return '/assets/demo/milkshake.jpg';
-  // drinks
-  if(/caipi/.test(n)) return '/assets/demo/caipi.jpg';
-  if(/gin|moscow|mule|vodka|drink/.test(n)) return '/assets/demo/cocktail.jpg';
-  if(/energ|red bull|monster|tnt|baly/.test(n)) return '/assets/demo/energy.jpg';
-  // cervejas
-  if(/cerveja|chopp|long neck|balde|ipa|pilsen|malte/.test(n)) return '/assets/demo/beer.jpg';
-  // sobremesas
-  if(/churros/.test(n)) return '/assets/demo/churros.jpg';
-  if(/brownie/.test(n)) return '/assets/demo/brownie.jpg';
-  if(/petit|gateau/.test(n)) return '/assets/demo/petit.jpg';
-  if(/sobremesa|sorvete/.test(n)) return '/assets/demo/dessert.jpg';
-  if(/bebida|refri|suco/.test(cat)) return '/assets/demo/drink.jpg';
+  // Hot dogs — um arquivo por tipo (sem confundir com outras comidas)
+  if(/dog\s*bacon|dog-bacon/.test(nome)) return '/assets/demo/dog-bacon.jpg';
+  if(/vegetariano|vegano/.test(nome)) return '/assets/demo/dog-veg.jpg';
+  if(/dog\s*especial|especial da casa/.test(nome)) return '/assets/demo/dog-especial.jpg';
+  if(/dog\s*duplo|duplo/.test(nome) && /dog/.test(nome)) return '/assets/demo/dog-duplo.jpg';
+  if(/dog\s*tradicional|hot\s*dog|dog /.test(nome) || (/dog/.test(nome) && /hot/.test(cat))) return '/assets/demo/dog-classic.jpg';
+  if(/dog/.test(nome)) return '/assets/demo/dog-classic.jpg';
+  // Sanduíches
+  if(/x-bacon/.test(nome)) return '/assets/demo/xbacon.jpg';
+  if(/x-salada/.test(nome)) return '/assets/demo/salad.jpg';
+  if(/x-tudo/.test(nome)) return '/assets/demo/burger.jpg';
+  if(/x-frango|frango grelhado/.test(nome)) return '/assets/demo/chicken.jpg';
+  if(/misto/.test(nome)) return '/assets/demo/misto.jpg';
+  if(/natural/.test(nome)) return '/assets/demo/natural.jpg';
+  if(/x-|sandu|burger|hamb/.test(nome)) return '/assets/demo/burger.jpg';
+  // Porções
+  if(/onion|anel/.test(nome)) return '/assets/demo/onion.jpg';
+  if(/polenta/.test(nome)) return '/assets/demo/polenta.jpg';
+  if(/mandioca/.test(nome)) return '/assets/demo/mandioca.jpg';
+  if(/passarinho/.test(nome)) return '/assets/demo/chicken.jpg';
+  if(/batata/.test(nome)) return '/assets/demo/fries.jpg';
+  // Combos
+  if(/combo/.test(nome)) return '/assets/demo/combo.jpg';
+  // Bebidas
+  if(/coca|cola/.test(nome)) return '/assets/demo/soda-cola.jpg';
+  if(/fanta|guaran|sprite/.test(nome)) return '/assets/demo/soda-orange.jpg';
+  if(/refrigerante/.test(nome)) return '/assets/demo/soda-cola.jpg';
+  if(/suco/.test(nome)) return '/assets/demo/juice.jpg';
+  if(/água|agua|coco/.test(nome)) return '/assets/demo/water.jpg';
+  if(/milk|shake/.test(nome)) return '/assets/demo/milkshake.jpg';
+  // Drinks / energy / beer
+  if(/caipi/.test(nome)) return '/assets/demo/caipi.jpg';
+  if(/gin|moscow|mule|vodka|drink/.test(nome)) return '/assets/demo/cocktail.jpg';
+  if(/energ|red bull|monster|tnt|baly/.test(nome)) return '/assets/demo/energy.jpg';
+  if(/cerveja|chopp|long neck|balde|ipa|pilsen|malte/.test(nome)) return '/assets/demo/beer.jpg';
+  // Sobremesas
+  if(/churros/.test(nome)) return '/assets/demo/churros.jpg';
+  if(/brownie/.test(nome)) return '/assets/demo/brownie.jpg';
+  if(/petit|gateau/.test(nome)) return '/assets/demo/petit.jpg';
+  if(/sobremesa|sorvete/.test(nome) || /sobremesa/.test(cat)) return '/assets/demo/dessert.jpg';
+  if(/bebida|refri/.test(cat)) return '/assets/demo/drink.jpg';
   return '/assets/demo/burger.jpg';
 }
 function productPhotoUrl(p, catNome){
@@ -214,6 +241,32 @@ function renderMenu(){
   const title=q
     ? (`Resultados`+(list.length?` · ${list.length}`:''))
     : (mesaCatFilter==='all'?'Cardápio':(categorias.find(c=>String(c.id)===String(mesaCatFilter))||{}).nome||'Cardápio');
+
+  let sugHtml='';
+  if(!q && mesaCatFilter==='all'){
+    if(mesaDestaques===null){
+      sugHtml='';
+    }else if(mesaDestaques.length){
+      const cards=mesaDestaques.map(it=>{
+        const foto=productPhotoUrl(it, '');
+        return `<article class="sug-card">
+          <div class="sug-card__media"><img src="${esc(foto)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'"></div>
+          <div class="sug-card__body">
+            <h3>${esc(it.nome)}</h3>
+            <div class="price">${br(it.preco)}</div>
+            <button type="button" class="btn-add" onclick="quickAdd(${it.id})">+ Adicionar</button>
+          </div>
+        </article>`;
+      }).join('');
+      sugHtml=`<section class="mesa-sugestoes" aria-label="Mais pedidos hoje">
+        <div class="mesa-sugestoes__head"><h2>🔥 Mais pedidos hoje</h2></div>
+        <div class="mesa-sugestoes__scroll">${cards}</div>
+      </section>`;
+    }else{
+      sugHtml=`<div class="mesa-first-msg">${esc(mesaDestaquesMsg||randomFirstMsg())}</div>`;
+    }
+  }
+
   const cards=list.length?list.map(({p,c})=>{
     const escolha=productIsEscolha(p,c.nome);
     const custom=productNeedsCustom(p);
@@ -239,6 +292,7 @@ function renderMenu(){
   document.getElementById('menu').innerHTML=
     searchHtml+
     chipsHtml+
+    sugHtml+
     `<h2 class="mesa-section-title">${esc(title)}</h2>`+
     `<div class="prod-grid">${cards}</div>`;
   const input=document.getElementById('mesaSearchInput');

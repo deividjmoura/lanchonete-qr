@@ -61,7 +61,7 @@ const {
   entregarComoGarcom,
   listPedidosRecentes,
 } = require('./db/garcons');
-const { resumoDia } = require('./db/dashboard');
+const { resumoDia, topProdutosHoje } = require('./db/dashboard');
 const { relatorioVendas } = require('./db/relatorio');
 const { purgeHistorico, ErroPurge } = require('./db/purge');
 const { processarUploadFoto, ErroFoto } = require('./db/foto');
@@ -163,6 +163,10 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/cardapio' && req.method === 'GET') {
       return json(res, 200, await getCardapio());
+    }
+    if (p === '/api/cardapio/destaques' && req.method === 'GET') {
+      const limit = Number(u.searchParams.get('limit') || 6);
+      return json(res, 200, { itens: await topProdutosHoje(limit) });
     }
 
     let m;
