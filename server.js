@@ -107,13 +107,23 @@ function applySecurityHeaders(res) {
   }
 }
 
-function send(res, status, type, body) {
+function send(res, status, type, body, extraHeaders) {
   applySecurityHeaders(res);
-  res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+  const headers = { 'Content-Type': type, 'Cache-Control': 'no-store' };
+  // Permite sobrescrever Cache-Control (ex.: cardápio público com max-age curto)
+  if (extraHeaders && typeof extraHeaders === 'object') {
+    Object.assign(headers, extraHeaders);
+  } else {
+    try {
+      const prev = res.getHeader('Cache-Control');
+      if (prev) headers['Cache-Control'] = prev;
+    } catch (_) {}
+  }
+  res.writeHead(status, headers);
   res.end(body);
 }
-function json(res, status, obj) {
-  send(res, status, 'application/json; charset=utf-8', JSON.stringify(obj));
+function json(res, status, obj, extraHeaders) {
+  send(res, status, 'application/json; charset=utf-8', JSON.stringify(obj), extraHeaders);
 }
 function body(req, opts) {
   const limit = (opts && opts.maxBytes) || MAX_BODY_BYTES;
@@ -163,8 +173,9 @@ const server = http.createServer(async (req, res) => {
     const p = u.pathname;
 
     if (p === '/api/cardapio' && req.method === 'GET') {
-      res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
-      return json(res, 200, await getCardapio());
+      return json(res, 200, await getCardapio(), {
+        'Cache-Control': 'public, max-age=15, stale-while-revalidate=60',
+      });
     }
     if (p === '/api/cardapio/destaques' && req.method === 'GET') {
       const limit = Number(u.searchParams.get('limit') || 6);
