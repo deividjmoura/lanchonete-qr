@@ -94,7 +94,9 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [x] Admin cardápio: categorias recolhidas; várias podem ficar abertas
 
 ### Qualidade
-- [x] Smoke test automatizado (`npm run test:smoke`) — mesa → cozinha → garçom → PIX ×2 → parcial → fechar
+- [x] Smoke test automatizado (`npm run test:smoke`)
+- [x] Cenários: fluxo clássico · **2 pedidos concorrentes na mesma mesa** · **2ª mesa em paralelo** · PIX ×2 · divisão parcial · fechar ambas
+- [x] **Smoke OK em 2026-09-01** (local · mesas 1 e 3 · sessão compartilhada validada)
 
 ---
 
@@ -104,6 +106,8 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 - [ ] Revisar impressão de comanda (cozinha/garçom) se necessário
 - [ ] Aposentar restos legados (`data/db.json` = só seed de referência)
 - [x] Não depende de disco efêmero para fotos novas
+- [x] SSL Neon/Render: normalização `sslmode=verify-full` (sem SECURITY WARNING)
+- [x] `npm run db:reset-senha` para alinhar staff com `.env`
 
 ### v3 — Gateway · delivery
 - [ ] Gateway PIX (confirmação automática)
@@ -150,7 +154,7 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · de
 | Commits | Conventional Commits |
 | Docs | README visual + ROADMAP; atualizar após cada feature |
 | UI mesa | Shell HTML + CSS/JS em módulos |
-| Testes | Smoke HTTP (`scripts/smoke.js`) |
+| Testes | Smoke HTTP (`scripts/smoke.js`) multi-mesa |
 
 ---
 

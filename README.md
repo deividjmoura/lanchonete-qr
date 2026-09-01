@@ -141,6 +141,58 @@ PIX_CIDADE=PENHA SC
 
 > 💡 CPF com pontos/traço também funciona. Nome e cidade são limpos pro EMV.
 
+### Scripts úteis
+
+```bash
+npm run db:reset-senha   # alinha admin/cozinha/caixa com STAFF_SEED_PASSWORD
+npm run test:smoke       # fluxo completo + multi-mesa (servidor precisa estar up)
+```
+
+---
+
+## ✅ Testes (smoke)
+
+Com o servidor rodando (`npm start`), em outro terminal:
+
+```bash
+npm run test:smoke
+```
+
+**Última execução OK — 2026-09-01 (local)**
+
+```text
+🍔 Smoke Lanchonete QR · http://127.0.0.1:3000
+  ✓ servidor responde
+  ✓ produto #14 · Dog Tradicional · R$ 12.00
+  ✓ login admin → admin
+  ✓ login cozinha → cozinha
+  ✓ login caixa → caixa
+  ✓ mesa A=1 · mesa B=3
+  ✓ garçom Deivid
+  ── Cenário 1: fluxo clássico ──
+  ✓ pedido #96 (Alpha) criado
+  ✓ cozinha: em_producao → concluido
+  ✓ garçom entregou pedido 1
+  ✓ conta mesa A · R$ 12.00
+  ✓ dois avisos PIX ok
+  ── Cenário 2: 2 pessoas na mesma mesa ──
+  ✓ pedidos concorrentes #97 e #98 · mesma sessão #79
+  ✓ cozinha processou os 2 pedidos extras
+  ✓ garçom entregou os 2 pedidos extras
+  ✓ conta mesa A atualizada · R$ 56.00 (era 12.00)
+  ── Cenário 3: mesa B em paralelo ──
+  ✓ pedido mesa B #99
+  ✓ mesa B entregue
+  ── Caixa: divisão + fechar ──
+  ✓ parcial mesa A R$ 28.00 · resta R$ 28.00
+  ✓ mesa A fechada · cobrado R$ 56.00
+  ✓ mesa B fechada
+  ✓ ambas as mesas liberadas
+✅ Smoke OK — multi-mesa + multi-pessoa + divisão sobrevivem.
+```
+
+Cobre: login por papel, 2 mesas em paralelo, 2 pedidos concorrentes na mesma mesa (mesma sessão), PIX multi-aviso, pagamento parcial e fechamento.
+
 ---
 
 ## 💠 PIX na mesa e no caixa
@@ -193,6 +245,7 @@ lanchonete-qr/
 ├── server.js
 ├── db/           # Postgres, admin, foto (sharp), pedidos…
 ├── public/       # HTML/CSS/JS + uploads/
+├── scripts/      # smoke + reset-senha
 ├── ROADMAP.md
 └── .env.example
 ```
