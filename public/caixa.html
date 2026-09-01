@@ -400,7 +400,7 @@ document.getElementById('lista').addEventListener('change', (ev) => {
   if (!input) return;
   syncPixBox(input.name.replace('pay-', ''));
 });
-document.getElementById('lista').addEventListener('click', (ev) => {
+document.getElementById('lista').addEventListener('click', async (ev) => {
   const toggleBtn = ev.target.closest('[data-toggle-sessao]');
   if (toggleBtn) {
     ev.preventDefault();
@@ -412,6 +412,37 @@ document.getElementById('lista').addEventListener('click', (ev) => {
   if (copyBtn) {
     const ta = document.getElementById('pix-payload-' + copyBtn.dataset.copyPix);
     if (ta) navigator.clipboard.writeText(ta.value).then(() => toast('Código PIX copiado', 'ok'), () => toast('Não foi possível copiar', 'err'));
+    return;
+  }
+  const confPix = ev.target.closest('[data-confirm-pix-aviso]');
+  if (confPix) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const sessaoId = confPix.getAttribute('data-confirm-pix-aviso');
+    const avisoId = confPix.getAttribute('data-aviso-id');
+    const valor = confPix.getAttribute('data-aviso-valor');
+    if (!sessaoId || !avisoId) return;
+    if (confPix.disabled) return;
+    confPix.disabled = true;
+    try {
+      const r = await fetch('/api/caixa/sessoes/' + sessaoId + '/pix-avisos/' + avisoId + '/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: '{}',
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast(data.error || 'Não foi possível confirmar o PIX', 'err');
+        confPix.disabled = false;
+        return;
+      }
+      toast('PIX confirmado' + (valor ? ' · ' + money(Number(valor)) : ''), 'ok');
+      await load();
+    } catch (e) {
+      toast('Falha de rede ao confirmar PIX', 'err');
+      confPix.disabled = false;
+    }
     return;
   }
   const btn = ev.target.closest('[data-close]');

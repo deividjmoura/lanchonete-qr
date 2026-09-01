@@ -383,6 +383,20 @@ const server = http.createServer(async (req, res) => {
         throw e;
       }
     }
+    if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/pix-avisos\/(\d+)\/confirmar$/)) && req.method === 'POST') {
+      try {
+        const out = await confirmarPixAviso(Number(m[1]), Number(m[2]));
+        broadcast('update', {
+          type: 'pix_confirmado',
+          sessaoId: Number(m[1]),
+          avisoId: Number(m[2]),
+        });
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroCaixa) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
     if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/fechar$/)) && req.method === 'POST') {
       try {
         const out = await fecharSessao(Number(m[1]), await body(req));
