@@ -640,3 +640,76 @@ body.board-page {
   overflow-x: hidden;
 }
 
+
+
+/* —— Scroll: só logo some; chips ficam —— */
+body.board-page .mesa-sticky-head {
+  transition: opacity 0.2s ease, transform 0.2s ease, max-height 0.25s ease, margin 0.25s ease, padding 0.25s ease;
+  overflow: hidden;
+  will-change: opacity, transform;
+}
+body.board-page .mesa-sticky-head.is-scrolled {
+  opacity: calc(1 - (var(--logo-hide, 0) * 0.85));
+  transform: translateY(calc(var(--logo-hide, 0) * -10px));
+}
+body.board-page .mesa-sticky-head.is-hidden {
+  opacity: 0 !important;
+  pointer-events: none;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+}
+/* Categorias: sempre visíveis, sem animar altura */
+body.board-page .cat-chips {
+  height: auto !important;
+  max-height: none !important;
+  opacity: 1 !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  pointer-events: auto !important;
+  margin-bottom: 12px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* —— Dock: remove quadrado fantasma nos botões pedir/total —— */
+body.board-page .burger-dock .burger-btn,
+body.board-page .burger-dock .conta-btn {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+body.board-page .burger-dock .burger-btn:focus,
+body.board-page .burger-dock .conta-btn:focus,
+body.board-page .burger-dock .burger-btn:focus-visible,
+body.board-page .burger-dock .conta-btn:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+body.board-page .burger-dock .burger-btn::before,
+body.board-page .burger-dock .burger-btn::after,
+body.board-page .burger-dock .conta-btn::before,
+body.board-page .burger-dock .conta-btn::after {
+  content: none !important;
+  display: none !important;
+}
+body.board-page .burger-btn .badge-count:not(.show),
+body.board-page .conta-btn .badge-total:not(.show) {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+}

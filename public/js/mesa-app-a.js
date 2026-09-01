@@ -424,70 +424,26 @@ function closeModal(){document.getElementById('modal').innerHTML='';document.bod
 
 /** Logo + categorias encolhem com o scroll (contínuo, sem pulo); busca sticky */
 (function mesaScrollCompact(){
-  let headFull = 0;
-  let chipsFull = 0;
-  function measure(){
-    const head = document.querySelector('.mesa-sticky-head');
-    const chips = document.querySelector('.cat-chips');
-    if(head){
-      head.style.height = '';
-      head.style.opacity = '';
-      head.style.paddingTop = '';
-      head.style.paddingBottom = '';
-      headFull = head.scrollHeight;
-    }
-    if(chips){
-      chips.style.height = '';
-      chips.style.opacity = '';
-      chips.style.marginBottom = '';
-      chips.style.paddingTop = '';
-      chips.style.paddingBottom = '';
-      chipsFull = chips.scrollHeight;
-    }
-  }
+  /* Só a logo some no scroll; categorias ficam fixas (evita salto de layout) */
   function update(){
     const y = window.scrollY || document.documentElement.scrollTop || 0;
     const head = document.querySelector('.mesa-sticky-head');
-    const chips = document.querySelector('.cat-chips');
-    // janela de colapso ~80px de scroll
-    const span = 80;
+    if(!head) return;
+    const span = 56;
     const t = Math.max(0, Math.min(1, y / span));
-    if(head){
-      if(!headFull) headFull = head.scrollHeight || 1;
-      const h = Math.max(0, Math.round(headFull * (1 - t)));
-      head.style.height = h + 'px';
-      head.style.opacity = String(1 - t);
-      head.style.paddingTop = t > 0.95 ? '0px' : '';
-      head.style.paddingBottom = t > 0.95 ? '0px' : '';
-      head.style.pointerEvents = t > 0.85 ? 'none' : '';
-      head.style.overflow = 'hidden';
-    }
-    if(chips){
-      if(!chipsFull) chipsFull = chips.scrollHeight || 1;
-      const h = Math.max(0, Math.round(chipsFull * (1 - t)));
-      chips.style.height = h + 'px';
-      chips.style.opacity = String(1 - t);
-      chips.style.marginBottom = t > 0.95 ? '0px' : '';
-      chips.style.pointerEvents = t > 0.85 ? 'none' : '';
-      chips.style.overflow = 'hidden';
-    }
-  }
-  function refresh(){
-    measure();
-    update();
+    head.classList.toggle('is-scrolled', t > 0.15);
+    head.classList.toggle('is-hidden', t > 0.92);
+    head.style.setProperty('--logo-hide', String(t));
   }
   window.addEventListener('scroll', update, {passive:true});
-  window.addEventListener('resize', function(){ headFull=0; chipsFull=0; refresh(); }, {passive:true});
-  document.addEventListener('DOMContentLoaded', refresh);
+  window.addEventListener('resize', update, {passive:true});
+  document.addEventListener('DOMContentLoaded', update);
   const _rm = typeof renderMenu === 'function' ? renderMenu : null;
   if(_rm){
     window.renderMenu = function(){
       _rm.apply(this, arguments);
-      headFull = 0;
-      chipsFull = 0;
-      // espera layout dos chips
-      requestAnimationFrame(refresh);
+      requestAnimationFrame(update);
     };
   }
-  refresh();
+  update();
 })();
