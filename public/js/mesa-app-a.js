@@ -107,16 +107,78 @@ function openSessao(){
 function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}
 async function loadCardapio(){const r=await fetch('/api/cardapio');if(!r.ok){document.getElementById('menu').innerHTML='<div style="padding:20px;color:#a89f8c">Não foi possível carregar o cardápio.</div>';return;}categorias=await r.json();produtos=categorias.flatMap(c=>c.produtos||[]);renderMenu();}
-function toggleCat(btn){
-  const cat=btn&&btn.closest('.chalk-cat');
-  if(!cat)return;
-  const wasOpen=cat.classList.contains('open');
-  document.querySelectorAll('.chalk-cat.open').forEach(function(el){el.classList.remove('open');});
-  if(!wasOpen)cat.classList.add('open');
+let mesaCatFilter='all';
+const CAT_ICONS={
+  'Hot Dogs':'🌭','Sanduíches':'🍔','Porções':'🍟','Bebidas':'🥤','Drinks':'🍸',
+  'Energéticos':'⚡','Cervejas':'🍺','Combos':'🧺','Sobremesas':'🍨'
+};
+function demoPhoto(p, catNome){
+  const n=String(p.nome||'').toLowerCase()+' '+String(catNome||p._catNome||'').toLowerCase();
+  if(/dog|hot\s*dog/.test(n)) return '/assets/demo/hotdog.jpg';
+  if(/x-|sandu|burger|hamb|misto|frango grelhado|natural/.test(n)) return '/assets/demo/burger.jpg';
+  if(/frango a passarinho|passarinho|chicken/.test(n)) return '/assets/demo/chicken.jpg';
+  if(/batata|onion|polenta|mandioca|porção|porcao|frita/.test(n)) return '/assets/demo/fries.jpg';
+  if(/combo/.test(n)) return '/assets/demo/combo.jpg';
+  if(/cerveja|chopp|long neck|balde/.test(n)) return '/assets/demo/beer.jpg';
+  if(/drink|caipi|gin|moscow|vodka|energ|red bull|monster|tnt|baly/.test(n)) return '/assets/demo/drink.jpg';
+  if(/refri|suco|água|agua|coco|milk|shake|lata|600/.test(n)) return '/assets/demo/drink.jpg';
+  if(/sobremesa|brownie|churros|gateau|petit|sorvete/.test(n)) return '/assets/demo/dessert.jpg';
+  return '/assets/demo/burger.jpg';
+}
+function productPhotoUrl(p, catNome){
+  const u=p.fotoUrl||p.foto_url||'';
+  // fotos quebradas / antigas de upload local → usa demo
+  if(!u || u.startsWith('/uploads/') || u.startsWith('data:image') && u.length<80) return demoPhoto(p, catNome);
+  return u;
+}
+function setMesaCat(id){
+  mesaCatFilter=String(id||'all');
+  renderMenu();
 }
 function renderMenu(){
-  const nProd=function(c){return (c.produtos&&c.produtos.length)||0;};
-  document.getElementById('menu').innerHTML=categorias.map(c=>`<div class="chalk-cat"><button type="button" class="chalk-cat__head" onclick="toggleCat(this)" aria-expanded="false"><span>${esc(c.nome)} <span class="cat-count">${nProd(c)}</span></span><span class="chev">▼</span></button><div class="chalk-cat__body">${(c.produtos||[]).map(p=>{p._catNome=c.nome;const escolha=productIsEscolha(p,c.nome);const custom=productNeedsCustom(p);let btns;if(escolha){btns=`<button class="btn primary" type="button" onclick="openCustomize(${p.id})">Escolher</button>`;}else if(custom){btns=`<div class="actions"><button class="btn primary" type="button" onclick="quickAdd(${p.id})">Adicionar</button><button class="btn ghost" type="button" onclick="openCustomize(${p.id})">Personalizar</button></div>`;}else{btns=`<button class="btn primary" type="button" onclick="quickAdd(${p.id})">Adicionar</button>`;}const foto=p.fotoUrl?`<img class="chalk-item__photo" src="${esc(p.fotoUrl)}" alt="" loading="lazy" onerror="this.remove()">`:'';return `<article class="chalk-item${p.fotoUrl?' has-photo':''}">${foto}<div class="chalk-body"><h3>${esc(p.nome)}</h3><p class="desc">${esc(p.descricao||'')}</p><div class="row"><span class="price">${br(p.preco)}</span>${btns}</div></div></article>`;}).join('')}</div></div>`).join('');
+  const chips=[{id:'all',nome:'Todos',ico:'✨'}].concat(
+    categorias.map(c=>({id:String(c.id),nome:c.nome,ico:CAT_ICONS[c.nome]||'🍽️'}))
+  );
+  const chipsHtml='<div class="cat-chips" role="tablist">'+chips.map(ch=>{
+    const on=String(mesaCatFilter)===String(ch.id);
+    return `<button type="button" class="cat-chip${on?' active':''}" role="tab" aria-selected="${on}" onclick="setMesaCat('${esc(ch.id)}')"><span class="chip-ico" aria-hidden="true">${ch.ico}</span>${esc(ch.nome)}</button>`;
+  }).join('')+'</div>';
+
+  let list=[];
+  for(const c of categorias){
+    if(mesaCatFilter!=='all' && String(c.id)!==String(mesaCatFilter)) continue;
+    for(const p of (c.produtos||[])){
+      p._catNome=c.nome;
+      list.push({p,c});
+    }
+  }
+  const title=mesaCatFilter==='all'?'Cardápio':(categorias.find(c=>String(c.id)===String(mesaCatFilter))||{}).nome||'Cardápio';
+  const cards=list.length?list.map(({p,c})=>{
+    const escolha=productIsEscolha(p,c.nome);
+    const custom=productNeedsCustom(p);
+    const foto=productPhotoUrl(p,c.nome);
+    let actions;
+    if(escolha){
+      actions=`<button class="btn-add ghost" type="button" onclick="openCustomize(${p.id})" title="Escolher">Escolher</button>`;
+    }else if(custom){
+      actions=`<div class="prod-card__actions"><button class="btn-add" type="button" onclick="quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button><button class="btn-add ghost" type="button" onclick="openCustomize(${p.id})" title="Personalizar">✎</button></div>`;
+    }else{
+      actions=`<button class="btn-add" type="button" onclick="quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button>`;
+    }
+    return `<article class="prod-card">
+      <div class="prod-card__media"><img src="${esc(foto)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'"></div>
+      <div class="prod-card__body">
+        <h3>${esc(p.nome)}</h3>
+        <p class="desc">${esc(p.descricao||'')}</p>
+        <div class="prod-card__row"><span class="price">${br(p.preco)}</span>${actions}</div>
+      </div>
+    </article>`;
+  }).join(''):'<div class="mesa-empty">Nenhum item nesta categoria.</div>';
+
+  document.getElementById('menu').innerHTML=
+    chipsHtml+
+    `<h2 class="mesa-section-title">${esc(title)}</h2>`+
+    `<div class="prod-grid">${cards}</div>`;
 }
 function quickAdd(id){const p=produtos.find(x=>x.id===id);if(!p)return;const key=itemKey(id,[],[],'');const existing=cart.find(x=>x.key===key);if(existing)existing.qty+=1;else cart.push({key,productId:id,qty:1,additions:[],removals:[],note:''});updateCartPill();bounceBurger();showToast(p.nome+' adicionado');}
 let customizeDraft=null;
