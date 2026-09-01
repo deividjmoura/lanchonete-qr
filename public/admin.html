@@ -7,7 +7,8 @@
   <link rel="icon" type="image/svg+xml" href="/favicons/admin.svg">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
-<link rel="stylesheet" href="/theme-glass.css">
+  <link rel="stylesheet" href="/icons.css">
+  <link rel="stylesheet" href="/theme-glass.css">
   <style>
     .prod-row{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
     .prod-row:last-child{border-bottom:0}
@@ -36,17 +37,17 @@
       <span class="logo-placeholder">SUA LOGO AQUI</span>
     </div>
     <div class="admin-tabs glass-tabs">
-      <button type="button" class="active" data-tab="dashboard">Dashboard</button>
-      <button type="button" data-tab="mesas">Mesas</button>
-      <button type="button" data-tab="cardapio">Cardápio</button>
-      <button type="button" data-tab="garcons">Garçons</button>
-      <button type="button" data-tab="funcoes">Funções</button>
+      <button type="button" class="active" data-tab="dashboard"><span class="i-dashboard ico" aria-hidden="true"></span>Dashboard</button>
+      <button type="button" data-tab="mesas"><span class="i-table ico" aria-hidden="true"></span>Mesas</button>
+      <button type="button" data-tab="cardapio"><span class="i-menu ico" aria-hidden="true"></span>Cardápio</button>
+      <button type="button" data-tab="garcons"><span class="i-waiter ico" aria-hidden="true"></span>Garçons</button>
+      <button type="button" data-tab="funcoes"><span class="i-tools ico" aria-hidden="true"></span>Funções</button>
     </div>
     <div class="nav glass-actions">
-      <a class="btn btn-ghost" href="/caixa"><span class="ico-line" aria-hidden="true">💰</span>Caixa</a>
-      <a class="btn btn-ghost" href="/cozinha"><span class="ico-line" aria-hidden="true">🍽</span>Cozinha</a>
-      <a class="btn btn-ghost" href="/"><span class="ico-line" aria-hidden="true">🏠</span>Início</a>
-      <button class="btn btn-ghost" id="btnSair" type="button"><span class="ico-line" aria-hidden="true">↪</span>Sair</button>
+      <a class="btn btn-ghost" href="/caixa" title="Caixa"><span class="i-cash ico" aria-hidden="true"></span>Caixa</a>
+      <a class="btn btn-ghost" href="/cozinha" title="Cozinha"><span class="i-kitchen ico" aria-hidden="true"></span>Cozinha</a>
+      <a class="btn btn-ghost" href="/" title="Início"><span class="i-home ico" aria-hidden="true"></span>Início</a>
+      <button class="btn btn-ghost" id="btnSair" type="button" title="Sair"><span class="i-logout ico" aria-hidden="true"></span>Sair</button>
     </div>
   </div>
   <section id="sec-dashboard" class="admin-section active">
@@ -60,7 +61,7 @@
         </div>
         <div class="dash-head-actions">
           <span class="live-pill" id="livePill"><span class="dot-live"></span> Atualizado agora</span>
-          <button class="btn btn-ghost btn-refresh" type="button" onclick="loadDashboard();loadPedidosBoard()">Atualizar</button>
+          <button class="btn btn-ghost btn-refresh btn-icon" type="button" title="Atualizar" aria-label="Atualizar" onclick="loadDashboard();loadPedidosBoard()"><span class="i-refresh ico" aria-hidden="true"></span></button>
         </div>
       </div>
       <div class="dash-top-grid">
@@ -316,12 +317,12 @@ function pedidoCardAtivo(p){
   const cli=p.cliente_nome?' · '+esc(p.cliente_nome):'';
   return '<details class="pk-card"><summary><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))+cli+'<div class="muted" style="font-size:.8rem">'+fmtHora(p.criado_em)+(p.totalPedido!=null?' · '+br(p.totalPedido):'')+'</div></summary>'+
     itens+(p.observacao_geral?'<p class="muted" style="font-size:.85rem;margin:6px 0">Obs: '+esc(p.observacao_geral)+'</p>':'')+
-    '<div class="pk-actions"><button type="button" data-print-pedido="'+p.id+'" class="btn btn-icon" title="Imprimir" aria-label="Imprimir">🖨</button></div></details>';
+    '<div class="pk-actions"><button type="button" data-print-pedido="'+p.id+'" class="btn btn-icon" title="Imprimir" aria-label="Imprimir"><span class="i-print ico" aria-hidden="true"></span></button></div></details>';
 }
 function pedidoCardHist(p){
   const itens=(p.itens||[]).map(itemLinhaResumo).join('');
   return '<details class="hist-card"><summary><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))+' · '+fmtHora(p.criado_em)+(p.status?' · '+esc(STATUS_LABEL[p.status]||p.status):'')+'</summary>'+itens+
-    '<div class="pk-actions" style="margin-top:8px"><button type="button" data-print-pedido="'+p.id+'" class="btn btn-icon" title="Imprimir" aria-label="Imprimir">🖨</button></div></details>';
+    '<div class="pk-actions" style="margin-top:8px"><button type="button" data-print-pedido="'+p.id+'" class="btn btn-icon" title="Imprimir" aria-label="Imprimir"><span class="i-print ico" aria-hidden="true"></span></button></div></details>';
 }
 function ticketHtmlAdmin(p){
   const linhas=(p.itens||[]).map(i=>{

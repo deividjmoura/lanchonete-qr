@@ -8,7 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="/favicons/garcom.svg">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
-<link rel="stylesheet" href="/theme-glass.css">
+  <link rel="stylesheet" href="/icons.css">
+  <link rel="stylesheet" href="/theme-glass.css">
   <style>
     @media print {
       body * { visibility: hidden !important; }
@@ -25,10 +26,13 @@
 </head>
 <body class="page-garcom">
 <main class="wrap no-print">
-  <div class="top">
-    <div>
-      <div class="brand">🧑‍🍳 Garçom</div>
-      <div class="muted" id="who">Carregando…</div>
+  <div class="glass-nav">
+    <div class="logo-mark" title="Garçom">
+      <span class="i-waiter ico-lg" style="width:1.6rem;height:1.6rem;color:#fbbf24" aria-hidden="true"></span>
+    </div>
+    <div style="flex:1;min-width:0">
+      <div class="brand" style="margin:0">Garçom</div>
+      <div class="muted" style="font-size:.85rem" id="who">Carregando…</div>
     </div>
   </div>
   <div id="stats" class="muted" style="margin-bottom:14px" aria-live="polite"></div>
@@ -86,9 +90,9 @@ function card(p){
       ${itens||'<span class="muted">Sem itens</span>'}
       ${p.observacao_geral?`<p class="muted" style="margin:8px 0 0">Obs.: ${esc(p.observacao_geral)}</p>`:''}
       <div class="nav">
-        <button class="btn btn-icon" type="button" data-print="${p.id}" title="Imprimir comanda" aria-label="Imprimir">🖨</button>
-        <button class="btn primary btn-text-icon" type="button" data-deliver="${p.id}" title="Entregar e assinar como ${esc(me?.nome||'')}">
-          <span class="ico">✓</span> Entregar
+        <button class="btn btn-icon" type="button" data-print="${p.id}" title="Imprimir comanda" aria-label="Imprimir"><span class="i-print ico" aria-hidden="true"></span></button>
+        <button class="btn primary btn-chip" type="button" data-deliver="${p.id}" title="Entregar e assinar como ${esc(me?.nome||'')}">
+          <span class="i-check ico" aria-hidden="true"></span> Entregar
         </button>
       </div>
     </div>

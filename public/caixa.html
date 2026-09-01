@@ -8,7 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="/favicons/caixa.svg">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/style-ops.css">
-<link rel="stylesheet" href="/theme-glass.css">
+  <link rel="stylesheet" href="/icons.css">
+  <link rel="stylesheet" href="/theme-glass.css">
   <style>
     .sessao-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow);padding:0;overflow:hidden}
     .sessao-fold > .sessao-sum{padding:14px 16px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;user-select:none;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
@@ -49,14 +50,19 @@
 </head>
 <body class="page-caixa">
 <main class="wrap">
-  <div class="top">
-    <div>
-      <div class="brand">💵 Caixa</div>
-      <div class="muted">Sessões abertas · fecha conta e libera a mesa</div>
+  <div class="glass-nav">
+    <div class="logo-mark" title="Caixa">
+      <span class="i-cash ico-lg" style="width:1.6rem;height:1.6rem;color:#fbbf24" aria-hidden="true"></span>
     </div>
-    <div class="nav">
-      <a class="btn dark" href="/">Início</a>
-      <button class="btn" id="btnSair" type="button">Sair</button>
+    <div style="flex:1;min-width:0">
+      <div class="brand" style="margin:0">Caixa</div>
+      <div class="muted" style="font-size:.85rem">Sessões abertas · fecha conta e libera a mesa</div>
+    </div>
+    <div class="nav glass-actions ops-actions">
+      <a class="btn btn-ghost" href="/admin" title="Admin"><span class="i-admin ico" aria-hidden="true"></span>Admin</a>
+      <a class="btn btn-ghost" href="/cozinha" title="Cozinha"><span class="i-kitchen ico" aria-hidden="true"></span>Cozinha</a>
+      <a class="btn btn-ghost" href="/" title="Início"><span class="i-home ico" aria-hidden="true"></span>Início</a>
+      <button class="btn btn-ghost" id="btnSair" type="button" title="Sair"><span class="i-logout ico" aria-hidden="true"></span>Sair</button>
     </div>
   </div>
   <div id="stats" class="muted" style="margin-bottom:14px"></div>
@@ -212,12 +218,12 @@ function card(s) {
       <div class="pix-box" id="pix-${s.id}" style="display:none">
         ${pixOk ? `<img src="${qrUrlPix(valorRestante)}" alt="QR Code PIX" width="220" height="220" loading="lazy">
         <p class="muted" style="margin:10px 0 6px;font-size:.85rem" data-pix-label>PIX · ${money(valorRestante)} · ${esc(pixNome())}</p>
-        <button class="btn btn-text-icon" type="button" data-copy-pix="${s.id}"><span class="ico">📋</span> Copiar PIX</button>
+        <button class="btn btn-chip" type="button" data-copy-pix="${s.id}"><span class="i-copy ico" aria-hidden="true"></span> Copiar PIX</button>
         <textarea id="pix-payload-${s.id}" readonly hidden>${esc(montarPixCopiaCola(valorRestante))}</textarea>`
         : `<p class="muted">Configure PIX_CHAVE no .env</p>`}
       </div>
       <div class="actions">
-        <button class="btn primary btn-text-icon" data-close="${s.id}" ${s.podeFechar ? '' : 'disabled title="Aguarde pedidos em andamento"'}><span class="ico">✓</span> Fechar</button>
+        <button class="btn primary btn-chip" data-close="${s.id}" ${s.podeFechar ? '' : 'disabled title="Aguarde pedidos em andamento"'}><span class="i-check ico" aria-hidden="true"></span> Fechar</button>
       </div>
     </div>
   </article>`;
