@@ -208,9 +208,11 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   document.getElementById('stats').textContent = pedidos.length
     ? `${pedidos.length} pronto(s) para entregar`
     : 'Nenhum pedido aguardando entrega';
+  const __opsScroll = window.scrollY || document.documentElement.scrollTop || 0;
   document.getElementById('orders').innerHTML = pedidos.length
     ? pedidos.map(card).join('')
     : '<div class="panel empty-state"><div class="big">✅</div><div>Fila vazia.</div></div>';
+  requestAnimationFrame(function(){ window.scrollTo(0, __opsScroll); });
 });
 async function entregar(id){
   if(advancing)return;advancing=true;

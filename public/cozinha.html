@@ -332,7 +332,9 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
       '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
   } else {
     const openIds = new Set([...document.querySelectorAll('#orders details.order-card[open]')].map(d => d.getAttribute('data-id')).filter(Boolean));
+    const __opsScroll = window.scrollY || document.documentElement.scrollTop || 0;
     root.innerHTML = pedidos.map(card).join('');
+    requestAnimationFrame(function(){ window.scrollTo(0, __opsScroll); });
     root.querySelectorAll('details.order-card[data-id]').forEach(function(d){
       if (openIds.has(d.getAttribute('data-id'))) d.open = true;
     });

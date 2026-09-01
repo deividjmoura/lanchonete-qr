@@ -209,10 +209,21 @@
   }
 
   whenReady(function () {
-    LQRPix.loadConfig().then(function () {
-      window._afterOpenSessao = function (s) {
+    window._afterOpenSessao = function (s) {
+      // limpa flags para re-injetar após re-render da conta
+      document.querySelectorAll('.pix-pedido, .pix-mesa-total').forEach(function (el) {
+        el.removeAttribute('data-pix-ready');
+      });
+      if (window.LQRPix && LQRPix.config) {
         injectPix(s);
-      };
+      } else {
+        LQRPix.loadConfig().then(function () { injectPix(s); });
+      }
+    };
+    LQRPix.loadConfig().then(function () {
+      if (typeof sessaoOpen !== 'undefined' && sessaoOpen && window.sessaoData) {
+        injectPix(window.sessaoData);
+      }
     });
   });
 })();

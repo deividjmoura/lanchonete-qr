@@ -82,6 +82,9 @@ function iniciarEdicaoPedido(pedidoId){
 }
 function openSessao(){
   sessaoOpen=true;cartOpen=false;
+  // Preserva scroll da folha da conta (realtime/loadSessao re-renderizam)
+  const prevSheet=document.querySelector('.modal-sheet.conta-sheet');
+  if(prevSheet) window._contaSheetScroll=prevSheet.scrollTop;
   const s=sessaoData||{pedidos:[],totalDevido:0,mesa:'—'};
   const pedidos=s.pedidos||[];
   // Preserva quais cards estavam abertos (loadSessao/realtime re-renderizam)
@@ -119,10 +122,13 @@ function openSessao(){
     <div class="pedido-body" style="margin-top:10px">
       ${itens}
       <div class="pedido-item"><span class="muted">Subtotal do pedido</span><b>${br(p.totalPedido||0)}</b></div>
-      ${p.status==='entregue'?`<div class="pix-pedido" data-valor="${Number(p.totalPedido||0).toFixed(2)}" data-pedido-id="${p.id}" data-status="${esc(p.status)}"></div>`:`<div class="pedido-pay-hint muted" style="font-size:.82rem;margin-top:10px">Pagamento (PIX ou maquininha) fica disponível quando o pedido for <b>entregue</b>.</div>`}
       ${acoes}
     </div>
-    </details></div>`;
+    </details>
+    ${p.status==='entregue'
+      ? `<div class="pix-pedido" data-valor="${Number(p.totalPedido||0).toFixed(2)}" data-pedido-id="${p.id}" data-status="${esc(p.status)}" style="margin-top:8px"></div>`
+      : `<div class="pedido-pay-hint muted" style="font-size:.82rem;margin-top:8px">PIX / maquininha quando o pedido for <b>entregue</b>.</div>`}
+    </div>`;
   }).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Nenhum pedido ainda.</div>';
   const pago=Number(s.valorPago||0);
   const rest=s.valorRestante!=null?Number(s.valorRestante):Math.max(0,Number(s.totalDevido||0)-pago);
@@ -142,6 +148,13 @@ function openSessao(){
   if(typeof window._afterOpenSessao==='function'){
     try{window._afterOpenSessao(s);}catch(_){}
   }
+  // Restaura scroll da conta após re-render
+  requestAnimationFrame(function(){
+    const sheet=document.querySelector('.modal-sheet.conta-sheet');
+    if(sheet && window._contaSheetScroll!=null){
+      sheet.scrollTop=window._contaSheetScroll;
+    }
+  });
 }
 function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}
@@ -226,7 +239,9 @@ function demoPhoto(p, catNome){
   return '/assets/demo/burger.jpg';
 }
 function productPhotoUrl(p, catNome){
-  // Demo coerente por nome até o cliente enviar fotos oficiais
+  // Foto cadastrada no admin (Postgres) tem prioridade
+  if (p && p.fotoUrl) return p.fotoUrl;
+  // Fallback demo coerente por nome
   return demoPhoto(p, catNome);
 }
 function setMesaCat(id){

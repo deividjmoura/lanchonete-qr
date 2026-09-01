@@ -173,9 +173,10 @@ function card(s) {
   const valorRestante = Number(
     s.valorRestante != null ? s.valorRestante : Math.max(0, Number(s.valorTotal) - valorPago)
   );
-  const pedidosHtml = (s.pedidosEntregues || []).map((p) => {
+    const pedidosHtml = (s.pedidosEntregues || []).map((p) => {
     const itens = (p.itens || []).map(itemLine).join('');
-    return `<details class="pedido" data-pid="${p.id}"><summary>Pedido #${p.id} · ${money(p.total)}</summary><ul class="itens-list">${itens || '<li class="muted">Sem itens</li>'}</ul></details>`;
+    const quem = p.clienteNome ? ` · ${esc(p.clienteNome)}` : '';
+    return `<details class="pedido" data-pid="${p.id}"><summary>Pedido #${p.id}${quem} · ${money(p.total)}</summary><ul class="itens-list">${itens || '<li class="muted">Sem itens</li>'}</ul></details>`;
   }).join('');
   const pay = FORMAS.map((f, idx) =>
     `<label><input type="radio" name="pay-${s.id}" value="${f.id}" ${idx === 1 ? 'checked' : ''}> ${f.label}</label>`
@@ -327,12 +328,14 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   } else {
     const openPed = new Set([...document.querySelectorAll('#lista details.pedido[open]')].map(d => d.getAttribute('data-pid')).filter(Boolean));
     window.__caixaOpenPedidos = openPed;
+    const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
     root.innerHTML = sessoes.map(card).join('');
     if (openPed.size) {
       root.querySelectorAll('details.pedido[data-pid]').forEach(function(d){
         if (openPed.has(d.getAttribute('data-pid'))) d.open = true;
       });
     }
+    requestAnimationFrame(function(){ window.scrollTo(0, scrollY); });
     sessoes.forEach((s) => {
       if (s.pixInformadoEm) {
         const radio = document.querySelector(`input[name="pay-${s.id}"][value="pix"]`);

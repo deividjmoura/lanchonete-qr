@@ -41,7 +41,8 @@ function parseMoney(v) {
 
 async function listSessoesAbertas() {
   const { rows: sessoes } = await pool.query(
-    `SELECT s.id, s.aberta_em, s.valor_total, s.pix_informado_em, m.id AS mesa_id, m.numero AS mesa
+    `SELECT s.id, s.aberta_em, s.valor_total, s.pix_informado_em, s.cliente_nome,
+            m.id AS mesa_id, m.numero AS mesa
      FROM mesa_sessoes s
      JOIN mesas m ON m.id = s.mesa_id
      WHERE s.status = 'aberta'
@@ -51,7 +52,7 @@ async function listSessoesAbertas() {
 
   const sessaoIds = sessoes.map((s) => s.id);
   const { rows: pedidos } = await pool.query(
-    `SELECT id, sessao_id, status, criado_em, observacao_geral
+    `SELECT id, sessao_id, status, criado_em, observacao_geral, cliente_nome
      FROM pedidos
      WHERE sessao_id = ANY($1::int[])
      ORDER BY criado_em`,
@@ -172,6 +173,7 @@ async function listSessoesAbertas() {
           id: p.id,
           criadoEm: p.criado_em,
           observacaoGeral: p.observacao_geral,
+          clienteNome: p.cliente_nome || null,
           itens,
           total: totalPedido,
         });
@@ -188,6 +190,7 @@ async function listSessoesAbertas() {
       mesa: s.mesa,
       mesaId: s.mesa_id,
       abertaEm: s.aberta_em,
+      clienteNome: s.cliente_nome || null,
       valorTotal,
       valorPago,
       valorRestante,
