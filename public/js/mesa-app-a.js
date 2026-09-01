@@ -474,31 +474,100 @@ function closeModal(){document.getElementById('modal').innerHTML='';document.bod
 
 
 (function mesaScrollCompact(){
-  let ticking=false;
-  function update(){
-    ticking=false;
-    const y=window.scrollY||document.documentElement.scrollTop||0;
-    const t=Math.max(0, Math.min(1, y/70));
-    const head=document.querySelector('.mesa-sticky-head');
-    const chips=document.getElementById('mesaCatChips')||document.querySelector('.cat-chips');
-    if(head){
-      head.style.setProperty('--logo-hide', t.toFixed(3));
-      head.classList.toggle('is-scrolled', t>0.08);
-      head.classList.toggle('is-faded', t>0.55);
+  /* Logo/chips desvanecem; busca gruda no topo após o scroll (fixed + spacer). */
+  let pinned = false;
+  let searchH = 56;
+  let ticking = false;
+
+  function ensureSpacer() {
+    let sp = document.getElementById('mesaSearchSpacer');
+    if (!sp) {
+      sp = document.createElement('div');
+      sp.id = 'mesaSearchSpacer';
+      sp.setAttribute('aria-hidden', 'true');
+      sp.style.cssText = 'display:none;width:100%;pointer-events:none;';
     }
-    if(chips){
-      chips.style.setProperty('--logo-hide', t.toFixed(3));
-      chips.classList.toggle('is-scrolled', t>0.08);
-      chips.classList.toggle('is-faded', t>0.55);
+    return sp;
+  }
+
+  function measureSearch() {
+    const box = document.getElementById('mesaSearchBox');
+    if (!box) return 56;
+    const h = box.getBoundingClientRect().height;
+    return h > 0 ? Math.ceil(h) : 56;
+  }
+
+  function pinSearch(on) {
+    const box = document.getElementById('mesaSearchBox');
+    if (!box) return;
+    const menu = document.getElementById('menu');
+    const sp = ensureSpacer();
+    if (on) {
+      if (!pinned) {
+        searchH = measureSearch();
+        if (menu && sp.parentNode !== menu) {
+          box.parentNode.insertBefore(sp, box.nextSibling);
+        }
+        sp.style.height = searchH + 'px';
+        sp.style.display = 'block';
+        box.classList.add('is-pinned');
+        pinned = true;
+      }
+    } else if (pinned) {
+      box.classList.remove('is-pinned');
+      sp.style.display = 'none';
+      sp.style.height = '0';
+      pinned = false;
     }
   }
-  function onScroll(){
-    if(ticking) return;
-    ticking=true;
+
+  function update() {
+    ticking = false;
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    const head = document.querySelector('.mesa-sticky-head');
+    const chips = document.getElementById('mesaCatChips') || document.querySelector('.cat-chips');
+    const headH = head ? head.offsetHeight : 80;
+    // Começa a grudar a busca quando a logo já saiu / desvaneceu
+    const pinAt = Math.max(24, headH * 0.55);
+    const t = Math.max(0, Math.min(1, y / Math.max(50, headH)));
+
+    if (head) {
+      head.style.setProperty('--logo-hide', t.toFixed(3));
+      head.classList.toggle('is-scrolled', t > 0.08);
+      head.classList.toggle('is-faded', t > 0.55);
+    }
+    if (chips) {
+      chips.style.setProperty('--logo-hide', t.toFixed(3));
+      chips.classList.toggle('is-scrolled', t > 0.08);
+      chips.classList.toggle('is-faded', t > 0.55);
+    }
+    pinSearch(y >= pinAt);
+  }
+
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
     requestAnimationFrame(update);
   }
-  window.addEventListener('scroll', onScroll, {passive:true});
-  window.addEventListener('resize', update, {passive:true});
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', function () {
+    pinned = false;
+    const box = document.getElementById('mesaSearchBox');
+    if (box) box.classList.remove('is-pinned');
+    update();
+  }, { passive: true });
   document.addEventListener('DOMContentLoaded', update);
+
+  // Após cada renderMenu a busca é recriada — re-aplica pin
+  const _rm = window.renderMenu;
+  if (typeof _rm === 'function') {
+    window.renderMenu = function () {
+      pinned = false;
+      _rm.apply(this, arguments);
+      requestAnimationFrame(update);
+    };
+  }
   update();
 })();
+
