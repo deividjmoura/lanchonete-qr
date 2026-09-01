@@ -235,35 +235,31 @@ function renderMenu(){
     <button type="button" class="search-clear" aria-label="Limpar busca" onclick="clearMesaSearch()">×</button>
   </div>`;
 
-  let list=[];
-  for(const c of categorias){
-    if(mesaCatFilter!=='all' && String(c.id)!==String(mesaCatFilter)) continue;
-    for(const p of (c.produtos||[])){
-      p._catNome=c.nome;
-      if(q){
-        const hay=(String(p.nome)+' '+String(p.descricao||'')+' '+String(c.nome)).toLowerCase();
-        if(!hay.includes(q)) continue;
-      }
-      list.push({p,c});
-    }
-  }
-  const title=q
-    ? (`Resultados`+(list.length?` · ${list.length}`:''))
-    : (mesaCatFilter==='all'?'Cardápio':(categorias.find(c=>String(c.id)===String(mesaCatFilter))||{}).nome||'Cardápio');
-
   let sugHtml='';
   if(!q && mesaCatFilter==='all'){
-    if(mesaDestaques===null){
-      sugHtml='';
-    }else if(mesaDestaques.length){
+    if(mesaDestaques && mesaDestaques.length){
       const cards=mesaDestaques.map(it=>{
-        const foto=productPhotoUrl(it, '');
-        return `<article class="sug-card">
+        const full=produtos.find(x=>Number(x.id)===Number(it.id))||it;
+        const foto=productPhotoUrl(full, full._catNome||'');
+        const custom=productNeedsCustom(full);
+        const escolha=productIsEscolha(full, full._catNome||'');
+        let actions;
+        if(escolha){
+          actions=`<button type="button" class="btn-add ghost" onclick="event.stopPropagation();openCustomize(${full.id})">Escolher</button>`;
+        }else if(custom){
+          actions=`<div class="sug-actions">
+            <button type="button" class="btn-add" onclick="event.stopPropagation();quickAdd(${full.id})">+</button>
+            <button type="button" class="btn-add ghost" onclick="event.stopPropagation();openCustomize(${full.id})">✎</button>
+          </div>`;
+        }else{
+          actions=`<button type="button" class="btn-add" onclick="event.stopPropagation();quickAdd(${full.id})">+ Adicionar</button>`;
+        }
+        return `<article class="sug-card" role="button" tabindex="0" onclick="openProductDetail(${full.id})">
           <div class="sug-card__media"><img src="${esc(foto)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'"></div>
           <div class="sug-card__body">
-            <h3>${esc(it.nome)}</h3>
-            <div class="price">${br(it.preco)}</div>
-            <button type="button" class="btn-add" onclick="quickAdd(${it.id})">+ Adicionar</button>
+            <h3>${esc(full.nome||it.nome)}</h3>
+            <div class="price">${br(full.preco!=null?full.preco:it.preco)}</div>
+            ${actions}
           </div>
         </article>`;
       }).join('');
@@ -271,24 +267,24 @@ function renderMenu(){
         <div class="mesa-sugestoes__head"><h2>🔥 Mais pedidos hoje</h2></div>
         <div class="mesa-sugestoes__scroll">${cards}</div>
       </section>`;
-    }else{
+    }else if(mesaDestaques!==null){
       sugHtml=`<div class="mesa-first-msg">${esc(mesaDestaquesMsg||randomFirstMsg())}</div>`;
     }
   }
 
-  const cards=list.length?list.map(({p,c})=>{
+  function cardHtml(p, c){
     const escolha=productIsEscolha(p,c.nome);
     const custom=productNeedsCustom(p);
     const foto=productPhotoUrl(p,c.nome);
     let actions;
     if(escolha){
-      actions=`<button class="btn-add ghost" type="button" onclick="openCustomize(${p.id})" title="Escolher">Escolher</button>`;
+      actions=`<button class="btn-add ghost" type="button" onclick="event.stopPropagation();openCustomize(${p.id})" title="Escolher">Escolher</button>`;
     }else if(custom){
-      actions=`<div class="prod-card__actions"><button class="btn-add" type="button" onclick="quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button><button class="btn-add ghost" type="button" onclick="openCustomize(${p.id})" title="Personalizar">✎</button></div>`;
+      actions=`<div class="prod-card__actions"><button class="btn-add" type="button" onclick="event.stopPropagation();quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button><button class="btn-add ghost" type="button" onclick="event.stopPropagation();openCustomize(${p.id})" title="Personalizar">✎</button></div>`;
     }else{
-      actions=`<button class="btn-add" type="button" onclick="quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button>`;
+      actions=`<button class="btn-add" type="button" onclick="event.stopPropagation();quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button>`;
     }
-    return `<article class="prod-card">
+    return `<article class="prod-card" role="button" tabindex="0" onclick="openProductDetail(${p.id})">
       <div class="prod-card__media"><img src="${esc(foto)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'"></div>
       <div class="prod-card__body">
         <h3>${esc(p.nome)}</h3>
@@ -296,18 +292,44 @@ function renderMenu(){
         <div class="prod-card__row"><span class="price">${br(p.preco)}</span>${actions}</div>
       </div>
     </article>`;
-  }).join(''):'<div class="mesa-empty">Nenhum item nesta categoria.</div>';
+  }
+
+  let bodyHtml='';
+  if(q){
+    let list=[];
+    for(const c of categorias){
+      for(const p of (c.produtos||[])){
+        p._catNome=c.nome;
+        const hay=(String(p.nome)+' '+String(p.descricao||'')+' '+String(c.nome)).toLowerCase();
+        if(!hay.includes(q)) continue;
+        list.push({p,c});
+      }
+    }
+    const cards=list.length?list.map(({p,c})=>cardHtml(p,c)).join(''):'<div class="mesa-empty">Nenhum item encontrado.</div>';
+    bodyHtml=`<h2 class="mesa-section-title">Resultados${list.length?` · ${list.length}`:''}</h2><div class="prod-grid">${cards}</div>`;
+  }else{
+    const cats=categorias.filter(c=>mesaCatFilter==='all'||String(c.id)===String(mesaCatFilter));
+    bodyHtml=cats.map(c=>{
+      const prods=(c.produtos||[]).map(p=>{p._catNome=c.nome;return p;});
+      if(!prods.length) return '';
+      const cards=prods.map(p=>cardHtml(p,c)).join('');
+      // 2 linhas + scroll lateral quando há vários itens
+      const scrollClass=prods.length>2?'prod-scroll prod-scroll--2row':'prod-scroll';
+      return `<section class="cat-section">
+        <h2 class="mesa-section-title">${esc(c.nome)}</h2>
+        <div class="${scrollClass}">${cards}</div>
+      </section>`;
+    }).join('')||'<div class="mesa-empty">Nenhum item nesta categoria.</div>';
+  }
 
   document.getElementById('menu').innerHTML=
     searchHtml+
     chipsHtml+
     sugHtml+
-    `<h2 class="mesa-section-title">${esc(title)}</h2>`+
-    `<div class="prod-grid">${cards}</div>`;
+    bodyHtml;
   const input=document.getElementById('mesaSearchInput');
   if(input){
     input.addEventListener('input',()=>setMesaSearch(input.value));
-    // restore focus/caret after re-render while typing
     if(mesaSearch){
       const len=input.value.length;
       input.focus();
@@ -315,6 +337,42 @@ function renderMenu(){
     }
   }
 }
+
+function openProductDetail(id){
+  const p=produtos.find(x=>Number(x.id)===Number(id));
+  if(!p)return;
+  const escolha=productIsEscolha(p,p._catNome);
+  const custom=productNeedsCustom(p);
+  const foto=productPhotoUrl(p,p._catNome);
+  let actions;
+  if(escolha){
+    actions=`<button class="btn primary btn-chip full" type="button" onclick="closeModal();openCustomize(${p.id})">Escolher opções</button>`;
+  }else if(custom){
+    actions=`<div class="detail-actions">
+      <button class="btn primary btn-chip" type="button" onclick="quickAdd(${p.id});closeModal()">+ Adicionar</button>
+      <button class="btn btn-chip" type="button" onclick="closeModal();openCustomize(${p.id})">Personalizar</button>
+    </div>`;
+  }else{
+    actions=`<button class="btn primary btn-chip full" type="button" onclick="quickAdd(${p.id});closeModal()">+ Adicionar ao pedido</button>`;
+  }
+  document.getElementById('modal').innerHTML=`
+    <div class="modal-root product-detail-root" role="dialog" aria-modal="true">
+      <div class="modal-backdrop product-detail-backdrop" onclick="closeModal()"></div>
+      <div class="modal-sheet product-detail-sheet">
+        <button class="close" type="button" onclick="closeModal()" aria-label="Fechar">×</button>
+        <div class="product-detail-media"><img src="${esc(foto)}" alt="" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'"></div>
+        <div class="product-detail-body">
+          <h2>${esc(p.nome)}</h2>
+          <p class="muted detail-desc">${esc(p.descricao||'Sem descrição.')}</p>
+          <div class="price detail-price">${br(p.preco)}</div>
+          ${actions}
+        </div>
+      </div>
+    </div>`;
+  document.body.classList.add('modal-open');
+  cartOpen=false;sessaoOpen=false;customizeDraft=null;
+}
+
 function quickAdd(id){const p=produtos.find(x=>x.id===id);if(!p)return;const key=itemKey(id,[],[],'');const existing=cart.find(x=>x.key===key);if(existing)existing.qty+=1;else cart.push({key,productId:id,qty:1,additions:[],removals:[],note:''});updateCartPill();bounceBurger();showToast(p.nome+' adicionado');}
 let customizeDraft=null;
 function openCustomize(id){const p=produtos.find(x=>x.id===id);if(!p)return;const escolha=productIsEscolha(p);customizeDraft={productId:id,qty:1,additions:[],removals:[],note:'',ponto:null,escolha};if(escolha&&p.adicionais&&p.adicionais.length===1){const a0=p.adicionais[0];customizeDraft.additions=[{id:a0.id,nome:a0.nome,preco:Number(a0.preco)}];}renderCustomizeModal();}
