@@ -146,10 +146,11 @@ async function main() {
     soft: true,
   });
 
+  // API espera `items` + productId/qty (igual ao front e ao smoke.js)
   const { data: pedido } = await req('POST', `/api/mesas/${mesa.token}/pedidos`, {
     body: {
       clienteNome: 'SmokeFull',
-      itens: [{ produtoId: prod.id, quantidade: 1, adicionais: [], removidos: [] }],
+      items: [{ productId: prod.id, qty: 1 }],
     },
     expectStatus: 201,
   });
