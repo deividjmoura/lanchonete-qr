@@ -21,4 +21,4 @@
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .burger-btn.pop .sand{animation:burger-pop .55s ease}
 @keyframes burger-pop{0%{transform:scale(1)}40%{transform:scale(1.18) rotate(-4deg)}70%{transform:scale(.95)}100%{transform:scale(1)}}
-body.modal-open{overflow:hidden}
+body.modal-open{overflow:hidden!important;touch-action:none}

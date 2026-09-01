@@ -486,3 +486,13 @@ body.board-page .board-frame {
   border-radius: 50%;
   object-fit: contain;
 }
+
+/* Modal: trava scroll sem “pular” o fundo */
+body.modal-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+body.modal-open::before {
+  /* mantém a mesma camada de fundo */
+  position: fixed !important;
+}

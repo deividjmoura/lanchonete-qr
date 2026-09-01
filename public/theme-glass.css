@@ -8,12 +8,9 @@ html, body {
 
 body {
   background-color: #0a0908 !important;
-  background-image: url('/assets/bg-admin.jpg') !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-  background-repeat: no-repeat !important;
+  background-image: none !important;
   color: #f5f2ee;
+  /* fundo estático via ::before — evita “respirar” no mobile/modal */
 }
 
 /* Tokens glass (escuro + laranja) */
@@ -459,10 +456,9 @@ body .login-lock {
   background: transparent;
 }
 
-/* Mobile: fixed attachment can lag */
+/* Mobile: fundo já é camada fixed estática — sem attachment no body */
 @media (max-width: 768px) {
-  body,
-  body.board-page {
+  body {
     background-attachment: scroll !important;
   }
 }
@@ -879,51 +875,50 @@ body .login-lock {
 
 /* breakpoints principais ficam no bloco final do arquivo */
 
-/* ========== Fundos por área (foto + overlay + doodle sutil) ========== */
-body.page-admin {
-  background-color: #120e0c !important;
-  background-image: url('/assets/bg-admin.jpg') !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-}
-body.page-caixa {
-  background-color: #0c100e !important;
-  background-image: url('/assets/bg-caixa.jpg') !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-}
-body.page-cozinha {
-  background-color: #14100c !important;
-  background-image: url('/assets/bg-cozinha.jpg') !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-}
-body.page-garcom {
-  background-color: #0c0e14 !important;
-  background-image: url('/assets/bg-garcom.jpg') !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-}
-body.page-login {
-  background-color: #100e0e !important;
-  background-image: url('/assets/bg-login.jpg') !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-}
+/* ========== Fundos por área — camada fixa estática (sem background-attachment) ========== */
+body.page-admin,
+body.page-caixa,
+body.page-cozinha,
+body.page-garcom,
+body.page-login,
 body.board-page {
-  background-color: #100c0a !important;
-  background-image: url('/assets/bg-mesa.jpg') !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
+  background-image: none !important;
+  background-attachment: scroll !important;
 }
+body.page-admin { background-color: #120e0c !important; }
+body.page-caixa { background-color: #0c100e !important; }
+body.page-cozinha { background-color: #14100c !important; }
+body.page-garcom { background-color: #0c0e14 !important; }
+body.page-login { background-color: #100e0e !important; }
+body.board-page { background-color: #100c0a !important; }
 
-/* doodles agora são a própria imagem de fundo em /assets/bg-*.jpg */
+/* Camada de fundo fixa: não redimensiona com barra do browser nem com modal */
+body.page-admin::before,
+body.page-caixa::before,
+body.page-cozinha::before,
+body.page-garcom::before,
+body.page-login::before,
+body.board-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: inherit;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
+  transform: translateZ(0);
+  will-change: auto;
+}
+body.page-admin::before { background-image: url('/assets/bg-admin.jpg'); }
+body.page-caixa::before { background-image: url('/assets/bg-caixa.jpg'); }
+body.page-cozinha::before { background-image: url('/assets/bg-cozinha.jpg'); }
+body.page-garcom::before { background-image: url('/assets/bg-garcom.jpg'); }
+body.page-login::before { background-image: url('/assets/bg-login.jpg'); }
+body.board-page::before { background-image: url('/assets/bg-mesa.jpg'); }
+
 .wrap,
 .board,
 main {
