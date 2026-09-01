@@ -20,9 +20,9 @@ body.board-page .mesa-logo {
   padding: 0 !important;
 }
 body.board-page .mesa-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
   display: block;
 }
 body.board-page .board-header .menu-title {
@@ -64,6 +64,10 @@ body.board-page .board-frame {
   cursor: pointer;
   backdrop-filter: blur(12px);
   transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  white-space: nowrap;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
 }
 .cat-chip:active { transform: scale(.97); }
 .cat-chip.active {
@@ -196,3 +200,51 @@ body.board-page .board-frame {
   padding: 28px 12px;
   color: rgba(245,242,238,.65);
 }
+
+
+/* Busca */
+.mesa-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(12,10,9,.55);
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.mesa-search .search-ico {
+  opacity: .7;
+  font-size: 1rem;
+  flex: 0 0 auto;
+}
+.mesa-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: #fff !important;
+  font-size: .95rem !important;
+  font-weight: 500;
+}
+.mesa-search input::placeholder {
+  color: rgba(245,242,238,.45) !important;
+}
+.mesa-search .search-clear {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  font-size: .9rem;
+  cursor: pointer;
+  display: none;
+  place-items: center;
+}
+.mesa-search.has-value .search-clear { display: grid; }

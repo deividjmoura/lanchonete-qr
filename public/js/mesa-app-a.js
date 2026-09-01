@@ -108,21 +108,55 @@ function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}
 async function loadCardapio(){const r=await fetch('/api/cardapio');if(!r.ok){document.getElementById('menu').innerHTML='<div style="padding:20px;color:#a89f8c">Não foi possível carregar o cardápio.</div>';return;}categorias=await r.json();produtos=categorias.flatMap(c=>c.produtos||[]);renderMenu();}
 let mesaCatFilter='all';
+let mesaSearch='';
 const CAT_ICONS={
   'Hot Dogs':'🌭','Sanduíches':'🍔','Porções':'🍟','Bebidas':'🥤','Drinks':'🍸',
   'Energéticos':'⚡','Cervejas':'🍺','Combos':'🧺','Sobremesas':'🍨'
 };
 function demoPhoto(p, catNome){
-  const n=String(p.nome||'').toLowerCase()+' '+String(catNome||p._catNome||'').toLowerCase();
+  const nome=String(p.nome||'').toLowerCase();
+  const cat=String(catNome||p._catNome||'').toLowerCase();
+  const n=nome+' '+cat;
+  // hot dogs
+  if(/dog vegetariano/.test(n)) return '/assets/demo/dog3.jpg';
+  if(/dog bacon|dog especial|dog duplo/.test(n)) return '/assets/demo/dog2.jpg';
   if(/dog|hot\s*dog/.test(n)) return '/assets/demo/hotdog.jpg';
-  if(/x-|sandu|burger|hamb|misto|frango grelhado|natural/.test(n)) return '/assets/demo/burger.jpg';
-  if(/frango a passarinho|passarinho|chicken/.test(n)) return '/assets/demo/chicken.jpg';
-  if(/batata|onion|polenta|mandioca|porção|porcao|frita/.test(n)) return '/assets/demo/fries.jpg';
+  // sanduíches
+  if(/x-bacon|bacon/.test(nome) && /sandu|x-/.test(n)) return '/assets/demo/xbacon.jpg';
+  if(/x-salada|salada/.test(nome)) return '/assets/demo/salad.jpg';
+  if(/x-tudo|x-frango|frango grelhado/.test(n)) return '/assets/demo/burger.jpg';
+  if(/misto/.test(n)) return '/assets/demo/misto.jpg';
+  if(/natural/.test(n)) return '/assets/demo/natural.jpg';
+  if(/x-|sandu|burger|hamb/.test(n)) return '/assets/demo/burger.jpg';
+  // porções
+  if(/onion|anel/.test(n)) return '/assets/demo/onion.jpg';
+  if(/polenta/.test(n)) return '/assets/demo/polenta.jpg';
+  if(/mandioca/.test(n)) return '/assets/demo/mandioca.jpg';
+  if(/passarinho|frango a/.test(n)) return '/assets/demo/chicken.jpg';
+  if(/cheddar|batata com/.test(n)) return '/assets/demo/fries.jpg';
+  if(/batata frita grande/.test(n)) return '/assets/demo/fries.jpg';
+  if(/batata|frita|porção|porcao/.test(n)) return '/assets/demo/fries.jpg';
+  // combos
   if(/combo/.test(n)) return '/assets/demo/combo.jpg';
-  if(/cerveja|chopp|long neck|balde/.test(n)) return '/assets/demo/beer.jpg';
-  if(/drink|caipi|gin|moscow|vodka|energ|red bull|monster|tnt|baly/.test(n)) return '/assets/demo/drink.jpg';
-  if(/refri|suco|água|agua|coco|milk|shake|lata|600/.test(n)) return '/assets/demo/drink.jpg';
-  if(/sobremesa|brownie|churros|gateau|petit|sorvete/.test(n)) return '/assets/demo/dessert.jpg';
+  // bebidas específicas
+  if(/coca|cola/.test(n)) return '/assets/demo/soda-cola.jpg';
+  if(/fanta|laranja|guaraná|guarana|sprite/.test(n) && /refri/.test(n)) return '/assets/demo/soda-orange.jpg';
+  if(/refrigerante/.test(n)) return '/assets/demo/soda-cola.jpg';
+  if(/suco/.test(n)) return '/assets/demo/juice.jpg';
+  if(/água|agua|coco/.test(n)) return '/assets/demo/water.jpg';
+  if(/milk|shake/.test(n)) return '/assets/demo/milkshake.jpg';
+  // drinks
+  if(/caipi/.test(n)) return '/assets/demo/caipi.jpg';
+  if(/gin|moscow|mule|vodka|drink/.test(n)) return '/assets/demo/cocktail.jpg';
+  if(/energ|red bull|monster|tnt|baly/.test(n)) return '/assets/demo/energy.jpg';
+  // cervejas
+  if(/cerveja|chopp|long neck|balde|ipa|pilsen|malte/.test(n)) return '/assets/demo/beer.jpg';
+  // sobremesas
+  if(/churros/.test(n)) return '/assets/demo/churros.jpg';
+  if(/brownie/.test(n)) return '/assets/demo/brownie.jpg';
+  if(/petit|gateau/.test(n)) return '/assets/demo/petit.jpg';
+  if(/sobremesa|sorvete/.test(n)) return '/assets/demo/dessert.jpg';
+  if(/bebida|refri|suco/.test(cat)) return '/assets/demo/drink.jpg';
   return '/assets/demo/burger.jpg';
 }
 function productPhotoUrl(p, catNome){
@@ -135,24 +169,51 @@ function setMesaCat(id){
   mesaCatFilter=String(id||'all');
   renderMenu();
 }
+function setMesaSearch(q){
+  mesaSearch=String(q||'');
+  renderMenu();
+  const input=document.getElementById('mesaSearchInput');
+  if(input && document.activeElement!==input){/* keep */;}
+  const box=document.getElementById('mesaSearchBox');
+  if(box) box.classList.toggle('has-value', !!mesaSearch.trim());
+}
+function clearMesaSearch(){
+  mesaSearch='';
+  const input=document.getElementById('mesaSearchInput');
+  if(input) input.value='';
+  setMesaSearch('');
+}
 function renderMenu(){
   const chips=[{id:'all',nome:'Todos',ico:'✨'}].concat(
     categorias.map(c=>({id:String(c.id),nome:c.nome,ico:CAT_ICONS[c.nome]||'🍽️'}))
   );
   const chipsHtml='<div class="cat-chips" role="tablist">'+chips.map(ch=>{
     const on=String(mesaCatFilter)===String(ch.id);
-    return `<button type="button" class="cat-chip${on?' active':''}" role="tab" aria-selected="${on}" onclick="setMesaCat('${esc(ch.id)}')"><span class="chip-ico" aria-hidden="true">${ch.ico}</span>${esc(ch.nome)}</button>`;
+    return `<button type="button" class="cat-chip${on?' active':''}" role="tab" aria-selected="${on}" onclick="setMesaCat('${esc(ch.id)}')"><span class="chip-ico" aria-hidden="true">${ch.ico}</span><span class="chip-label">${esc(ch.nome)}</span></button>`;
   }).join('')+'</div>';
+
+  const q=mesaSearch.trim().toLowerCase();
+  const searchHtml=`<div class="mesa-search${q?' has-value':''}" id="mesaSearchBox">
+    <span class="search-ico" aria-hidden="true">🔍</span>
+    <input id="mesaSearchInput" type="search" placeholder="Buscar no cardápio…" value="${esc(mesaSearch)}" autocomplete="off" enterkeyhint="search">
+    <button type="button" class="search-clear" aria-label="Limpar busca" onclick="clearMesaSearch()">×</button>
+  </div>`;
 
   let list=[];
   for(const c of categorias){
     if(mesaCatFilter!=='all' && String(c.id)!==String(mesaCatFilter)) continue;
     for(const p of (c.produtos||[])){
       p._catNome=c.nome;
+      if(q){
+        const hay=(String(p.nome)+' '+String(p.descricao||'')+' '+String(c.nome)).toLowerCase();
+        if(!hay.includes(q)) continue;
+      }
       list.push({p,c});
     }
   }
-  const title=mesaCatFilter==='all'?'Cardápio':(categorias.find(c=>String(c.id)===String(mesaCatFilter))||{}).nome||'Cardápio';
+  const title=q
+    ? (`Resultados`+(list.length?` · ${list.length}`:''))
+    : (mesaCatFilter==='all'?'Cardápio':(categorias.find(c=>String(c.id)===String(mesaCatFilter))||{}).nome||'Cardápio');
   const cards=list.length?list.map(({p,c})=>{
     const escolha=productIsEscolha(p,c.nome);
     const custom=productNeedsCustom(p);
@@ -176,9 +237,20 @@ function renderMenu(){
   }).join(''):'<div class="mesa-empty">Nenhum item nesta categoria.</div>';
 
   document.getElementById('menu').innerHTML=
+    searchHtml+
     chipsHtml+
     `<h2 class="mesa-section-title">${esc(title)}</h2>`+
     `<div class="prod-grid">${cards}</div>`;
+  const input=document.getElementById('mesaSearchInput');
+  if(input){
+    input.addEventListener('input',()=>setMesaSearch(input.value));
+    // restore focus/caret after re-render while typing
+    if(mesaSearch){
+      const len=input.value.length;
+      input.focus();
+      try{input.setSelectionRange(len,len);}catch(_){}
+    }
+  }
 }
 function quickAdd(id){const p=produtos.find(x=>x.id===id);if(!p)return;const key=itemKey(id,[],[],'');const existing=cart.find(x=>x.key===key);if(existing)existing.qty+=1;else cart.push({key,productId:id,qty:1,additions:[],removals:[],note:''});updateCartPill();bounceBurger();showToast(p.nome+' adicionado');}
 let customizeDraft=null;
