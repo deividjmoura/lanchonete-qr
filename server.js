@@ -33,6 +33,7 @@ const {
   listSessoesAbertas,
   fecharSessao,
   registrarPagamento,
+  confirmarPixAviso,
   ErroCaixa,
 } = require('./db/caixa');
 const {
@@ -231,8 +232,16 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pix-informado$/)) && req.method === 'POST') {
       try {
-        const out = await informarPixPago(m[1]);
-        broadcast('update', { type: 'pix_informado', mesaToken: m[1], sessaoId: out.sessaoId });
+        const payload = await body(req).catch(() => ({}));
+        const out = await informarPixPago(m[1], payload || {});
+        broadcast('update', {
+          type: 'pix_informado',
+          mesaToken: m[1],
+          sessaoId: out.sessaoId,
+          avisoId: out.avisoId,
+          pedidoId: out.pedidoId,
+          valorAvisado: out.valorAvisado,
+        });
         return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroPixCliente) return json(res, e.status, { error: e.message });

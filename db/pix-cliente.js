@@ -1,5 +1,5 @@
-// Cliente informa pagamento PIX: avisa o caixa (sem baixar o valor automaticamente).
-// O registro do valor parcial fica a cargo do caixa (divisão de conta).
+// Cliente informa PIX (por pedido ou total). Só avisa o caixa; baixa do valor
+// acontece quando o caixa confirma o aviso (pagamento parcial).
 const pool = require('./pool');
 
 class ErroPixCliente extends Error {
@@ -9,18 +9,42 @@ class ErroPixCliente extends Error {
   }
 }
 
-async function informarPixPago(token) {
+async function ensurePixAvisosTable(db) {
+  const q = db && typeof db.query === 'function' ? db : pool;
+  await q.query(`
+    CREATE TABLE IF NOT EXISTS pix_avisos (
+      id SERIAL PRIMARY KEY,
+      sessao_id INT NOT NULL REFERENCES mesa_sessoes(id) ON DELETE CASCADE,
+      pedido_id INT REFERENCES pedidos(id) ON DELETE SET NULL,
+      valor NUMERIC(12,2) NOT NULL,
+      cliente_nome TEXT,
+      status TEXT NOT NULL DEFAULT 'pendente',
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+      confirmado_em TIMESTAMPTZ
+    )
+  `);
+  await q.query(`
+    CREATE INDEX IF NOT EXISTS idx_pix_avisos_sessao_status
+    ON pix_avisos (sessao_id, status)
+  `);
+}
+
+/**
+ * body: { pedidoId?: number, valor?: number, clienteNome?: string }
+ * - Com pedidoId: aviso parcial daquele pedido (valor = total do pedido se omitido)
+ * - Sem pedidoId: aviso do restante da conta
+ */
+async function informarPixPago(token, body = {}) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await ensurePixAvisosTable(client);
 
     const { rows: mesas } = await client.query(
       'SELECT id, numero FROM mesas WHERE token = $1',
       [token]
     );
-    if (!mesas.length) {
-      throw new ErroPixCliente(404, 'Mesa não encontrada');
-    }
+    if (!mesas.length) throw new ErroPixCliente(404, 'Mesa não encontrada');
     const mesa = mesas[0];
 
     const { rows: sessaoRows } = await client.query(
@@ -35,7 +59,6 @@ async function informarPixPago(token) {
     }
     const sessao = sessaoRows[0];
     const sessaoId = sessao.id;
-    const valorTotal = Number(sessao.valor_total || 0);
 
     const { rows: sumRows } = await client.query(
       `SELECT COALESCE(SUM(valor), 0)::float AS pago
@@ -43,6 +66,8 @@ async function informarPixPago(token) {
       [sessaoId]
     );
     const valorPago = Number(sumRows[0].pago || 0);
+    // total devido = valor_total da sessão (já só entregues no fluxo atual)
+    const valorTotal = Number(sessao.valor_total || 0);
     const valorRestante = Number(Math.max(0, valorTotal - valorPago).toFixed(2));
 
     if (valorRestante <= 0.009) {
@@ -52,8 +77,85 @@ async function informarPixPago(token) {
       );
     }
 
-    // Só avisa o caixa. Não grava pagamento aqui:
-    // cada pagante pode avisar; o caixa confirma o valor na divisão.
+    let pedidoId = body.pedidoId != null ? Number(body.pedidoId) : null;
+    if (pedidoId != null && !Number.isFinite(pedidoId)) pedidoId = null;
+
+    let valorAviso = body.valor != null ? Number(body.valor) : null;
+    let clienteNome = String(body.clienteNome || body.cliente_nome || '').trim().slice(0, 80) || null;
+
+    if (pedidoId) {
+      const { rows: pedRows } = await client.query(
+        `SELECT p.id, p.status, p.cliente_nome, p.sessao_id
+         FROM pedidos p
+         WHERE p.id = $1 AND p.sessao_id = $2`,
+        [pedidoId, sessaoId]
+      );
+      if (!pedRows.length) throw new ErroPixCliente(404, 'Pedido não encontrado nesta mesa');
+      if (pedRows[0].status !== 'entregue') {
+        throw new ErroPixCliente(400, 'Só é possível avisar PIX de pedido já entregue');
+      }
+      if (!clienteNome) clienteNome = pedRows[0].cliente_nome || null;
+
+      // soma itens do pedido
+      const { rows: itens } = await client.query(
+        `SELECT ip.quantidade, ip.preco_unitario,
+                COALESCE((
+                  SELECT SUM(ipa.preco_unitario) FROM itens_pedido_adicionais ipa
+                  WHERE ipa.item_pedido_id = ip.id
+                ), 0) AS ad
+         FROM itens_pedido ip WHERE ip.pedido_id = $1`,
+        [pedidoId]
+      );
+      const totalPedido = itens.reduce(
+        (s, it) => s + Number(it.quantidade) * (Number(it.preco_unitario) + Number(it.ad || 0)),
+        0
+      );
+      if (valorAviso == null || !Number.isFinite(valorAviso) || valorAviso <= 0) {
+        valorAviso = Number(totalPedido.toFixed(2));
+      }
+    } else {
+      if (valorAviso == null || !Number.isFinite(valorAviso) || valorAviso <= 0) {
+        valorAviso = valorRestante;
+      }
+    }
+
+    valorAviso = Number(Number(valorAviso).toFixed(2));
+    if (valorAviso > valorRestante + 0.009) {
+      throw new ErroPixCliente(
+        400,
+        `Valor maior que o restante da conta (R$ ${valorRestante.toFixed(2).replace('.', ',')})`
+      );
+    }
+
+    // evita spam: se já existe aviso pendente igual (mesmo pedido + valor), só renova timestamp
+    const { rows: existing } = await client.query(
+      `SELECT id FROM pix_avisos
+       WHERE sessao_id = $1 AND status = 'pendente'
+         AND COALESCE(pedido_id, 0) = COALESCE($2::int, 0)
+         AND ABS(valor - $3) < 0.02
+       LIMIT 1`,
+      [sessaoId, pedidoId, valorAviso]
+    );
+
+    let avisoId;
+    if (existing.length) {
+      const { rows: up } = await client.query(
+        `UPDATE pix_avisos SET criado_em = now(), cliente_nome = COALESCE($2, cliente_nome)
+         WHERE id = $1
+         RETURNING id, criado_em`,
+        [existing[0].id, clienteNome]
+      );
+      avisoId = up[0].id;
+    } else {
+      const { rows: ins } = await client.query(
+        `INSERT INTO pix_avisos (sessao_id, pedido_id, valor, cliente_nome, status)
+         VALUES ($1, $2, $3, $4, 'pendente')
+         RETURNING id, criado_em`,
+        [sessaoId, pedidoId, valorAviso, clienteNome]
+      );
+      avisoId = ins[0].id;
+    }
+
     const { rows: updated } = await client.query(
       `UPDATE mesa_sessoes
        SET pix_informado_em = now()
@@ -68,6 +170,10 @@ async function informarPixPago(token) {
       ok: true,
       mesa: mesa.numero,
       sessaoId,
+      avisoId,
+      pedidoId,
+      valorAvisado: valorAviso,
+      clienteNome,
       pixInformadoEm: updated[0].pix_informado_em,
       valorTotal,
       valorPago,
@@ -84,4 +190,4 @@ async function informarPixPago(token) {
   }
 }
 
-module.exports = { informarPixPago, ErroPixCliente };
+module.exports = { informarPixPago, ErroPixCliente, ensurePixAvisosTable };

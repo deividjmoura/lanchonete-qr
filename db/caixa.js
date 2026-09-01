@@ -1,5 +1,6 @@
 // Caixa: sessões abertas, pagamentos parciais (divisão) e fechamento.
 const pool = require('./pool');
+const { ensurePixAvisosTable } = require('./pix-cliente');
 
 const FORMAS = new Set(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']);
 
@@ -75,6 +76,33 @@ async function listSessoesAbertas() {
       criadoEm: p.criado_em,
     });
   }
+
+  await ensurePixAvisosTable(pool).catch(() => {});
+  let avisoRows = [];
+  try {
+    const av = await pool.query(
+      `SELECT a.id, a.sessao_id, a.pedido_id, a.valor, a.cliente_nome, a.status, a.criado_em
+       FROM pix_avisos a
+       WHERE a.sessao_id = ANY($1::int[]) AND a.status = 'pendente'
+       ORDER BY a.criado_em`,
+      [sessaoIds]
+    );
+    avisoRows = av.rows;
+  } catch (_) {
+    avisoRows = [];
+  }
+  const avisosBySessao = new Map();
+  for (const a of avisoRows) {
+    if (!avisosBySessao.has(a.sessao_id)) avisosBySessao.set(a.sessao_id, []);
+    avisosBySessao.get(a.sessao_id).push({
+      id: a.id,
+      pedidoId: a.pedido_id,
+      valor: Number(a.valor),
+      clienteNome: a.cliente_nome || null,
+      criadoEm: a.criado_em,
+    });
+  }
+
 
   const entregueIds = pedidos.filter((p) => p.status === 'entregue').map((p) => p.id);
   let itensRows = [];
@@ -165,6 +193,7 @@ async function listSessoesAbertas() {
       valorRestante,
       pagamentos,
       pixInformadoEm: s.pix_informado_em || null,
+      pixAvisos: avisosBySessao.get(s.id) || [],
       pedidosEntregues: entregues,
       pedidosPendentes: pendentes,
       podeFechar: pendentes === 0,
@@ -355,9 +384,110 @@ async function fecharSessao(sessaoId, body) {
   }
 }
 
+
+/** Caixa confirma aviso PIX do cliente → registra pagamento parcial e quita o aviso. */
+async function confirmarPixAviso(sessaoId, avisoId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await ensurePixAvisosTable(client);
+
+    const { rows: sessRows } = await client.query(
+      `SELECT s.id, s.status, s.valor_total, m.numero AS mesa
+       FROM mesa_sessoes s
+       JOIN mesas m ON m.id = s.mesa_id
+       WHERE s.id = $1
+       FOR UPDATE`,
+      [sessaoId]
+    );
+    const sessao = sessRows[0];
+    if (!sessao) throw new ErroCaixa(404, 'Sessão não encontrada');
+    if (sessao.status !== 'aberta') throw new ErroCaixa(409, 'Sessão já está fechada');
+
+    const { rows: avRows } = await client.query(
+      `SELECT id, sessao_id, valor, status, pedido_id, cliente_nome
+       FROM pix_avisos WHERE id = $1 AND sessao_id = $2
+       FOR UPDATE`,
+      [avisoId, sessaoId]
+    );
+    const aviso = avRows[0];
+    if (!aviso) throw new ErroCaixa(404, 'Aviso PIX não encontrado');
+    if (aviso.status !== 'pendente') {
+      throw new ErroCaixa(409, 'Este aviso já foi tratado');
+    }
+
+    const valor = Number(Number(aviso.valor).toFixed(2));
+    const { rows: sumRows } = await client.query(
+      `SELECT COALESCE(SUM(valor), 0)::float AS pago
+       FROM sessao_pagamentos WHERE sessao_id = $1`,
+      [sessaoId]
+    );
+    const jaPago = Number(sumRows[0].pago);
+    const total = Number(sessao.valor_total);
+    const restante = Number(Math.max(0, total - jaPago).toFixed(2));
+    if (valor > restante + 0.009) {
+      throw new ErroCaixa(
+        400,
+        `Valor do aviso (R$ ${valor.toFixed(2).replace('.', ',')}) maior que o restante (R$ ${restante.toFixed(2).replace('.', ',')})`
+      );
+    }
+
+    const { rows: ins } = await client.query(
+      `INSERT INTO sessao_pagamentos (sessao_id, valor, forma_pagamento)
+       VALUES ($1, $2, 'pix')
+       RETURNING id, valor, forma_pagamento, criado_em`,
+      [sessaoId, valor]
+    );
+
+    await client.query(
+      `UPDATE pix_avisos SET status = 'confirmado', confirmado_em = now() WHERE id = $1`,
+      [avisoId]
+    );
+
+    // se não há mais avisos pendentes, limpa flag da sessão
+    const { rows: pend } = await client.query(
+      `SELECT COUNT(*)::int AS n FROM pix_avisos WHERE sessao_id = $1 AND status = 'pendente'`,
+      [sessaoId]
+    );
+    if (pend[0].n === 0) {
+      await client.query(
+        `UPDATE mesa_sessoes SET pix_informado_em = NULL WHERE id = $1`,
+        [sessaoId]
+      );
+    }
+
+    const valorPago = Number((jaPago + valor).toFixed(2));
+    await client.query('COMMIT');
+    return {
+      ok: true,
+      mesa: sessao.mesa,
+      sessaoId,
+      avisoId,
+      pagamento: {
+        id: ins[0].id,
+        valor: Number(ins[0].valor),
+        formaPagamento: ins[0].forma_pagamento,
+        criadoEm: ins[0].criado_em,
+      },
+      valorPago,
+      valorRestante: Number(Math.max(0, total - valorPago).toFixed(2)),
+      clienteNome: aviso.cliente_nome || null,
+      pedidoId: aviso.pedido_id,
+    };
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   listSessoesAbertas,
   registrarPagamento,
+  confirmarPixAviso,
   fecharSessao,
   ErroCaixa,
   FORMAS,

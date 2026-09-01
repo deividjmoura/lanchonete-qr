@@ -190,6 +190,23 @@ function card(s) {
     ? `<span class="badge parcial" title="Pagamentos parciais registrados">Pago ${money(valorPago)} · resta ${money(valorRestante)}</span>`
     : '';
   const pixOk = window.LQRPix && LQRPix.disponivel();
+  const avisos = Array.isArray(s.pixAvisos) ? s.pixAvisos : [];
+  const avisosHtml = avisos.length
+    ? `<div class="pix-avisos-box" style="margin:12px 0;padding:12px;border-radius:12px;border:1px solid rgba(251,191,36,.45);background:rgba(251,191,36,.1)">
+        <div style="font-weight:700;margin-bottom:8px">PIX informado pelo cliente</div>
+        ${avisos.map(a => {
+          const quem = a.clienteNome ? esc(a.clienteNome) : 'Cliente';
+          const ped = a.pedidoId ? (' · pedido') : ' · total da conta';
+          return `<div class="pix-aviso-row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">
+            <div style="font-size:.88rem"><b>${quem}</b>${ped}<br><span class="muted">Valor: <b>${money(a.valor)}</b></span></div>
+            <button type="button" class="btn primary btn-chip" data-confirm-pix-aviso="${s.id}" data-aviso-id="${a.id}" data-aviso-valor="${a.valor}">
+              Confirmar PIX ${money(a.valor)}
+            </button>
+          </div>`;
+        }).join('')}
+      </div>`
+    : '';
+
   const nPed = (s.pedidosEntregues || []).length;
   const isOpen = window.__caixaOpenIds && window.__caixaOpenIds.has(String(s.id));
   return `<article class="sessao-fold sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}${isOpen ? ' open' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pago="${valorPago}" data-restante="${valorRestante}" data-pix="${s.pixInformadoEm ? '1' : '0'}">
@@ -209,6 +226,7 @@ function card(s) {
     <div class="order-body">
       <div class="muted" style="font-size:.85rem;margin-bottom:8px">Aberta em ${fmtHora(s.abertaEm)}</div>
       ${pedidosHtml || '<p class="muted">Nenhum pedido entregue ainda.</p>'}
+      ${avisosHtml}
       <div class="adjust-row">
         <label>Desconto (R$)<input type="number" min="0" step="0.01" inputmode="decimal" id="desconto-${s.id}" value="0" data-adjust="${s.id}"></label>
         <label>Taxa de serviço (R$)<input type="number" min="0" step="0.01" inputmode="decimal" id="taxa-${s.id}" value="0" data-adjust="${s.id}"></label>

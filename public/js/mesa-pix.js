@@ -1,4 +1,4 @@
-// PIX na conta da mesa — só após entrega; total fora dos cards
+// PIX na conta: QR no card do pedido + avisar caixa (parcial); total fora
 (function () {
   function whenReady(fn) {
     if (typeof openSessao === 'function' && window.LQRPix) return fn();
@@ -14,6 +14,10 @@
     }
   }
 
+  function money(v) {
+    return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+  }
+
   function pixBoxHtml(valor, opts) {
     opts = opts || {};
     const title = opts.title || 'Pagar no PIX';
@@ -21,7 +25,7 @@
       return (
         '<div class="pix-box">' +
         '<div class="pix-box__title">' + title + '</div>' +
-        '<p class="muted" style="font-size:.82rem;margin:0">PIX ainda não configurado no servidor (PIX_CHAVE). Peça maquininha ao garçom ou pague no caixa.</p>' +
+        '<p class="muted" style="font-size:.82rem;margin:0">PIX não configurado no servidor. Peça maquininha ao garçom.</p>' +
         '</div>'
       );
     }
@@ -35,17 +39,16 @@
       );
     }
     const qr = LQRPix.qrUrl(valor);
-    const brl = 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
     return (
       '<div class="pix-box">' +
-      '<div class="pix-box__title">' + title + ' · <b>' + brl + '</b></div>' +
+      '<div class="pix-box__title">' + title + ' · <b>' + money(valor) + '</b></div>' +
       '<div class="pix-box__row">' +
       '<img class="pix-box__qr" src="' + qr + '" alt="QR PIX" width="120" height="120" loading="lazy">' +
       '<div class="pix-box__copy">' +
       '<button type="button" class="btn pix-copy-btn">Copiar código PIX</button>' +
       '<p class="muted" style="font-size:.75rem;margin:8px 0 0">Cole no app do banco</p>' +
       '</div></div>' +
-      '<input type="hidden" class="pix-payload" value="">' +
+      (opts.avisoHtml || '') +
       '</div>'
     );
   }
@@ -70,16 +73,52 @@
     }
   }
 
+  function wireAviso(btn, payload) {
+    if (!btn) return;
+    btn.addEventListener('click', async function () {
+      btn.disabled = true;
+      const prev = btn.textContent;
+      btn.textContent = 'Avisando…';
+      try {
+        const token = location.pathname.split('/').filter(Boolean).pop();
+        const r = await fetch('/api/mesas/' + token + '/pix-informado', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const d = await r.json().catch(function () { return {}; });
+        if (!r.ok) {
+          alert(d.error || 'Não foi possível avisar');
+          btn.disabled = false;
+          btn.textContent = prev;
+          return;
+        }
+        if (typeof showToast === 'function') {
+          showToast('Caixa avisado do seu PIX · ' + money(d.valorAvisado || payload.valor || 0), 3200);
+        }
+        if (typeof loadSessao === 'function') await loadSessao();
+      } catch (e) {
+        alert('Falha de rede');
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    });
+  }
+
   function injectPix(s) {
     s = s || window.sessaoData || {};
     if (!window.LQRPix) return;
     const pref = getPayPref();
+    const cliente =
+      (typeof getClienteNome === 'function' && getClienteNome()) ||
+      s.clienteNome ||
+      '';
 
-    // PIX por pedido: somente entregue + (pref pix ou ainda não escolheu)
     document.querySelectorAll('.pix-pedido').forEach(function (el) {
       if (el.getAttribute('data-pix-ready')) return;
       const valor = Number(el.getAttribute('data-valor') || 0);
       const status = el.getAttribute('data-status') || 'entregue';
+      const pedidoId = Number(el.getAttribute('data-pedido-id') || 0);
       if (status !== 'entregue' || !(valor > 0.009)) {
         el.innerHTML = '';
         el.setAttribute('data-pix-ready', '1');
@@ -87,16 +126,25 @@
       }
       if (pref === 'garcom') {
         el.innerHTML =
-          '<div class="pix-box"><p class="muted" style="margin:0;font-size:.85rem">Você pediu maquininha/troco com o garçom. Se preferir PIX agora, use o total da conta abaixo.</p></div>';
+          '<div class="pix-box"><p class="muted" style="margin:0;font-size:.85rem">Você pediu maquininha/troco. Se preferir PIX, use o botão abaixo do total ou mude a preferência.</p></div>';
         el.setAttribute('data-pix-ready', '1');
         return;
       }
-      el.innerHTML = pixBoxHtml(valor, { title: 'PIX deste pedido' });
+      const avisoHtml =
+        '<button type="button" class="btn primary pix-aviso-btn" style="width:100%;margin-top:12px">' +
+        'Já paguei este pedido no PIX · avisar o caixa' +
+        '</button>' +
+        '<p class="muted" style="font-size:.75rem;margin:8px 0 0">O caixa confirma e desconta este valor do total da mesa.</p>';
+      el.innerHTML = pixBoxHtml(valor, { title: 'PIX deste pedido', avisoHtml: avisoHtml });
       el.setAttribute('data-pix-ready', '1');
       wireCopy(el, valor);
+      wireAviso(el.querySelector('.pix-aviso-btn'), {
+        pedidoId: pedidoId || undefined,
+        valor: valor,
+        clienteNome: cliente,
+      });
     });
 
-    // PIX total da conta (só o que já foi entregue / a pagar)
     const totalEl = document.querySelector('.pix-mesa-total');
     if (totalEl && !totalEl.getAttribute('data-pix-ready')) {
       const pago = Number(s.valorPago || 0);
@@ -116,9 +164,9 @@
         totalEl.innerHTML =
           '<div class="pix-box">' +
           '<div class="pix-box__title">Pagamento com o garçom</div>' +
-          '<p class="muted" style="font-size:.85rem;margin:0 0 10px">Você escolheu maquininha/troco. A pagar: <b>R$ ' +
-          rest.toFixed(2).replace('.', ',') +
-          '</b>.</p>' +
+          '<p class="muted" style="font-size:.85rem;margin:0 0 10px">A pagar: <b>' +
+          money(rest) +
+          '</b></p>' +
           '<button type="button" class="btn" id="payPrefSwitchPix" style="width:100%">Prefiro pagar com PIX</button>' +
           '</div>';
         const sw = totalEl.querySelector('#payPrefSwitchPix');
@@ -141,54 +189,20 @@
       }
 
       if (LQRPix.disponivel()) {
-        totalEl.innerHTML =
-          pixBoxHtml(rest, { title: 'PIX do total da conta' }) +
-          '<p class="muted pix-mesa-hint" style="font-size:.82rem;margin:10px 0 8px">Após pagar, avise o caixa.</p>' +
-          '<button type="button" class="btn primary" id="pixJaPagueiBtn">' +
-          (s.pixInformadoEm
-            ? 'Já paguei no PIX · avisar de novo'
-            : 'Já paguei no PIX · avisar o caixa') +
+        const avisoHtml =
+          '<button type="button" class="btn primary pix-aviso-btn" style="width:100%;margin-top:12px" id="pixJaPagueiBtn">' +
+          'Já paguei o total no PIX · avisar o caixa' +
           '</button>';
+        totalEl.innerHTML = pixBoxHtml(rest, { title: 'PIX do total da conta', avisoHtml: avisoHtml });
         wireCopy(totalEl, rest);
-        const pagoBtn = totalEl.querySelector('#pixJaPagueiBtn');
-        if (pagoBtn) {
-          const jaAvisou = !!s.pixInformadoEm;
-          pagoBtn.addEventListener('click', async function () {
-            pagoBtn.disabled = true;
-            pagoBtn.textContent = 'Avisando…';
-            try {
-              const token = location.pathname.split('/').filter(Boolean).pop();
-              const r = await fetch('/api/mesas/' + token + '/pix-informado', { method: 'POST' });
-              const d = await r.json().catch(function () { return {}; });
-              if (!r.ok) {
-                alert(d.error || 'Não foi possível avisar');
-                pagoBtn.disabled = false;
-                pagoBtn.textContent = jaAvisou
-                  ? 'Já paguei no PIX · avisar de novo'
-                  : 'Já paguei no PIX · avisar o caixa';
-                return;
-              }
-              if (window.sessaoData) {
-                window.sessaoData.pixInformadoEm = d.pixInformadoEm || new Date().toISOString();
-                if (d.valorPago != null) window.sessaoData.valorPago = Number(d.valorPago);
-                if (d.valorRestante != null) window.sessaoData.valorRestante = Number(d.valorRestante);
-                if (d.valorTotal != null) window.sessaoData.totalDevido = Number(d.valorTotal);
-              }
-              if (typeof showToast === 'function') showToast('Caixa avisado · obrigado!', 2800);
-              if (typeof loadSessao === 'function') await loadSessao();
-            } catch (e) {
-              alert('Falha de rede');
-              pagoBtn.disabled = false;
-              pagoBtn.textContent = jaAvisou
-                ? 'Já paguei no PIX · avisar de novo'
-                : 'Já paguei no PIX · avisar o caixa';
-            }
-          });
-        }
+        wireAviso(totalEl.querySelector('.pix-aviso-btn'), {
+          valor: rest,
+          clienteNome: cliente,
+        });
       } else {
         totalEl.innerHTML =
           '<div class="pix-box"><div class="pix-box__title">Pagamento</div>' +
-          '<p class="muted" style="font-size:.85rem;margin:0">Configure <code>PIX_CHAVE</code> no servidor para gerar QR. Enquanto isso, peça maquininha ao garçom.</p></div>';
+          '<p class="muted" style="font-size:.85rem;margin:0">Configure PIX_CHAVE no servidor.</p></div>';
       }
       totalEl.setAttribute('data-pix-ready', '1');
     }
