@@ -147,17 +147,17 @@ function openSessao(){
       ${itens}
       <div class="pedido-item"><span class="muted">Subtotal do pedido</span><b>${br(p.totalPedido||0)}</b></div>
       ${acoes}
+      ${p.status==='entregue'
+        ? `<div class="pix-pedido" data-valor="${Number(p.totalPedido||0).toFixed(2)}" data-pedido-id="${p.id}" data-status="${esc(p.status)}" style="margin-top:12px"></div>`
+        : `<div class="pedido-pay-hint muted" style="font-size:.82rem;margin-top:10px">PIX / maquininha quando o pedido for <b>entregue</b>.</div>`}
     </div>
     </details>
-    ${p.status==='entregue'
-      ? `<div class="pix-pedido" data-valor="${Number(p.totalPedido||0).toFixed(2)}" data-pedido-id="${p.id}" data-status="${esc(p.status)}" style="margin-top:8px"></div>`
-      : `<div class="pedido-pay-hint muted" style="font-size:.82rem;margin-top:8px">PIX / maquininha quando o pedido for <b>entregue</b>.</div>`}
     </div>`;
   }).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Nenhum pedido ainda.</div>';
   const pago=Number(s.valorPago||0);
   const rest=s.valorRestante!=null?Number(s.valorRestante):Math.max(0,Number(s.totalDevido||0)-pago);
   const totalLine=pago>0.009?`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div><div class="cart-total-row" style="font-size:.95rem;opacity:.9"><span>Já pago</span><span>${br(pago)}</span></div><div class="cart-total-row"><span>A pagar</span><span>${br(rest)}</span></div>`:`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div>`;
-  document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet conta-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2>${blocks}<div class="conta-total-block">${totalLine}<div class="pix-mesa-total" data-valor="${rest.toFixed(2)}"></div></div></div></div>`;
+  document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet conta-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2>${blocks}<div class="conta-total-block">${totalLine}<details class="pix-total-details"><summary class="pix-total-sum"><span>Pagar total / restante no PIX</span><span class="expand-hint" aria-hidden="true"><span class="expand-chev">▾</span></span></summary><div class="pix-mesa-total" data-valor="${rest.toFixed(2)}"></div></details></div></div></div>`;
   document.body.classList.add('modal-open');
   // track open/close without depender de re-fetch
   window._contaOpenPedidos=Array.from(openIds);lqSaveContaOpen(window._contaOpenPedidos);

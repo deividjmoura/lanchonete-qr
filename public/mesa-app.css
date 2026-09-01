@@ -1063,3 +1063,29 @@ body.board-page #menu {
 body.board-page .mesa-sticky-head {
   padding-top: 10px !important;
 }
+
+
+/* PIX só no expandido */
+.pix-total-details {
+  margin-top: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(0,0,0,.18);
+  overflow: hidden;
+}
+.pix-total-details > summary.pix-total-sum {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: rgba(251, 146, 60, 0.95);
+  user-select: none;
+}
+.pix-total-details > summary.pix-total-sum::-webkit-details-marker { display: none; }
+.pix-total-details[open] > summary .expand-chev { transform: rotate(180deg); display: inline-block; }
+.pix-total-details .pix-mesa-total { padding: 0 12px 12px; }
