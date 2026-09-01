@@ -580,6 +580,7 @@ body.board-page .board-header {
 body.modal-open {
   overflow: hidden !important;
   touch-action: none;
+  padding-right: var(--sbw, 0px);
 }
 body.modal-open::before {
   /* mantém a mesma camada de fundo */

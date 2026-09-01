@@ -1,3 +1,15 @@
+
+/* UI estável: scrollbar gutter + altura de fundo sem pulso */
+(function () {
+  function sbw() {
+    const w = window.innerWidth - document.documentElement.clientWidth;
+    document.documentElement.style.setProperty('--sbw', (w > 0 ? w : 0) + 'px');
+  }
+  sbw();
+  window.addEventListener('orientationchange', function () {
+    setTimeout(sbw, 200);
+  });
+})();
 /**
  * LQRRealtime — SSE com debounce, reconnect e dirty-loader.
  * Evita descartar eventos durante load/advance e reduz latência visual.

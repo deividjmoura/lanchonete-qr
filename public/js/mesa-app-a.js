@@ -49,7 +49,7 @@ function notifyStatusChanges(pedidos){
   }
   lastStatusMap=next;
 }
-async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;notifyStatusChanges(s.pedidos||[]);document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen)openSessao();}catch(_){}}
+async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;notifyStatusChanges(s.pedidos||[]);document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen){const openIds=[...document.querySelectorAll('.pedido-block details[open][data-pedido-id]')].map(d=>String(d.getAttribute('data-pedido-id')));if(openIds.length||!window._contaOpenPedidos){window._contaOpenPedidos=openIds.length?openIds:(window._contaOpenPedidos||[]);}openSessao();}}catch(_){}}
 async function cancelarPedido(pedidoId){
   if(!confirm('Cancelar o pedido #'+pedidoId+'? Só dá enquanto a cozinha ainda não começou o preparo.'))return;
   try{
@@ -86,11 +86,9 @@ function openSessao(){
   const pedidos=s.pedidos||[];
   // Preserva quais cards estavam abertos (loadSessao/realtime re-renderizam)
   const openIds=new Set(window._contaOpenPedidos||[]);
-  if(!window._contaOpenPedidos){
-    document.querySelectorAll('.pedido-block details[open][data-pedido-id]').forEach(function(d){
-      openIds.add(String(d.getAttribute('data-pedido-id')));
-    });
-  }
+  document.querySelectorAll('.pedido-block details[open][data-pedido-id]').forEach(function(d){
+    openIds.add(String(d.getAttribute('data-pedido-id')));
+  });
   const blocks=pedidos.length?pedidos.slice().reverse().map(p=>{
     const itens=(p.itens||[]).map(it=>`<div class="pedido-item"><div><b>${it.quantidade}× ${esc(it.nome)}</b></div><b>${br(it.totalLinha||0)}</b></div>`).join('');
     const editado=p.editadoEm||p.editado_em?' <span class="status-pill" style="background:#fef3c7;color:#92400e">Editado</span>':'';

@@ -331,7 +331,11 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
     root.innerHTML =
       '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
   } else {
+    const openIds = new Set([...document.querySelectorAll('#orders details.order-card[open]')].map(d => d.getAttribute('data-id')).filter(Boolean));
     root.innerHTML = pedidos.map(card).join('');
+    root.querySelectorAll('details.order-card[data-id]').forEach(function(d){
+      if (openIds.has(d.getAttribute('data-id'))) d.open = true;
+    });
   }
 });
 

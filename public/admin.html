@@ -315,13 +315,13 @@ function itemLinhaResumo(i){
 function pedidoCardAtivo(p){
   const itens=(p.itens||[]).map(itemLinhaResumo).join('')||'<p class="muted" style="margin:6px 0;font-size:.85rem">Sem itens</p>';
   const cli=p.cliente_nome?' · '+esc(p.cliente_nome):'';
-  return '<details class="pk-card"><summary><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))+cli+'<div class="muted" style="font-size:.8rem">'+fmtHora(p.criado_em)+(p.totalPedido!=null?' · '+br(p.totalPedido):'')+'</div></summary>'+
+  return '<details class="pk-card" data-pid="'+p.id+'"><summary><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))+cli+'<div class="muted" style="font-size:.8rem">'+fmtHora(p.criado_em)+(p.totalPedido!=null?' · '+br(p.totalPedido):'')+'</div></summary>'+
     itens+(p.observacao_geral?'<p class="muted" style="font-size:.85rem;margin:6px 0">Obs: '+esc(p.observacao_geral)+'</p>':'')+
     '<div class="pk-actions"><button type="button" data-print-pedido="'+p.id+'" class="btn btn-icon" title="Imprimir" aria-label="Imprimir"><span class="i-print ico" aria-hidden="true"></span></button></div></details>';
 }
 function pedidoCardHist(p){
   const itens=(p.itens||[]).map(itemLinhaResumo).join('');
-  return '<details class="hist-card"><summary><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))+' · '+fmtHora(p.criado_em)+(p.status?' · '+esc(STATUS_LABEL[p.status]||p.status):'')+'</summary>'+itens+
+  return '<details class="hist-card" data-pid="'+p.id+'"><summary><b>#'+p.id+'</b> · Mesa '+esc(String(p.mesa))+' · '+fmtHora(p.criado_em)+(p.status?' · '+esc(STATUS_LABEL[p.status]||p.status):'')+'</summary>'+itens+
     '<div class="pk-actions" style="margin-top:8px"><button type="button" data-print-pedido="'+p.id+'" class="btn btn-icon" title="Imprimir" aria-label="Imprimir"><span class="i-print ico" aria-hidden="true"></span></button></div></details>';
 }
 function ticketHtmlAdmin(p){
@@ -366,6 +366,7 @@ async function loadPedidosBoard(){
   for(const p of list){if(by[p.status])by[p.status].push(p);}
   if(statsEl)statsEl.innerHTML=list.length?'<span class="badge">'+list.length+' ativo(s)</span>':'<span class="badge">Fila limpa</span>';
   if(!list.length){el.innerHTML='<div class="empty-state-big" style="grid-column:1/-1"><span class="big-ico" aria-hidden="true">✅</span><span class="empty-title">Nenhum pedido em andamento</span><span class="empty-sub">Aproveite o momento de calmaria!</span></div>';return;}
+  const openPids=new Set([...document.querySelectorAll('#pedidosBoard details.pk-card[open]')].map(d=>d.getAttribute('data-pid')).filter(Boolean));
   el.innerHTML=STATUS_COLS.map(col=>{
     const items=by[col.key]||[];
     const body=items.length
@@ -373,6 +374,9 @@ async function loadPedidosBoard(){
       : '<div class="empty-col"><span class="big-ico" aria-hidden="true">—</span>Vazio</div>';
     return '<div class="pk-col"><div class="pk-col-head"><h3 style="margin:0;font-size:.95rem">'+col.icon+' '+col.label+'</h3><span class="pk-count">'+items.length+'</span></div><div class="pk-col-body">'+body+'</div></div>';
   }).join('');
+  el.querySelectorAll('details.pk-card[data-pid]').forEach(function(d){
+    if(openPids.has(d.getAttribute('data-pid'))) d.open=true;
+  });
 }
 async function buscarHistorico(){
   const from=document.getElementById('histFrom').value,to=document.getElementById('histTo').value,el=document.getElementById('pedidosHistorico');

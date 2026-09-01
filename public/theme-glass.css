@@ -893,6 +893,9 @@ body.page-login { background-color: #100e0e !important; }
 body.board-page { background-color: #100c0a !important; }
 
 /* Camada de fundo fixa: não redimensiona com barra do browser nem com modal */
+html {
+  scrollbar-gutter: stable;
+}
 body.page-admin::before,
 body.page-caixa::before,
 body.page-cozinha::before,
@@ -901,11 +904,15 @@ body.page-login::before,
 body.board-page::before {
   content: '';
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  /* maior que a viewport: barra do browser não “pulsa” o crop do cover */
+  width: 100vw;
+  height: 120vmax;
   z-index: -1;
   pointer-events: none;
   background-color: inherit;
-  background-position: center center;
+  background-position: center top;
   background-size: cover;
   background-repeat: no-repeat;
   background-attachment: scroll;
@@ -1122,4 +1129,10 @@ body.page-admin .kpi-hint {
 }
 body.page-admin .kpi-hint {
   opacity: 0.85 !important;
+}
+
+body.modal-open {
+  overflow: hidden;
+  /* evita shift horizontal ao esconder scrollbar */
+  padding-right: var(--sbw, 0px);
 }
