@@ -54,6 +54,21 @@ Uma mesa pode fazer **vários pedidos** na mesma visita. O que vale no caixa é 
 
 ---
 
+
+## 🖼️ Corrigir todas as fotos do cardápio
+
+As fotos “erradas” ficam no **Postgres** (`produtos.foto_url`) — muitas vezes como `data:image/...` pesado.
+
+```bash
+# ver o que mudaria
+npm run fotos:dry
+
+# gravar caminhos leves /assets/demo/*.webp coerentes com cada item
+npm run fotos:fix
+```
+
+Requer `DATABASE_URL` no `.env` (mesmo do Render/Neon).
+
 ## 🚀 Tecnologias
 
 <div align="center">

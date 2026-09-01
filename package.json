@@ -9,7 +9,9 @@
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js",
     "db:reset-senha": "node scripts/reset-senha.js",
-    "test:smoke": "node scripts/smoke.js"
+    "test:smoke": "node scripts/smoke.js",
+    "fotos:fix": "node scripts/fix-fotos-cardapio.js",
+    "fotos:dry": "node scripts/fix-fotos-cardapio.js --dry-run"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
