@@ -217,49 +217,61 @@ const CAT_ICONS={
   'Energéticos':'⚡','Cervejas':'🍺','Combos':'🧺','Sobremesas':'🍨'
 };
 function demoPhoto(p, catNome){
-  const nome=String(p.nome||'').toLowerCase();
-  const cat=String(catNome||p._catNome||'').toLowerCase();
-  // Hot dogs — um arquivo por tipo (sem confundir com outras comidas)
-  if(/dog\s*bacon|dog-bacon/.test(nome)) return '/assets/demo/dog-bacon.webp';
-  if(/vegetariano|vegano/.test(nome)) return '/assets/demo/dog-veg.webp';
-  if(/dog\s*especial|especial da casa/.test(nome)) return '/assets/demo/dog-especial.webp';
-  if(/dog\s*duplo|duplo/.test(nome) && /dog/.test(nome)) return '/assets/demo/dog-duplo.webp';
-  if(/dog\s*tradicional|hot\s*dog|dog /.test(nome) || (/dog/.test(nome) && /hot/.test(cat))) return '/assets/demo/dog-classic.webp';
-  if(/dog/.test(nome)) return '/assets/demo/dog-classic.webp';
+  /* Item a item — WebP leve e coerente */
+  const nome=String(p&&p.nome||'').toLowerCase().normalize('NFD').replace(/\p{M}/gu,'');
+  const cat=String(catNome||(p&&p._catNome)||'').toLowerCase().normalize('NFD').replace(/\p{M}/gu,'');
+
+  // Combos primeiro (nome contém X-Salada etc.)
+  if(/^combo\b|\bcombo\b/.test(nome)) return '/assets/demo/combo.webp';
+
+  // Hot dogs
+  if(/dog/.test(nome) && /bacon/.test(nome)) return '/assets/demo/dog-bacon.webp';
+  if(/dog/.test(nome) && /especial/.test(nome)) return '/assets/demo/dog-especial.webp';
+  if(/dog/.test(nome) && /(vegetariano|vegano)/.test(nome)) return '/assets/demo/dog-veg.webp';
+  if(/dog/.test(nome) && /duplo/.test(nome)) return '/assets/demo/dog-duplo.webp';
+  if(/dog/.test(nome) || /hot\s*dogs?/.test(cat)) return '/assets/demo/dog-classic.webp';
+
   // Sanduíches
-  if(/x-bacon/.test(nome)) return '/assets/demo/xbacon.webp';
-  if(/x-salada/.test(nome)) return '/assets/demo/salad.webp';
-  if(/x-tudo/.test(nome)) return '/assets/demo/burger.webp';
-  if(/x-frango|frango grelhado/.test(nome)) return '/assets/demo/chicken.webp';
+  if(/x-?\s*bacon|xbacon/.test(nome)) return '/assets/demo/xbacon.webp';
+  if(/x-?\s*salada/.test(nome)) return '/assets/demo/salad.webp';
+  if(/x-?\s*tudo/.test(nome)) return '/assets/demo/burger.webp';
+  if(/frango grelhado|x-?\s*frango/.test(nome)) return '/assets/demo/chicken.webp';
   if(/misto/.test(nome)) return '/assets/demo/misto.webp';
-  if(/natural/.test(nome)) return '/assets/demo/natural.webp';
-  if(/x-|sandu|burger|hamb/.test(nome)) return '/assets/demo/burger.webp';
+  if(/natural de frango|sanduiche natural|sanduíche natural/.test(nome)) return '/assets/demo/natural.webp';
+  if(/sandu|x-|burger|hamb/.test(nome) || /sandu/.test(cat)) return '/assets/demo/burger.webp';
+
   // Porções
   if(/onion|anel/.test(nome)) return '/assets/demo/onion.webp';
-  if(/polenta/.test(nome)) return '/assets/demo/polenta.webp';
-  if(/mandioca/.test(nome)) return '/assets/demo/mandioca.webp';
-  if(/passarinho/.test(nome)) return '/assets/demo/chicken.webp';
   if(/batata/.test(nome)) return '/assets/demo/fries.webp';
-  // Combos
-  if(/combo/.test(nome)) return '/assets/demo/combo.webp';
-  // Bebidas
-  if(/coca|cola/.test(nome)) return '/assets/demo/soda-cola.webp';
-  if(/fanta|guaran|sprite/.test(nome)) return '/assets/demo/soda-orange.webp';
-  if(/refrigerante/.test(nome)) return '/assets/demo/soda-cola.webp';
+  if(/passarinho/.test(nome)) return '/assets/demo/chicken.webp';
+  if(/polenta/.test(nome)) return '/assets/demo/polenta.webp';
+  if(/mandioca|aipim/.test(nome)) return '/assets/demo/mandioca.webp';
+
+  // Bebidas / drinks / cerveja (antes de fallback generico)
   if(/suco/.test(nome)) return '/assets/demo/juice.webp';
-  if(/água|agua|coco/.test(nome)) return '/assets/demo/water.webp';
-  if(/milk|shake/.test(nome)) return '/assets/demo/milkshake.webp';
-  // Drinks / energy / beer
+  if(/milk\s*shake|milkshake|shake/.test(nome)) return '/assets/demo/milkshake.webp';
+  if(/agua de coco|\bcoco\b/.test(nome)) return '/assets/demo/water.webp';
+  if(/\bagua\b/.test(nome)) return '/assets/demo/water.webp';
+  if(/refrigerante|refri|coca|cola/.test(nome)) return '/assets/demo/soda-cola.webp';
   if(/caipi/.test(nome)) return '/assets/demo/caipi.webp';
+  if(/red\s*bull|monster|tnt|baly|energ/.test(nome)) return '/assets/demo/energy.webp';
+  if(/long\s*neck|cerveja|chopp|pilsen|malte|\bipa\b|balde/.test(nome)) return '/assets/demo/beer.webp';
   if(/gin|moscow|mule|vodka|drink/.test(nome)) return '/assets/demo/cocktail.webp';
-  if(/energ|red bull|monster|tnt|baly/.test(nome)) return '/assets/demo/energy.webp';
-  if(/cerveja|chopp|long neck|balde|ipa|pilsen|malte/.test(nome)) return '/assets/demo/beer.webp';
+
   // Sobremesas
   if(/churros/.test(nome)) return '/assets/demo/churros.webp';
   if(/brownie/.test(nome)) return '/assets/demo/brownie.webp';
   if(/petit|gateau/.test(nome)) return '/assets/demo/petit.webp';
-  if(/sobremesa|sorvete/.test(nome) || /sobremesa/.test(cat)) return '/assets/demo/dessert.webp';
-  if(/bebida|refri/.test(cat)) return '/assets/demo/drink.webp';
+  if(/sobremesa|sorvete|doce/.test(nome) || /sobremesa/.test(cat)) return '/assets/demo/dessert.webp';
+
+  // Categoria
+  if(/hot\s*dog|dog/.test(cat)) return '/assets/demo/dog-classic.webp';
+  if(/sandu/.test(cat)) return '/assets/demo/burger.webp';
+  if(/porc/.test(cat)) return '/assets/demo/fries.webp';
+  if(/cerveja|chopp|bar/.test(cat)) return '/assets/demo/beer.webp';
+  if(/drink/.test(cat)) return '/assets/demo/cocktail.webp';
+  if(/bebida/.test(cat)) return '/assets/demo/drink.webp';
+  if(/combo/.test(cat)) return '/assets/demo/combo.webp';
   return '/assets/demo/burger.webp';
 }
 function productPhotoUrl(p, catNome){

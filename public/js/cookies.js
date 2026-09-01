@@ -1,58 +1,48 @@
 /**
- * Consentimento de cookies + preferências de UI no localStorage.
- * Não envia dados ao servidor — só memoriza no navegador.
+ * Aviso de cookies — fixo no rodapé até o usuário responder.
  */
 (function () {
   var KEY = 'lq-cookie-ok';
-
-  function accepted() {
+  function answered() {
     try {
-      return localStorage.getItem(KEY) === '1';
-    } catch (_) {
-      return false;
-    }
+      var v = localStorage.getItem(KEY);
+      return v === '1' || v === '0';
+    } catch (_) { return false; }
   }
-
   function accept() {
-    try {
-      localStorage.setItem(KEY, '1');
-    } catch (_) {}
+    try { localStorage.setItem(KEY, '1'); } catch (_) {}
     var el = document.getElementById('lqCookieBanner');
     if (el) el.remove();
   }
-
   function decline() {
-    try {
-      localStorage.setItem(KEY, '0');
-    } catch (_) {}
+    try { localStorage.setItem(KEY, '0'); } catch (_) {}
     var el = document.getElementById('lqCookieBanner');
     if (el) el.remove();
   }
-
   function showBanner() {
-    if (accepted() || localStorage.getItem(KEY) === '0') return;
+    if (answered()) return;
     if (document.getElementById('lqCookieBanner')) return;
     var bar = document.createElement('div');
     bar.id = 'lqCookieBanner';
-    bar.setAttribute('role', 'dialog');
-    bar.setAttribute('aria-label', 'Aviso de cookies');
+    bar.setAttribute('role', 'status');
     bar.innerHTML =
       '<div class="lq-cookie-inner">' +
-      '<p>Nosso site usa <b>cookies</b> e armazenamento local só para lembrar preferências neste aparelho ' +
-      '(categoria aberta, pedidos expandidos na conta). Não usamos para rastrear anúncios.</p>' +
-      '<div class="lq-cookie-actions">' +
-      '<button type="button" class="lq-cookie-ok">Aceitar</button>' +
-      '<button type="button" class="lq-cookie-no">Agora não</button>' +
-      '</div></div>';
+      '<p class="lq-cookie-text">Nosso site usa <strong>cookies</strong> e armazenamento local apenas para lembrar preferências neste aparelho ' +
+      '(categoria do cardápio e pedidos abertos na conta). Não utilizamos para anúncios ou rastreamento.</p>' +
+      '<p class="lq-cookie-actions">' +
+      '<a href="#" class="lq-cookie-ok" role="button">Aceitar</a>' +
+      '<span class="lq-cookie-sep" aria-hidden="true">·</span>' +
+      '<a href="#" class="lq-cookie-no" role="button">Agora não</a>' +
+      '</p></div>';
     document.body.appendChild(bar);
-    bar.querySelector('.lq-cookie-ok').addEventListener('click', accept);
-    bar.querySelector('.lq-cookie-no').addEventListener('click', decline);
+    bar.querySelector('.lq-cookie-ok').addEventListener('click', function (e) { e.preventDefault(); accept(); });
+    bar.querySelector('.lq-cookie-no').addEventListener('click', function (e) { e.preventDefault(); decline(); });
   }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', showBanner);
-  } else {
-    showBanner();
-  }
-  window.LQRCookies = { accepted: accepted, accept: accept, decline: decline };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showBanner);
+  else showBanner();
+  window.LQRCookies = {
+    accepted: function () { try { return localStorage.getItem(KEY) === '1'; } catch (_) { return false; } },
+    accept: accept,
+    decline: decline,
+  };
 })();

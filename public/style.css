@@ -206,3 +206,14 @@ label{display:block;font-weight:600;font-size:var(--text-sm);margin-bottom:6px;c
  border-radius:var(--radius-pill);background:var(--primary);color:#fff;
  font-weight:700;font-size:0.875rem;box-shadow:var(--shadow-md);
 }
+
+
+#lqCookieBanner{position:fixed;left:0;right:0;bottom:0;z-index:96;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));background:rgba(12,10,9,.96);border-top:1px solid rgba(255,255,255,.1);color:rgba(245,240,232,.92);font-size:.82rem;line-height:1.5;text-align:center;backdrop-filter:blur(12px)}
+#lqCookieBanner .lq-cookie-inner{max-width:560px;margin:0 auto}
+#lqCookieBanner .lq-cookie-text{margin:0 0 10px}
+#lqCookieBanner strong{color:#fb923c}
+#lqCookieBanner .lq-cookie-actions{margin:0;font-size:.9rem}
+#lqCookieBanner .lq-cookie-ok,#lqCookieBanner .lq-cookie-no{background:none;border:none;padding:0;font-weight:700;cursor:pointer;text-decoration:none}
+#lqCookieBanner .lq-cookie-ok{color:#fb923c}
+#lqCookieBanner .lq-cookie-no{color:rgba(245,240,232,.55)}
+#lqCookieBanner .lq-cookie-sep{margin:0 10px;color:rgba(245,240,232,.3)}

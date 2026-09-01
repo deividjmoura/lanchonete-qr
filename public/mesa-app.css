@@ -849,46 +849,54 @@ body.board-page .mesa-sticky-head {
   content-visibility: auto;
 }
 
-/* Banner de cookies */
+/* Banner de cookies — fixo no rodapé, ações só em texto */
 #lqCookieBanner {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-  z-index: 95;
-  max-width: 520px;
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 96 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(12, 10, 9, 0.96) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4) !important;
+  color: rgba(245, 240, 232, 0.92);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+#lqCookieBanner .lq-cookie-inner {
+  max-width: 560px;
   margin: 0 auto;
-  background: rgba(18, 16, 14, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  padding: 14px 16px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-  color: #f5f0e8;
-  font-size: 0.85rem;
-  line-height: 1.45;
+  text-align: center;
 }
-#lqCookieBanner p { margin: 0 0 12px; }
-#lqCookieBanner b { color: #fb923c; }
-.lq-cookie-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.lq-cookie-ok,
-.lq-cookie-no {
-  border: 0;
-  border-radius: 10px;
-  min-height: 40px;
-  padding: 0 16px;
+#lqCookieBanner .lq-cookie-text { margin: 0 0 10px; }
+#lqCookieBanner strong { color: #fb923c; font-weight: 700; }
+#lqCookieBanner .lq-cookie-actions { margin: 0; font-size: 0.9rem; letter-spacing: 0.02em; }
+#lqCookieBanner .lq-cookie-ok,
+#lqCookieBanner .lq-cookie-no {
+  display: inline !important;
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  box-shadow: none !important;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: inherit;
   cursor: pointer;
+  text-decoration: none;
 }
-.lq-cookie-ok {
-  background: linear-gradient(165deg, #fb923c, #ea580c);
-  color: #fff;
-}
-.lq-cookie-no {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(245, 240, 232, 0.85);
-}
-
+#lqCookieBanner .lq-cookie-ok { color: #fb923c !important; }
+#lqCookieBanner .lq-cookie-no { color: rgba(245, 240, 232, 0.55) !important; }
+#lqCookieBanner .lq-cookie-ok:hover { text-decoration: underline; }
+#lqCookieBanner .lq-cookie-no:hover { color: rgba(245, 240, 232, 0.85) !important; }
+#lqCookieBanner .lq-cookie-sep { margin: 0 10px; color: rgba(245, 240, 232, 0.3); font-weight: 400; }
 
 /* ========== FIX scroll + busca sticky (mobile) ========== */
 html {
