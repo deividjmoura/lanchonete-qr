@@ -121,7 +121,7 @@ function openSessao(){
     <div class="pedido-body" style="margin-top:10px">
       ${itens}
       <div class="pedido-item"><span class="muted">Subtotal do pedido</span><b>${br(p.totalPedido||0)}</b></div>
-      <div class="pix-pedido" data-valor="${Number(p.totalPedido||0).toFixed(2)}" data-pedido-id="${p.id}"></div>
+      ${p.status==='entregue'?`<div class="pix-pedido" data-valor="${Number(p.totalPedido||0).toFixed(2)}" data-pedido-id="${p.id}" data-status="${esc(p.status)}"></div>`:`<div class="pedido-pay-hint muted" style="font-size:.82rem;margin-top:10px">Pagamento (PIX ou maquininha) fica disponível quando o pedido for <b>entregue</b>.</div>`}
       ${acoes}
     </div>
     </details></div>`;

@@ -82,7 +82,9 @@
         tlv('59', this.config.nome) +
         tlv('60', this.config.cidade) +
         tlv('62', tlv('05', '***'));
-      payload += '6304' + crc16(payload);
+      // CRC-16/CCITT-FALSE sobre o payload incluindo "6304" (sem os 4 hex do CRC)
+      payload += '6304';
+      payload += crc16(payload);
       return payload;
     },
 
