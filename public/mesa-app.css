@@ -516,3 +516,44 @@ body.modal-open::before {
   -webkit-tap-highlight-color: transparent;
 }
 .sug-card:active { opacity: 0.92; }
+
+/* PIX na conta */
+.pix-box {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.28);
+  border: 1px solid rgba(255,255,255,.1);
+}
+.pix-box__title {
+  font-weight: 700;
+  font-size: .88rem;
+  margin-bottom: 10px;
+  color: rgba(255,252,247,.92);
+}
+.pix-box__row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.pix-box__qr {
+  width: 112px;
+  height: 112px;
+  border-radius: 10px;
+  background: #fff;
+  flex: 0 0 auto;
+}
+.pix-box__copy { flex: 1; min-width: 0; }
+.conta-total-block {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.12);
+}
+.pedido-title {
+  font-size: .95rem;
+  line-height: 1.3;
+  max-width: 62%;
+}
+.pedido-block details[open] {
+  /* não fecha sozinho — estado guardado em JS */
+}

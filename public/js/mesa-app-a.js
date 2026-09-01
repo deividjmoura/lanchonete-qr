@@ -84,6 +84,13 @@ function openSessao(){
   sessaoOpen=true;cartOpen=false;
   const s=sessaoData||{pedidos:[],totalDevido:0,mesa:'—'};
   const pedidos=s.pedidos||[];
+  // Preserva quais cards estavam abertos (loadSessao/realtime re-renderizam)
+  const openIds=new Set(window._contaOpenPedidos||[]);
+  if(!window._contaOpenPedidos){
+    document.querySelectorAll('.pedido-block details[open][data-pedido-id]').forEach(function(d){
+      openIds.add(String(d.getAttribute('data-pedido-id')));
+    });
+  }
   const blocks=pedidos.length?pedidos.slice().reverse().map(p=>{
     const itens=(p.itens||[]).map(it=>`<div class="pedido-item"><div><b>${it.quantidade}× ${esc(it.nome)}</b></div><b>${br(it.totalLinha||0)}</b></div>`).join('');
     const editado=p.editadoEm||p.editado_em?' <span class="status-pill" style="background:#fef3c7;color:#92400e">Editado</span>':'';
@@ -95,23 +102,48 @@ function openSessao(){
         </div>`
       :'';
     const nItens=(p.itens||[]).reduce((a,it)=>a+(Number(it.quantidade)||1),0);
-    const openDef='';
-    return `<div class="pedido-block"><details${openDef}><summary class="pedido-sum">
+    const firstNome=(p.itens&&p.itens[0]&&p.itens[0].nome)?p.itens[0].nome:'Pedido';
+    const quem=p.clienteNome||p.cliente_nome||'';
+    const titulo=quem?`${firstNome} · ${quem}`:firstNome;
+    const isOpen=openIds.has(String(p.id));
+    const openDef=isOpen?' open':'';
+    return `<div class="pedido-block"><details class="pedido-details" data-pedido-id="${p.id}"${openDef}>
+      <summary class="pedido-sum">
       <div class="row" style="justify-content:space-between;gap:8px;width:100%;align-items:flex-start">
-        <b>#${p.id}</b>
+        <b class="pedido-title">${esc(titulo)}</b>
         <span class="pedido-sum-status">
           <span class="status-pill ${esc(p.status)}">${STATUS_LABEL[p.status]||p.status}</span>${editado}
           <span class="expand-hint" aria-hidden="true"><span class="expand-chev">▾</span><span class="expand-label">ver itens</span></span>
         </span>
       </div>
       <div class="muted" style="font-size:.8rem;margin-top:4px">${nItens} item${nItens===1?'':'s'} · ${br(p.totalPedido||0)}</div>
-    </summary><div style="margin-top:10px">${itens}<div class="pedido-item"><span class="muted">Subtotal</span><b>${br(p.totalPedido||0)}</b></div>${acoes}</div></details></div>`;
+    </summary>
+    <div class="pedido-body" style="margin-top:10px">
+      ${itens}
+      <div class="pedido-item"><span class="muted">Subtotal do pedido</span><b>${br(p.totalPedido||0)}</b></div>
+      <div class="pix-pedido" data-valor="${Number(p.totalPedido||0).toFixed(2)}" data-pedido-id="${p.id}"></div>
+      ${acoes}
+    </div>
+    </details></div>`;
   }).join(''):'<div style="text-align:center;padding:28px;color:#a89f8c">Nenhum pedido ainda.</div>';
   const pago=Number(s.valorPago||0);
   const rest=s.valorRestante!=null?Number(s.valorRestante):Math.max(0,Number(s.totalDevido||0)-pago);
-  const totalLine=pago>0.009?`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div><div class="cart-total-row" style="font-size:.95rem;opacity:.9"><span>Já pago</span><span>${br(pago)}</span></div><div class="cart-total-row"><span>A pagar</span><span>${br(rest)}</span></div>`:`<div class="cart-total-row"><span>Total</span><span>${br(s.totalDevido||0)}</span></div>`;
-  document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2>${totalLine}${blocks}</div></div>`;
+  const totalLine=pago>0.009?`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div><div class="cart-total-row" style="font-size:.95rem;opacity:.9"><span>Já pago</span><span>${br(pago)}</span></div><div class="cart-total-row"><span>A pagar</span><span>${br(rest)}</span></div>`:`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div>`;
+  document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet conta-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2>${blocks}<div class="conta-total-block">${totalLine}<div class="pix-mesa-total" data-valor="${rest.toFixed(2)}"></div></div></div></div>`;
   document.body.classList.add('modal-open');
+  // track open/close without depender de re-fetch
+  window._contaOpenPedidos=Array.from(openIds);
+  document.querySelectorAll('.pedido-block details[data-pedido-id]').forEach(function(d){
+    d.addEventListener('toggle',function(){
+      const id=String(d.getAttribute('data-pedido-id'));
+      const set=new Set(window._contaOpenPedidos||[]);
+      if(d.open) set.add(id); else set.delete(id);
+      window._contaOpenPedidos=Array.from(set);
+    });
+  });
+  if(typeof window._afterOpenSessao==='function'){
+    try{window._afterOpenSessao(s);}catch(_){}
+  }
 }
 function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}

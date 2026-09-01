@@ -1,106 +1,100 @@
-// PIX na conta da mesa — sobrescreve openSessao + "Já paguei"
+// PIX na conta da mesa — por pedido (dentro do card) + total da conta (fora)
 (function () {
-  function waitReady(fn) {
+  function whenReady(fn) {
     if (typeof openSessao === 'function' && window.LQRPix) return fn();
-    setTimeout(function () { waitReady(fn); }, 30);
+    setTimeout(function () { whenReady(fn); }, 40);
   }
 
-  waitReady(async function () {
-    try { await LQRPix.loadConfig(); } catch (_) {}
+  function pixBoxHtml(valor, opts) {
+    opts = opts || {};
+    const title = opts.title || 'Pagar este pedido no PIX';
+    const payload = LQRPix.montarPayload(valor);
+    if (!payload) {
+      return (
+        '<div class="pix-box">' +
+        '<div class="pix-box__title">' + title + '</div>' +
+        '<p class="muted" style="font-size:.82rem;margin:0">PIX ainda não configurado. Pague no caixa.</p>' +
+        '</div>'
+      );
+    }
+    const qr = LQRPix.qrUrl(valor);
+    const brl = 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
+    return (
+      '<div class="pix-box">' +
+      '<div class="pix-box__title">' + title + ' · <b>' + brl + '</b></div>' +
+      '<div class="pix-box__row">' +
+      '<img class="pix-box__qr" src="' + qr + '" alt="QR PIX" width="120" height="120" loading="lazy">' +
+      '<div class="pix-box__copy">' +
+      '<button type="button" class="btn pix-copy-btn">Copiar código PIX</button>' +
+      '<p class="muted" style="font-size:.75rem;margin:8px 0 0">Cole no app do banco</p>' +
+      '</div></div>' +
+      '<input type="hidden" class="pix-payload" value="">' +
+      '</div>'
+    );
+  }
 
-    const _open = openSessao;
-    window.openSessao = function openSessaoPix() {
-      _open();
-      const s = window.sessaoData || { totalDevido: 0, pedidos: [], valorPago: 0, valorRestante: 0 };
-      const totalConta = Number(s.totalDevido || 0);
+  function wireCopy(root, valor) {
+    if (!root || !window.LQRPix) return;
+    const payload = LQRPix.montarPayload(valor);
+    const hidden = root.querySelector('.pix-payload');
+    if (hidden) hidden.value = payload;
+    const btn = root.querySelector('.pix-copy-btn');
+    if (btn && payload) {
+      btn.addEventListener('click', function () {
+        const t = payload;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(t).then(function () {
+            btn.textContent = 'Copiado!';
+            setTimeout(function () { btn.textContent = 'Copiar código PIX'; }, 1600);
+          }).catch(function () {
+            prompt('Copie o código PIX:', t);
+          });
+        } else {
+          prompt('Copie o código PIX:', t);
+        }
+      });
+    }
+  }
+
+  function injectPix(s) {
+    s = s || window.sessaoData || {};
+    if (!window.LQRPix) return;
+
+    // PIX por pedido (valor do pedido)
+    document.querySelectorAll('.pix-pedido').forEach(function (el) {
+      if (el.getAttribute('data-pix-ready')) return;
+      const valor = Number(el.getAttribute('data-valor') || 0);
+      if (!(valor > 0.009)) {
+        el.innerHTML = '';
+        el.setAttribute('data-pix-ready', '1');
+        return;
+      }
+      el.innerHTML = pixBoxHtml(valor, { title: 'PIX deste pedido' });
+      el.setAttribute('data-pix-ready', '1');
+      wireCopy(el, valor);
+    });
+
+    // PIX total da conta (fora dos cards)
+    const totalEl = document.querySelector('.pix-mesa-total');
+    if (totalEl && !totalEl.getAttribute('data-pix-ready')) {
       const pago = Number(s.valorPago || 0);
-      const restante =
+      const rest =
         s.valorRestante != null
           ? Number(s.valorRestante)
-          : Math.max(0, Number((totalConta - pago).toFixed(2)));
-      // QR e copia-e-cola usam o que ainda falta pagar
-      const total = restante;
-      const sheet = document.querySelector('.modal-sheet');
-      if (!sheet || sheet.querySelector('.pix-mesa')) return;
-
-      const br = function (n) {
-        return 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');
-      };
-
-      const div = document.createElement('div');
-      div.className = 'pix-mesa';
-      div.style.cssText =
-        'margin-top:16px;padding:14px;border:1px dashed rgba(240,235,224,.25);border-radius:12px;text-align:center';
-
-      const temPedido = (s.pedidos || []).length > 0;
-      const temPendente = (s.pedidos || []).some(function (p) {
-        return p.status && p.status !== 'entregue';
-      });
-
-      if (totalConta <= 0) {
-        let msg =
-          'Quando os pedidos forem <b>entregues</b>, o total aparece aqui com QR Code PIX para pagar na mesa.';
-        if (temPedido && temPendente) {
-          msg =
-            'Há pedido em andamento. O QR PIX libera assim que o garçom marcar como <b>entregue</b>.';
-        } else if (!temPedido) {
-          msg = 'Faça um pedido — depois de entregue, o PIX da conta aparece aqui.';
-        }
-        div.innerHTML =
-          '<div style="font-weight:700;margin-bottom:6px">Pagamento</div>' +
-          '<p class="muted" style="font-size:.85rem;margin:0">' +
-          msg +
-          '</p>';
-        sheet.appendChild(div);
-      } else if (total <= 0.009) {
-        div.innerHTML =
-          '<div style="font-weight:700;margin-bottom:6px">Pagamento</div>' +
-          '<p class="muted" style="font-size:.85rem;margin:0;color:#86efac">Conta quitada no caixa (nada a pagar no momento).</p>';
-        sheet.appendChild(div);
-      } else if (LQRPix.disponivel()) {
-        const payload = LQRPix.montarPayload(total);
-        const qr = LQRPix.qrUrl(total);
-        // Enquanto houver restante, o botão fica disponível para cada pagante avisar.
-        // Se já avisou recentemente, mostra um lembrete + opção de avisar de novo.
-        const jaAvisou = !!s.pixInformadoEm;
-        const ja = jaAvisou
-          ? '<p class="muted" style="margin:12px 0 8px;font-size:.85rem;color:#86efac">✓ Caixa já foi avisado. Se outro da mesa também pagou, avise de novo.</p>' +
-            '<button class="btn" type="button" style="width:100%" id="btnPixPago">Já paguei no PIX · avisar de novo</button>'
-          : '<button class="btn" type="button" style="width:100%;margin-top:10px" id="btnPixPago">Já paguei no PIX · avisar o caixa</button>';
-        const detalhe =
-          pago > 0.009
-            ? 'Restante a pagar · ' +
-              br(total) +
-              ' (conta ' +
-              br(totalConta) +
-              ' − pago ' +
-              br(pago) +
-              ')'
-            : 'Valor da conta · ' + br(total);
-        div.innerHTML =
-          '<div style="font-weight:700;margin-bottom:6px">💳 Pagar com PIX</div>' +
-          '<p class="muted" style="font-size:.85rem;margin:0 0 10px">' +
-          detalhe +
-          '. Escaneie o QR, pague e toque em “Já paguei” (ou mostre o comprovante no caixa). O caixa confirma o valor de cada um.</p>' +
-          '<img src="' + qr + '" alt="QR PIX" width="200" height="200" style="border-radius:12px;background:#fff;padding:8px" loading="lazy">' +
-          '<button class="btn primary" type="button" style="width:100%;margin-top:12px" id="btnCopiarPixMesa">Copiar código PIX</button>' +
-          ja;
-        sheet.appendChild(div);
-
-        const copyBtn = document.getElementById('btnCopiarPixMesa');
-        if (copyBtn) {
-          copyBtn.addEventListener('click', function () {
-            navigator.clipboard.writeText(payload).then(
-              function () {
-                if (typeof showToast === 'function') showToast('Código PIX copiado', 2200);
-                else alert('Código PIX copiado');
-              },
-              function () { alert('Não foi possível copiar'); }
-            );
-          });
-        }
-        const pagoBtn = document.getElementById('btnPixPago');
+          : Math.max(0, Number(s.totalDevido || 0) - pago);
+      if (rest > 0.009 && LQRPix.disponivel()) {
+        totalEl.innerHTML =
+          pixBoxHtml(rest, { title: 'PIX do total da conta' }) +
+          '<p class="muted pix-mesa-hint" style="font-size:.82rem;margin:10px 0 8px">Após pagar, avise o caixa.</p>' +
+          '<button type="button" class="btn primary" id="pixJaPagueiBtn">' +
+          (s.pixInformadoEm
+            ? 'Já paguei no PIX · avisar de novo'
+            : 'Já paguei no PIX · avisar o caixa') +
+          '</button>';
+        wireCopy(totalEl, rest);
+        const pagoBtn = totalEl.querySelector('#pixJaPagueiBtn');
         if (pagoBtn) {
+          const jaAvisou = !!s.pixInformadoEm;
           pagoBtn.addEventListener('click', async function () {
             pagoBtn.disabled = true;
             pagoBtn.textContent = 'Avisando…';
@@ -123,17 +117,7 @@
                 if (d.valorTotal != null) window.sessaoData.totalDevido = Number(d.valorTotal);
               }
               if (typeof showToast === 'function') showToast('Caixa avisado · obrigado!', 2800);
-              if (typeof loadSessao === 'function') {
-                await loadSessao();
-              } else {
-                pagoBtn.disabled = false;
-                pagoBtn.textContent = 'Já paguei no PIX · avisar de novo';
-                const hint = pagoBtn.previousElementSibling;
-                if (hint && hint.classList && hint.classList.contains('muted')) {
-                  hint.textContent = '✓ Caixa avisado de novo. Se mais alguém pagou, pode avisar outra vez.';
-                  hint.style.color = '#86efac';
-                }
-              }
+              if (typeof loadSessao === 'function') await loadSessao();
             } catch (e) {
               alert('Falha de rede');
               pagoBtn.disabled = false;
@@ -143,12 +127,26 @@
             }
           });
         }
-      } else {
-        div.innerHTML =
-          '<div style="font-weight:700;margin-bottom:6px">Pagamento</div>' +
-          '<p class="muted" style="font-size:.85rem;margin:0">PIX ainda não configurado neste servidor. Pague no caixa ou chame o atendente.</p>';
-        sheet.appendChild(div);
+      } else if (!LQRPix.disponivel()) {
+        totalEl.innerHTML =
+          '<div class="pix-box"><div class="pix-box__title">Pagamento</div>' +
+          '<p class="muted" style="font-size:.85rem;margin:0">PIX ainda não configurado neste servidor. Pague no caixa.</p></div>';
       }
-    };
+      totalEl.setAttribute('data-pix-ready', '1');
+    }
+  }
+
+  whenReady(function () {
+    LQRPix.loadConfig().then(function () {
+      window._afterOpenSessao = function (s) {
+        injectPix(s);
+      };
+      // se já havia override antigo, não precisa
+      const _open = openSessao;
+      window.openSessao = function () {
+        _open.apply(this, arguments);
+        // _afterOpenSessao já é chamado no final de openSessao
+      };
+    });
   });
 })();
