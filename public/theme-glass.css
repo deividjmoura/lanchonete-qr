@@ -324,13 +324,13 @@ body.board-page .board-header .mesa-line {
 }
 
 body.board-page .board-frame {
-  background: rgba(22, 20, 18, 0.42) !important;
-  backdrop-filter: blur(20px) saturate(1.25);
-  -webkit-backdrop-filter: blur(20px) saturate(1.25);
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-  padding: 8px 10px 16px;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 body.board-page .chalk-cat {

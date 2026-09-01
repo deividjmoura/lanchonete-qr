@@ -1,99 +1,125 @@
 
-/* Header full width + sticky */
+/* Mesa: sem “aquário”, header que some no scroll, só busca sticky */
 body.board-page .board {
-  padding-top: 0 !important;
+  width: 100% !important;
+  max-width: 520px !important;
+  margin: 0 auto !important;
+  padding: 8px 14px 120px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+body.board-page .board-frame {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
 }
 body.board-page .mesa-sticky-head {
-  position: sticky;
-  top: 0;
-  z-index: 40;
+  position: relative; /* NÃO sticky — some com o scroll */
   width: 100%;
-  margin-left: 0;
-  margin-right: 0;
-  padding: 12px 14px 10px;
-  background: rgba(10, 9, 8, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  padding: 10px 0 6px;
+  margin: 0;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform-origin: top center;
+  transition: opacity .12s linear, transform .12s linear, max-height .12s linear;
+  will-change: opacity, transform;
+}
+body.board-page .mesa-sticky-head.is-compact {
+  opacity: 0;
+  transform: scale(0.86) translateY(-12px);
+  pointer-events: none;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin: 0;
+  overflow: hidden;
 }
 body.board-page .mesa-logo-row {
   width: 100% !important;
   max-width: none !important;
   display: flex !important;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   justify-content: flex-start;
+  padding: 4px 0;
 }
 body.board-page .mesa-logo {
-  width: 72px !important;
-  height: 72px !important;
+  width: 88px !important;
+  height: 88px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  border: 2.5px solid rgba(251, 191, 36, 0.95) !important;
+  box-shadow: none !important;
+  background: #0a0a0a !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
   flex: 0 0 auto;
 }
 body.board-page .mesa-logo img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+  display: block;
   border-radius: 50%;
 }
-
-/* Busca fixa ao rolar */
-.mesa-search {
-  position: sticky;
-  top: 88px;
-  z-index: 35;
-  margin-bottom: 12px !important;
-  background: rgba(12, 10, 9, 0.88) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 24px rgba(0,0,0,.25);
-}
-.cat-chips {
-  position: sticky;
-  top: 148px;
-  z-index: 34;
-  background: linear-gradient(180deg, rgba(10,9,8,.92), rgba(10,9,8,.75));
-  padding-top: 8px !important;
-  margin-bottom: 4px !important;
-}
-
-/* Prévia UI mesa — estilo app food (chips + cards) */
-body.board-page .board {
-  width: min(480px, 100%);
-  margin: 0 auto;
-  padding: 12px 14px 120px;
+body.board-page .board-header .menu-title {
+  font-size: 1.5rem !important;
+  letter-spacing: 0.08em !important;
 }
 body.board-page .board-header {
-  margin-bottom: 8px !important;
-}
-body.board-page .mesa-logo {
-  width: 64px !important;
-  height: 64px !important;
-  border-radius: 50% !important;
-  overflow: hidden !important;
-  border: 2.5px solid rgba(251, 191, 36, 0.95) !important;
-  box-shadow: 0 0 0 3px rgba(0,0,0,.35) !important;
-  background: #111 !important;
-  display: grid !important;
-  place-items: center !important;
-  padding: 0 !important;
-}
-body.board-page .mesa-logo img {
-  width: 88%;
-  height: 88%;
-  object-fit: contain;
-  display: block;
-}
-body.board-page .board-header .menu-title {
-  font-size: 1.35rem !important;
-  letter-spacing: 0.06em !important;
-}
-body.board-page .board-frame {
+  margin-bottom: 4px !important;
   background: transparent !important;
-  border: none !important;
   box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  border: none !important;
+}
+
+/* Só a busca fica fixa */
+.mesa-search {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40;
+  margin: 0 0 12px !important;
+  background: rgba(12, 10, 9, 0.72) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+}
+
+/* Categorias NÃO fixas — somem suavemente no scroll */
+.cat-chips {
+  position: relative !important;
+  top: auto !important;
+  z-index: 1 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding-top: 4px !important;
+  margin-bottom: 10px !important;
+  transform-origin: top center;
+  transition: opacity .12s linear, transform .12s linear, max-height .12s linear, margin .12s linear;
+  will-change: opacity, transform;
+}
+.cat-chips.is-compact {
+  opacity: 0;
+  transform: scale(0.92) translateY(-8px);
+  pointer-events: none;
+  max-height: 0 !important;
+  margin: 0 !important;
   padding: 0 !important;
+  overflow: hidden !important;
 }
 
 /* Chips de categoria */
@@ -613,4 +639,16 @@ body.modal-open::before {
   height: 100% !important;
   object-fit: cover !important;
   border-radius: 50%;
+}
+
+/* anti-aquário: derruba vidro/borda do theme-glass */
+body.board-page main.board,
+body.board-page .board,
+body.board-page .board-frame,
+body.board-page #menu {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
 }

@@ -407,3 +407,27 @@ function quickAdd(id){const p=produtos.find(x=>x.id===id);if(!p)return;const key
 let customizeDraft=null;
 function openCustomize(id){const p=produtos.find(x=>x.id===id);if(!p)return;const escolha=productIsEscolha(p);customizeDraft={productId:id,qty:1,additions:[],removals:[],note:'',ponto:null,escolha};if(escolha&&p.adicionais&&p.adicionais.length===1){const a0=p.adicionais[0];customizeDraft.additions=[{id:a0.id,nome:a0.nome,preco:Number(a0.preco)}];}renderCustomizeModal();}
 function closeModal(){document.getElementById('modal').innerHTML='';document.body.classList.remove('modal-open');cartOpen=false;sessaoOpen=false;customizeDraft=null;}
+
+
+/** Logo + categorias encolhem/somem no scroll; busca permanece sticky */
+(function mesaScrollCompact(){
+  function update(){
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    const head = document.querySelector('.mesa-sticky-head');
+    const chips = document.querySelector('.cat-chips');
+    const compact = y > 56;
+    if(head) head.classList.toggle('is-compact', compact);
+    if(chips) chips.classList.toggle('is-compact', compact);
+  }
+  window.addEventListener('scroll', update, {passive:true});
+  document.addEventListener('DOMContentLoaded', update);
+  // re-bind after menu re-renders chips
+  const _rm = typeof renderMenu === 'function' ? renderMenu : null;
+  if(_rm){
+    window.renderMenu = function(){
+      _rm.apply(this, arguments);
+      update();
+    };
+  }
+  update();
+})();
