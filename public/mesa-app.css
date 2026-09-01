@@ -829,3 +829,64 @@ body.board-page .mesa-sugestoes__scroll {
   overscroll-behavior-x: contain;
   touch-action: pan-x;
 }
+
+
+/* Logo estática — sem animação de scroll */
+body.board-page .mesa-sticky-head {
+  opacity: 1 !important;
+  transform: none !important;
+  max-height: none !important;
+  pointer-events: auto !important;
+}
+
+/* Placeholder estável enquanto a foto carrega */
+.prod-card__media,
+.sug-card__media,
+.product-detail-media {
+  background: linear-gradient(145deg, #1a1612, #0e0c0a) !important;
+}
+.prod-card__media img,
+.sug-card__media img {
+  background: transparent;
+  content-visibility: auto;
+}
+
+/* Banner de cookies */
+#lqCookieBanner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  z-index: 95;
+  max-width: 520px;
+  margin: 0 auto;
+  background: rgba(18, 16, 14, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  color: #f5f0e8;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+#lqCookieBanner p { margin: 0 0 12px; }
+#lqCookieBanner b { color: #fb923c; }
+.lq-cookie-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.lq-cookie-ok,
+.lq-cookie-no {
+  border: 0;
+  border-radius: 10px;
+  min-height: 40px;
+  padding: 0 16px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.lq-cookie-ok {
+  background: linear-gradient(165deg, #fb923c, #ea580c);
+  color: #fff;
+}
+.lq-cookie-no {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 240, 232, 0.85);
+}

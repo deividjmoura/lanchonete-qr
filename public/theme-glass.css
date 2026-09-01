@@ -925,12 +925,12 @@ body.board-page::before {
   transform: translateZ(0);
   will-change: auto;
 }
-body.page-admin::before { background-image: url('/assets/bg-admin.jpg'); }
-body.page-caixa::before { background-image: url('/assets/bg-caixa.jpg'); }
-body.page-cozinha::before { background-image: url('/assets/bg-cozinha.jpg'); }
-body.page-garcom::before { background-image: url('/assets/bg-garcom.jpg'); }
-body.page-login::before { background-image: url('/assets/bg-login.jpg'); }
-body.board-page::before { background-image: url('/assets/bg-mesa.jpg'); }
+body.page-admin::before { background-image: url('/assets/bg-admin.webp'); }
+body.page-caixa::before { background-image: url('/assets/bg-caixa.webp'); }
+body.page-cozinha::before { background-image: url('/assets/bg-cozinha.webp'); }
+body.page-garcom::before { background-image: url('/assets/bg-garcom.webp'); }
+body.page-login::before { background-image: url('/assets/bg-login.webp'); }
+body.board-page::before { background-image: url('/assets/bg-mesa.webp'); }
 
 .wrap,
 .board,

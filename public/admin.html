@@ -397,5 +397,6 @@ if(window.LQRRealtime){LQRRealtime.connect(()=>{loadPedidosBoard();loadMesas();l
 else if(typeof EventSource!=='undefined'){const es=new EventSource('/api/events');es.addEventListener('update',()=>{loadPedidosBoard();loadMesas();loadDashboard();});}
 </script>
 <script src="/js/admin-cardapio.js"></script>
+<script src="/js/cookies.js"></script>
 </body>
 </html>

@@ -4,6 +4,30 @@ if(!UUID_RE.test(token)){document.body.innerHTML='<main class="wrap"><div class=
 let categorias=[],produtos=[],cart=[],totalDevido=0,cartOpen=false,sessaoData=null,sessaoOpen=false,clienteNome='';
 /** Último status visto por pedido — para toast de mudança */
 let lastStatusMap={};
+
+/* Preferências de UI no navegador (após consentimento de cookies) */
+function lqCanStore(){
+  try{ return localStorage.getItem('lq-cookie-ok')==='1'; }catch(_){ return false; }
+}
+function lqGetJson(key, fallback){
+  try{
+    if(!lqCanStore()) return fallback;
+    const raw=localStorage.getItem(key);
+    if(!raw) return fallback;
+    return JSON.parse(raw);
+  }catch(_){ return fallback; }
+}
+function lqSetJson(key, val){
+  try{ if(!lqCanStore()) return; localStorage.setItem(key, JSON.stringify(val)); }catch(_){}
+}
+function lqLoadContaOpen(){
+  const token=(location.pathname.split('/').filter(Boolean).pop())||'';
+  return lqGetJson('lq-conta-open-'+token, []);
+}
+function lqSaveContaOpen(ids){
+  const token=(location.pathname.split('/').filter(Boolean).pop())||'';
+  lqSetJson('lq-conta-open-'+token, Array.from(ids||[]));
+}
 function getClienteNome(){if(clienteNome)return clienteNome;try{clienteNome=sessionStorage.getItem('lq-cliente-nome-'+token)||'';}catch(_){}return clienteNome;}
 function setClienteNome(nome){clienteNome=String(nome||'').trim().slice(0,80);try{sessionStorage.setItem('lq-cliente-nome-'+token,clienteNome);}catch(_){}}
 function ensureClienteNome(){return new Promise((resolve)=>{if(getClienteNome())return resolve(getClienteNome());const gate=document.getElementById('nameGate');const input=document.getElementById('clienteNomeInput');const btn=document.getElementById('clienteNomeBtn');gate.hidden=false;setTimeout(()=>input.focus(),50);const done=()=>{const n=(input.value||'').trim();if(!n){input.focus();return;}setClienteNome(n);gate.hidden=true;fetch('/api/mesas/'+token+'/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clienteNome:n})}).catch(()=>{});resolve(n);};btn.addEventListener('click',done);input.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();done();}});});}
@@ -88,7 +112,7 @@ function openSessao(){
   const s=sessaoData||{pedidos:[],totalDevido:0,mesa:'—'};
   const pedidos=s.pedidos||[];
   // Preserva quais cards estavam abertos (loadSessao/realtime re-renderizam)
-  const openIds=new Set(window._contaOpenPedidos||[]);
+  const openIds=new Set((window._contaOpenPedidos&&window._contaOpenPedidos.length)?window._contaOpenPedidos:lqLoadContaOpen());
   document.querySelectorAll('.pedido-block details[open][data-pedido-id]').forEach(function(d){
     openIds.add(String(d.getAttribute('data-pedido-id')));
   });
@@ -136,7 +160,7 @@ function openSessao(){
   document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet conta-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2>${blocks}<div class="conta-total-block">${totalLine}<div class="pix-mesa-total" data-valor="${rest.toFixed(2)}"></div></div></div></div>`;
   document.body.classList.add('modal-open');
   // track open/close without depender de re-fetch
-  window._contaOpenPedidos=Array.from(openIds);
+  window._contaOpenPedidos=Array.from(openIds);lqSaveContaOpen(window._contaOpenPedidos);
   document.querySelectorAll('.pedido-block details[data-pedido-id]').forEach(function(d){
     d.addEventListener('toggle',function(){
       const id=String(d.getAttribute('data-pedido-id'));
@@ -159,7 +183,7 @@ function openSessao(){
 function togglePedir(){if(cartOpen){closeModal();return;}openCart();}
 function toggleConta(){if(sessaoOpen){closeModal();return;}openSessao();}
 async function loadCardapio(){const r=await fetch('/api/cardapio');if(!r.ok){document.getElementById('menu').innerHTML='<div style="padding:20px;color:#a89f8c">Não foi possível carregar o cardápio.</div>';return;}categorias=await r.json();produtos=categorias.flatMap(c=>c.produtos||[]);await loadDestaques();renderMenu();}
-let mesaCatFilter='all';
+let mesaCatFilter=(function(){try{const v=lqGetJson('lq-mesa-cat',null);return v||'all';}catch(_){return 'all';}})();
 let mesaDestaques=null; // null=loading, []=vazio, array=itens
 let mesaDestaquesMsg='';
 let mesaSearch='';
@@ -196,47 +220,47 @@ function demoPhoto(p, catNome){
   const nome=String(p.nome||'').toLowerCase();
   const cat=String(catNome||p._catNome||'').toLowerCase();
   // Hot dogs — um arquivo por tipo (sem confundir com outras comidas)
-  if(/dog\s*bacon|dog-bacon/.test(nome)) return '/assets/demo/dog-bacon.jpg';
-  if(/vegetariano|vegano/.test(nome)) return '/assets/demo/dog-veg.jpg';
-  if(/dog\s*especial|especial da casa/.test(nome)) return '/assets/demo/dog-especial.jpg';
-  if(/dog\s*duplo|duplo/.test(nome) && /dog/.test(nome)) return '/assets/demo/dog-duplo.jpg';
-  if(/dog\s*tradicional|hot\s*dog|dog /.test(nome) || (/dog/.test(nome) && /hot/.test(cat))) return '/assets/demo/dog-classic.jpg';
-  if(/dog/.test(nome)) return '/assets/demo/dog-classic.jpg';
+  if(/dog\s*bacon|dog-bacon/.test(nome)) return '/assets/demo/dog-bacon.webp';
+  if(/vegetariano|vegano/.test(nome)) return '/assets/demo/dog-veg.webp';
+  if(/dog\s*especial|especial da casa/.test(nome)) return '/assets/demo/dog-especial.webp';
+  if(/dog\s*duplo|duplo/.test(nome) && /dog/.test(nome)) return '/assets/demo/dog-duplo.webp';
+  if(/dog\s*tradicional|hot\s*dog|dog /.test(nome) || (/dog/.test(nome) && /hot/.test(cat))) return '/assets/demo/dog-classic.webp';
+  if(/dog/.test(nome)) return '/assets/demo/dog-classic.webp';
   // Sanduíches
-  if(/x-bacon/.test(nome)) return '/assets/demo/xbacon.jpg';
-  if(/x-salada/.test(nome)) return '/assets/demo/salad.jpg';
-  if(/x-tudo/.test(nome)) return '/assets/demo/burger.jpg';
-  if(/x-frango|frango grelhado/.test(nome)) return '/assets/demo/chicken.jpg';
-  if(/misto/.test(nome)) return '/assets/demo/misto.jpg';
-  if(/natural/.test(nome)) return '/assets/demo/natural.jpg';
-  if(/x-|sandu|burger|hamb/.test(nome)) return '/assets/demo/burger.jpg';
+  if(/x-bacon/.test(nome)) return '/assets/demo/xbacon.webp';
+  if(/x-salada/.test(nome)) return '/assets/demo/salad.webp';
+  if(/x-tudo/.test(nome)) return '/assets/demo/burger.webp';
+  if(/x-frango|frango grelhado/.test(nome)) return '/assets/demo/chicken.webp';
+  if(/misto/.test(nome)) return '/assets/demo/misto.webp';
+  if(/natural/.test(nome)) return '/assets/demo/natural.webp';
+  if(/x-|sandu|burger|hamb/.test(nome)) return '/assets/demo/burger.webp';
   // Porções
-  if(/onion|anel/.test(nome)) return '/assets/demo/onion.jpg';
-  if(/polenta/.test(nome)) return '/assets/demo/polenta.jpg';
-  if(/mandioca/.test(nome)) return '/assets/demo/mandioca.jpg';
-  if(/passarinho/.test(nome)) return '/assets/demo/chicken.jpg';
-  if(/batata/.test(nome)) return '/assets/demo/fries.jpg';
+  if(/onion|anel/.test(nome)) return '/assets/demo/onion.webp';
+  if(/polenta/.test(nome)) return '/assets/demo/polenta.webp';
+  if(/mandioca/.test(nome)) return '/assets/demo/mandioca.webp';
+  if(/passarinho/.test(nome)) return '/assets/demo/chicken.webp';
+  if(/batata/.test(nome)) return '/assets/demo/fries.webp';
   // Combos
-  if(/combo/.test(nome)) return '/assets/demo/combo.jpg';
+  if(/combo/.test(nome)) return '/assets/demo/combo.webp';
   // Bebidas
-  if(/coca|cola/.test(nome)) return '/assets/demo/soda-cola.jpg';
-  if(/fanta|guaran|sprite/.test(nome)) return '/assets/demo/soda-orange.jpg';
-  if(/refrigerante/.test(nome)) return '/assets/demo/soda-cola.jpg';
-  if(/suco/.test(nome)) return '/assets/demo/juice.jpg';
-  if(/água|agua|coco/.test(nome)) return '/assets/demo/water.jpg';
-  if(/milk|shake/.test(nome)) return '/assets/demo/milkshake.jpg';
+  if(/coca|cola/.test(nome)) return '/assets/demo/soda-cola.webp';
+  if(/fanta|guaran|sprite/.test(nome)) return '/assets/demo/soda-orange.webp';
+  if(/refrigerante/.test(nome)) return '/assets/demo/soda-cola.webp';
+  if(/suco/.test(nome)) return '/assets/demo/juice.webp';
+  if(/água|agua|coco/.test(nome)) return '/assets/demo/water.webp';
+  if(/milk|shake/.test(nome)) return '/assets/demo/milkshake.webp';
   // Drinks / energy / beer
-  if(/caipi/.test(nome)) return '/assets/demo/caipi.jpg';
-  if(/gin|moscow|mule|vodka|drink/.test(nome)) return '/assets/demo/cocktail.jpg';
-  if(/energ|red bull|monster|tnt|baly/.test(nome)) return '/assets/demo/energy.jpg';
-  if(/cerveja|chopp|long neck|balde|ipa|pilsen|malte/.test(nome)) return '/assets/demo/beer.jpg';
+  if(/caipi/.test(nome)) return '/assets/demo/caipi.webp';
+  if(/gin|moscow|mule|vodka|drink/.test(nome)) return '/assets/demo/cocktail.webp';
+  if(/energ|red bull|monster|tnt|baly/.test(nome)) return '/assets/demo/energy.webp';
+  if(/cerveja|chopp|long neck|balde|ipa|pilsen|malte/.test(nome)) return '/assets/demo/beer.webp';
   // Sobremesas
-  if(/churros/.test(nome)) return '/assets/demo/churros.jpg';
-  if(/brownie/.test(nome)) return '/assets/demo/brownie.jpg';
-  if(/petit|gateau/.test(nome)) return '/assets/demo/petit.jpg';
-  if(/sobremesa|sorvete/.test(nome) || /sobremesa/.test(cat)) return '/assets/demo/dessert.jpg';
-  if(/bebida|refri/.test(cat)) return '/assets/demo/drink.jpg';
-  return '/assets/demo/burger.jpg';
+  if(/churros/.test(nome)) return '/assets/demo/churros.webp';
+  if(/brownie/.test(nome)) return '/assets/demo/brownie.webp';
+  if(/petit|gateau/.test(nome)) return '/assets/demo/petit.webp';
+  if(/sobremesa|sorvete/.test(nome) || /sobremesa/.test(cat)) return '/assets/demo/dessert.webp';
+  if(/bebida|refri/.test(cat)) return '/assets/demo/drink.webp';
+  return '/assets/demo/burger.webp';
 }
 function productPhotoUrl(p, catNome){
   // Foto cadastrada no admin (Postgres) tem prioridade
@@ -246,6 +270,7 @@ function productPhotoUrl(p, catNome){
 }
 function setMesaCat(id){
   mesaCatFilter=String(id||'all');
+  lqSetJson('lq-mesa-cat', mesaCatFilter);
   renderMenu();
 }
 function setMesaSearch(q){
@@ -298,7 +323,7 @@ function renderMenu(){
           actions=`<button type="button" class="btn-add" onclick="event.stopPropagation();quickAdd(${full.id})">+ Adicionar</button>`;
         }
         return `<article class="sug-card" role="button" tabindex="0" onclick="openProductDetail(${full.id})">
-          <div class="sug-card__media"><img src="${esc(foto)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'"></div>
+          <div class="sug-card__media"><img src="${esc(foto)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/assets/demo/burger.webp'"></div>
           <div class="sug-card__body">
             <h3>${esc(full.nome||it.nome)}</h3>
             <div class="price">${br(full.preco!=null?full.preco:it.preco)}</div>
@@ -328,7 +353,7 @@ function renderMenu(){
       actions=`<button class="btn-add" type="button" onclick="event.stopPropagation();quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button>`;
     }
     return `<article class="prod-card" role="button" tabindex="0" onclick="openProductDetail(${p.id})">
-      <div class="prod-card__media"><img src="${esc(foto)}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/assets/demo/dog-classic.jpg'"></div>
+      <div class="prod-card__media"><img src="${esc(foto)}" alt="" width="320" height="280" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='/assets/demo/burger.webp'"></div>
       <div class="prod-card__body">
         <h3>${esc(p.nome)}</h3>
         <div class="prod-card__row"><span class="price">${br(p.preco)}</span>${actions}</div>
@@ -410,7 +435,7 @@ function openProductDetail(id){
       <div class="modal-sheet product-detail-sheet">
         <button class="close" type="button" onclick="closeModal()" aria-label="Fechar">×</button>
         <div class="product-detail-media">
-          <img src="${esc(foto)}" alt="" width="640" height="440" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='/assets/demo/burger.jpg'">
+          <img src="${esc(foto)}" alt="" width="640" height="440" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='/assets/demo/burger.webp'">
         </div>
         <div class="product-detail-body">
           <h2>${esc(p.nome)}</h2>
@@ -431,32 +456,5 @@ function closeModal(){document.getElementById('modal').innerHTML='';document.bod
 
 
 /** Logo + categorias encolhem com o scroll (contínuo, sem pulo); busca sticky */
-(function mesaScrollCompact(){
-  /* Logo só esmaece (sem colapsar altura = sem puxão no scroll) */
-  let ticking=false;
-  function update(){
-    ticking=false;
-    const y = window.scrollY || document.documentElement.scrollTop || 0;
-    const head = document.querySelector('.mesa-sticky-head');
-    if(!head) return;
-    const t = Math.max(0, Math.min(1, y / 72));
-    head.style.setProperty('--logo-hide', t.toFixed(3));
-    head.classList.toggle('is-scrolled', t > 0.12);
-  }
-  function onScroll(){
-    if(ticking) return;
-    ticking=true;
-    requestAnimationFrame(update);
-  }
-  window.addEventListener('scroll', onScroll, {passive:true});
-  window.addEventListener('resize', update, {passive:true});
-  document.addEventListener('DOMContentLoaded', update);
-  const _rm = typeof renderMenu === 'function' ? renderMenu : null;
-  if(_rm){
-    window.renderMenu = function(){
-      _rm.apply(this, arguments);
-      requestAnimationFrame(update);
-    };
-  }
-  update();
-})();
+/* logo estática — sem animação de scroll (evita puxão) */
+
