@@ -637,7 +637,8 @@ body.board-page #menu {
   width: 100% !important;
 }
 body.board-page {
-  overflow-x: hidden;
+  /* não usar overflow-x:hidden aqui — quebra sticky da busca */
+  overflow-x: clip;
 }
 
 
@@ -740,8 +741,8 @@ body.board-page .prod-scroll {
   scrollbar-color: rgba(251,146,60,.4) transparent;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
-  overscroll-behavior-y: none;
-  touch-action: pan-x;
+  /* permite scroll vertical da página + horizontal do carrossel */
+  touch-action: pan-x pan-y;
   scroll-snap-type: x proximity;
 }
 body.board-page .prod-scroll--2row {
@@ -812,22 +813,19 @@ body.board-page .mesa-search {
   background: rgba(12, 10, 9, 0.82) !important;
 }
 
-/* Página: scroll vertical limpo */
+/* Página: scroll nativo do document (não prender em .board) */
 body.board-page {
-  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
 }
-body.board-page .board {
-  overflow-x: hidden !important;
-  touch-action: pan-y;
-}
+body.board-page .board,
 body.board-page .board-frame {
-  overflow-x: hidden !important;
+  /* overflow-x:hidden quebra position:sticky em vários mobile browsers */
+  overflow: visible !important;
+  touch-action: auto !important;
 }
-/* Carrosséis isolam o eixo X para não “brigar” com o scroll da página */
 body.board-page .mesa-sugestoes__scroll {
   overscroll-behavior-x: contain;
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
 }
 
 
@@ -889,4 +887,45 @@ body.board-page .mesa-sticky-head {
 .lq-cookie-no {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(245, 240, 232, 0.85);
+}
+
+
+/* ========== FIX scroll + busca sticky (mobile) ========== */
+html {
+  overflow-x: clip;
+}
+body.board-page {
+  overflow-x: clip !important;
+  overflow-y: auto !important;
+  touch-action: manipulation;
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+}
+body.board-page .board,
+body.board-page main.board,
+body.board-page .board-frame,
+body.board-page #menu {
+  overflow: visible !important;
+  touch-action: auto !important;
+  height: auto !important;
+  max-height: none !important;
+}
+/* Busca sempre fixa no topo da viewport ao rolar */
+body.board-page .mesa-search {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+  margin: 0 0 12px !important;
+  background: rgba(12, 10, 9, 0.92) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 14px !important;
+}
+/* Carrossel: horizontal + vertical (não bloqueia a página) */
+body.board-page .prod-scroll,
+body.board-page .mesa-sugestoes__scroll {
+  touch-action: pan-x pan-y !important;
+  overscroll-behavior-y: auto !important;
 }
