@@ -287,11 +287,10 @@ function setMesaCat(id){
 }
 function setMesaSearch(q){
   mesaSearch=String(q||'');
-  renderMenu();
-  const input=document.getElementById('mesaSearchInput');
-  if(input && document.activeElement!==input){/* keep */;}
   const box=document.getElementById('mesaSearchBox');
   if(box) box.classList.toggle('has-value', !!mesaSearch.trim());
+  // Só atualiza a lista — NÃO recria o input (evita “refresh” a cada tecla)
+  renderMenuBody();
 }
 function clearMesaSearch(){
   mesaSearch='';
@@ -299,22 +298,8 @@ function clearMesaSearch(){
   if(input) input.value='';
   setMesaSearch('');
 }
-function renderMenu(){
-  const chips=[{id:'all',nome:'Todos',ico:'✨'}].concat(
-    categorias.map(c=>({id:String(c.id),nome:c.nome,ico:CAT_ICONS[c.nome]||'🍽️'}))
-  );
-  const chipsHtml='<div class="cat-chips" role="tablist">'+chips.map(ch=>{
-    const on=String(mesaCatFilter)===String(ch.id);
-    return `<button type="button" class="cat-chip${on?' active':''}" role="tab" aria-selected="${on}" onclick="setMesaCat('${esc(ch.id)}')"><span class="chip-ico" aria-hidden="true">${ch.ico}</span><span class="chip-label">${esc(ch.nome)}</span></button>`;
-  }).join('')+'</div>';
-
+function buildMenuBodyHtml(){
   const q=mesaSearch.trim().toLowerCase();
-  const searchHtml=`<div class="mesa-search${q?' has-value':''}" id="mesaSearchBox">
-    <span class="search-ico" aria-hidden="true">🔍</span>
-    <input id="mesaSearchInput" type="search" placeholder="Buscar no cardápio…" value="${esc(mesaSearch)}" autocomplete="off" enterkeyhint="search">
-    <button type="button" class="search-clear" aria-label="Limpar busca" onclick="clearMesaSearch()">×</button>
-  </div>`;
-
   let sugHtml='';
   if(!q && mesaCatFilter==='all'){
     if(mesaDestaques && mesaDestaques.length){
@@ -338,29 +323,25 @@ function renderMenu(){
           <div class="sug-card__media"><img src="${esc(foto)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/assets/demo/burger.webp'"></div>
           <div class="sug-card__body">
             <h3>${esc(full.nome||it.nome)}</h3>
-            <div class="price">${br(full.preco!=null?full.preco:it.preco)}</div>
-            ${actions}
+            <div class="sug-card__row"><span class="price">${br(full.preco!=null?full.preco:it.preco)}</span>${actions}</div>
           </div>
         </article>`;
       }).join('');
-      sugHtml=`<section class="mesa-sugestoes" aria-label="Mais pedidos hoje">
-        <div class="mesa-sugestoes__head"><h2>🔥 Mais pedidos hoje</h2></div>
-        <div class="mesa-sugestoes__scroll">${cards}</div>
-      </section>`;
-    }else if(mesaDestaques!==null){
-      sugHtml=`<div class="mesa-first-msg">${esc(mesaDestaquesMsg||randomFirstMsg())}</div>`;
+      sugHtml=`<section class="mesa-sugestoes"><h2 class="mesa-section-title">Sugestões do dia</h2><div class="mesa-sugestoes__scroll">${cards}</div></section>`;
+    }else if(Array.isArray(mesaDestaques) && !mesaDestaques.length && mesaDestaquesMsg){
+      sugHtml=`<p class="mesa-empty" style="margin:8px 0 16px">${esc(mesaDestaquesMsg)}</p>`;
     }
   }
 
-  function cardHtml(p, c){
+  function cardHtml(p,c){
+    const foto=productPhotoUrl(p,c.nome);
     const escolha=productIsEscolha(p,c.nome);
     const custom=productNeedsCustom(p);
-    const foto=productPhotoUrl(p,c.nome);
     let actions;
     if(escolha){
-      actions=`<button class="btn-add ghost" type="button" onclick="event.stopPropagation();openCustomize(${p.id})" title="Escolher">Escolher</button>`;
+      actions=`<button class="btn-add ghost" type="button" onclick="event.stopPropagation();openCustomize(${p.id})">Escolher</button>`;
     }else if(custom){
-      actions=`<div class="prod-card__actions"><button class="btn-add" type="button" onclick="event.stopPropagation();quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button><button class="btn-add ghost" type="button" onclick="event.stopPropagation();openCustomize(${p.id})" title="Personalizar">✎</button></div>`;
+      actions=`<div class="prod-actions"><button class="btn-add" type="button" onclick="event.stopPropagation();quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button><button class="btn-add ghost" type="button" onclick="event.stopPropagation();openCustomize(${p.id})" title="Personalizar">✎</button></div>`;
     }else{
       actions=`<button class="btn-add" type="button" onclick="event.stopPropagation();quickAdd(${p.id})" title="Adicionar" aria-label="Adicionar">+</button>`;
     }
@@ -368,6 +349,7 @@ function renderMenu(){
       <div class="prod-card__media"><img src="${esc(foto)}" alt="" width="320" height="280" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='/assets/demo/burger.webp'"></div>
       <div class="prod-card__body">
         <h3>${esc(p.nome)}</h3>
+        <p class="desc">${esc(p.descricao||'')}</p>
         <div class="prod-card__row"><span class="price">${br(p.preco)}</span>${actions}</div>
       </div>
     </article>`;
@@ -392,8 +374,6 @@ function renderMenu(){
       const prods=(c.produtos||[]).map(p=>{p._catNome=c.nome;return p;});
       if(!prods.length) return '';
       const cards=prods.map(p=>cardHtml(p,c)).join('');
-      // ≥3 itens: carrossel 2 linhas (compacto + scroll lateral só na faixa)
-      // 1–2 itens: grid simples sem scroll horizontal
       const many=prods.length>2;
       const listClass=many?'prod-scroll prod-scroll--2row':'prod-grid prod-grid--few';
       return `<section class="cat-section">
@@ -405,21 +385,44 @@ function renderMenu(){
       </section>`;
     }).join('')||'<div class="mesa-empty">Nenhum item nesta categoria.</div>';
   }
+  return sugHtml+bodyHtml;
+}
+function renderMenuBody(){
+  const body=document.getElementById('menuBody');
+  if(!body){ renderMenu(); return; }
+  body.innerHTML=buildMenuBodyHtml();
+}
+function renderMenu(){
+  const chips=[{id:'all',nome:'Todos',ico:'✨'}].concat(
+    categorias.map(c=>({id:String(c.id),nome:c.nome,ico:CAT_ICONS[c.nome]||'🍽️'}))
+  );
+  const chipsHtml='<div class="cat-chips" id="mesaCatChips" role="tablist">'+chips.map(ch=>{
+    const on=String(mesaCatFilter)===String(ch.id);
+    return `<button type="button" class="cat-chip${on?' active':''}" role="tab" aria-selected="${on}" onclick="setMesaCat('${esc(ch.id)}')"><span class="chip-ico" aria-hidden="true">${ch.ico}</span><span class="chip-label">${esc(ch.nome)}</span></button>`;
+  }).join('')+'</div>';
+
+  const q=mesaSearch.trim();
+  const searchHtml=`<div class="mesa-search${q?' has-value':''}" id="mesaSearchBox">
+    <span class="search-ico" aria-hidden="true">🔍</span>
+    <input id="mesaSearchInput" type="search" placeholder="Buscar no cardápio…" value="${esc(mesaSearch)}" autocomplete="off" enterkeyhint="search">
+    <button type="button" class="search-clear" aria-label="Limpar busca" onclick="clearMesaSearch()">×</button>
+  </div>`;
 
   document.getElementById('menu').innerHTML=
     searchHtml+
     chipsHtml+
-    sugHtml+
-    bodyHtml;
+    '<div id="menuBody">'+buildMenuBodyHtml()+'</div>';
+
   const input=document.getElementById('mesaSearchInput');
-  if(input){
-    let t=null;
+  if(input && !input.dataset.bound){
+    input.dataset.bound='1';
+    // input direto, sem debounce que “pisca” — só troca o #menuBody
     input.addEventListener('input',function(){
-      clearTimeout(t);
-      const v=input.value;
-      t=setTimeout(function(){ setMesaSearch(v); }, 180);
+      mesaSearch=input.value||'';
+      const box=document.getElementById('mesaSearchBox');
+      if(box) box.classList.toggle('has-value', !!mesaSearch.trim());
+      renderMenuBody();
     });
-    // não refocus a cada render — evita salto e teclado piscando
   }
 }
 
@@ -468,5 +471,34 @@ function closeModal(){document.getElementById('modal').innerHTML='';document.bod
 
 
 /** Logo + categorias encolhem com o scroll (contínuo, sem pulo); busca sticky */
-/* logo estática — sem animação de scroll (evita puxão) */
 
+
+(function mesaScrollCompact(){
+  let ticking=false;
+  function update(){
+    ticking=false;
+    const y=window.scrollY||document.documentElement.scrollTop||0;
+    const t=Math.max(0, Math.min(1, y/70));
+    const head=document.querySelector('.mesa-sticky-head');
+    const chips=document.getElementById('mesaCatChips')||document.querySelector('.cat-chips');
+    if(head){
+      head.style.setProperty('--logo-hide', t.toFixed(3));
+      head.classList.toggle('is-scrolled', t>0.08);
+      head.classList.toggle('is-faded', t>0.55);
+    }
+    if(chips){
+      chips.style.setProperty('--logo-hide', t.toFixed(3));
+      chips.classList.toggle('is-scrolled', t>0.08);
+      chips.classList.toggle('is-faded', t>0.55);
+    }
+  }
+  function onScroll(){
+    if(ticking) return;
+    ticking=true;
+    requestAnimationFrame(update);
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', update, {passive:true});
+  document.addEventListener('DOMContentLoaded', update);
+  update();
+})();
