@@ -689,7 +689,7 @@ body.board-page .conta-btn .badge-total:not(.show) {
 /* Chips: até ~2 linhas, SEM scroll horizontal da página */
 body.board-page .cat-chips {
   display: flex !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
   gap: 8px !important;
   overflow: visible !important;
   overflow-x: visible !important;
@@ -707,7 +707,7 @@ body.board-page .cat-chips {
 }
 body.board-page .cat-chip {
   flex: 0 1 auto !important;
-  max-width: calc(50% - 6px) !important; /* ~2 por linha em telas estreitas */
+  max-width: none !important;
   width: auto !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -722,7 +722,7 @@ body.board-page .cat-chip .chip-label {
 }
 @media (min-width: 400px) {
   body.board-page .cat-chip {
-    max-width: calc(33.33% - 8px) !important; /* até 3 por linha */
+    max-width: none !important;
   }
 }
 
@@ -928,4 +928,82 @@ body.board-page .prod-scroll,
 body.board-page .mesa-sugestoes__scroll {
   touch-action: pan-x pan-y !important;
   overscroll-behavior-y: auto !important;
+}
+
+
+/* ========== Categorias: scroll lateral (como antes) + busca FIXA no topo ========== */
+
+/* Chips em faixa horizontal — não empilhar */
+body.board-page .cat-chips {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  max-height: none !important;
+  height: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  margin: 0 0 12px !important;
+  padding: 8px 2px 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  scrollbar-width: none !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y !important;
+}
+body.board-page .cat-chips::-webkit-scrollbar {
+  display: none !important;
+}
+body.board-page .cat-chip {
+  flex: 0 0 auto !important;
+  max-width: none !important;
+  width: max-content !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+body.board-page .cat-chip .chip-label {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
+
+/* Busca sempre no topo da tela (fixed) */
+body.board-page .mesa-search {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 60 !important;
+  margin: 0 !important;
+  padding: 10px 12px !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(12, 10, 9, 0.94) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  /* safe area iPhone */
+  padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+}
+
+/* Espaço no menu para a barra de busca não cobrir o conteúdo */
+body.board-page #menu {
+  padding-top: calc(58px + env(safe-area-inset-top, 0px)) !important;
+}
+
+/* Logo abaixo da busca na leitura inicial — pode rolar normalmente */
+body.board-page .mesa-sticky-head {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+body.board-page .mesa-sticky-head {
+  padding-top: calc(58px + env(safe-area-inset-top, 0px)) !important;
 }
