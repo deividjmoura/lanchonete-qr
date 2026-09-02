@@ -331,13 +331,21 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
     root.innerHTML =
       '<div class="panel empty-state"><div class="big">✅</div><div>Nenhum pedido na fila da cozinha.</div></div>';
   } else {
-    const openIds = new Set([...document.querySelectorAll('#orders details.order-card[open]')].map(d => d.getAttribute('data-id')).filter(Boolean));
+    // Accordion: no máximo 1 card aberto; preserva o que estava aberto no re-render
+    const openEl = document.querySelector('#orders details.order-card[open]');
+    const openId = openEl ? openEl.getAttribute('data-id') : (window.__cozinhaOpenId || null);
     const __opsScroll = window.scrollY || document.documentElement.scrollTop || 0;
     root.innerHTML = pedidos.map(card).join('');
     requestAnimationFrame(function(){ window.scrollTo(0, __opsScroll); });
-    root.querySelectorAll('details.order-card[data-id]').forEach(function(d){
-      if (openIds.has(d.getAttribute('data-id'))) d.open = true;
-    });
+    if (openId) {
+      const keep = root.querySelector('details.order-card[data-id="' + CSS.escape(String(openId)) + '"]');
+      if (keep) {
+        keep.open = true;
+        window.__cozinhaOpenId = String(openId);
+      } else {
+        window.__cozinhaOpenId = null;
+      }
+    }
   }
 });
 
@@ -394,6 +402,20 @@ document.getElementById('orders').addEventListener('click', (ev) => {
   if (!btn) return;
   avancar(Number(btn.dataset.advance), btn.dataset.status);
 });
+
+// Accordion: ao abrir um card, fecha os demais; clicar de novo retrai (nativo)
+document.getElementById('orders').addEventListener('toggle', function(ev) {
+  const d = ev.target;
+  if (!d || d.tagName !== 'DETAILS' || !d.classList.contains('order-card')) return;
+  if (d.open) {
+    window.__cozinhaOpenId = d.getAttribute('data-id');
+    document.querySelectorAll('#orders details.order-card[open]').forEach(function(other) {
+      if (other !== d) other.open = false;
+    });
+  } else if (window.__cozinhaOpenId === d.getAttribute('data-id')) {
+    window.__cozinhaOpenId = null;
+  }
+}, true);
 
 load();
 if (window.LQRRealtime) {

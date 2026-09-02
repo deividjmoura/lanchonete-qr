@@ -366,7 +366,9 @@ async function loadPedidosBoard(){
   for(const p of list){if(by[p.status])by[p.status].push(p);}
   if(statsEl)statsEl.innerHTML=list.length?'<span class="badge">'+list.length+' ativo(s)</span>':'<span class="badge">Fila limpa</span>';
   if(!list.length){el.innerHTML='<div class="empty-state-big" style="grid-column:1/-1"><span class="big-ico" aria-hidden="true">✅</span><span class="empty-title">Nenhum pedido em andamento</span><span class="empty-sub">Aproveite o momento de calmaria!</span></div>';return;}
-  const openPids=new Set([...document.querySelectorAll('#pedidosBoard details.pk-card[open]')].map(d=>d.getAttribute('data-pid')).filter(Boolean));
+  // Accordion: 1 pedido aberto por vez no kanban; preserva no re-render
+  const openEl=document.querySelector('#pedidosBoard details.pk-card[open]');
+  const openPid=openEl?openEl.getAttribute('data-pid'):(window.__adminOpenPid||null);
   el.innerHTML=STATUS_COLS.map(col=>{
     const items=by[col.key]||[];
     const body=items.length
@@ -374,9 +376,11 @@ async function loadPedidosBoard(){
       : '<div class="empty-col"><span class="big-ico" aria-hidden="true">—</span>Vazio</div>';
     return '<div class="pk-col"><div class="pk-col-head"><h3 style="margin:0;font-size:.95rem">'+col.icon+' '+col.label+'</h3><span class="pk-count">'+items.length+'</span></div><div class="pk-col-body">'+body+'</div></div>';
   }).join('');
-  el.querySelectorAll('details.pk-card[data-pid]').forEach(function(d){
-    if(openPids.has(d.getAttribute('data-pid'))) d.open=true;
-  });
+  if(openPid){
+    const keep=el.querySelector('details.pk-card[data-pid="'+CSS.escape(String(openPid))+'"]');
+    if(keep){keep.open=true;window.__adminOpenPid=String(openPid);}
+    else window.__adminOpenPid=null;
+  }
 }
 async function buscarHistorico(){
   const from=document.getElementById('histFrom').value,to=document.getElementById('histTo').value,el=document.getElementById('pedidosHistorico');
@@ -392,6 +396,23 @@ function limparHistorico(){
   document.getElementById('pedidosHistorico').innerHTML='<p class="muted">Escolha um período.</p>';
 }
 if(typeof defaultRelDates==='function')defaultRelDates();
+
+// Accordion: 1 pedido aberto por vez (ativos + histórico)
+document.addEventListener('toggle', function(ev) {
+  const d = ev.target;
+  if (!d || d.tagName !== 'DETAILS') return;
+  if (!d.classList.contains('pk-card') && !d.classList.contains('hist-card')) return;
+  if (d.open) {
+    window.__adminOpenPid = d.getAttribute('data-pid');
+    const root = d.closest('#pedidosBoard, #pedidosHistorico') || document;
+    root.querySelectorAll('details.pk-card[open], details.hist-card[open]').forEach(function(other) {
+      if (other !== d) other.open = false;
+    });
+  } else if (window.__adminOpenPid === d.getAttribute('data-pid')) {
+    window.__adminOpenPid = null;
+  }
+}, true);
+
 loadDashboard();loadMesas();loadCardapio();loadGarcons();loadPedidosBoard();
 if(window.LQRRealtime){LQRRealtime.connect(()=>{loadPedidosBoard();loadMesas();loadDashboard();},{fallbackMs:25000,debounceMs:200});}
 else if(typeof EventSource!=='undefined'){const es=new EventSource('/api/events');es.addEventListener('update',()=>{loadPedidosBoard();loadMesas();loadDashboard();});}

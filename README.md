@@ -96,10 +96,10 @@ Requer `DATABASE_URL` no `.env` (mesmo do Render/Neon).
 | Papel | Rota | O que faz |
 |:-----:|:-----|:----------|
 | 👤 Cliente | `/mesa/:token` | Cardápio, **Escolher**, personalizar, carrinho, conta + PIX |
-| 👨‍🍳 Cozinha | `/cozinha` | Fila + **alerta de voz** (mesa + cliente) |
-| 🏃 Garçom | `/garcom/:token` | Entrega + **voz engraçada** (nº da mesa) |
-| 💵 Caixa | `/caixa` | Fecha conta, **divisão**, desconto/taxa, PIX, alerta |
-| ⚙️ Admin | `/admin` | Cardápio (CRUD + **upload foto**), mesas, dashboard, relatório |
+| 👨‍🍳 Cozinha | `/cozinha` | Fila + **alerta de voz** (mesa + cliente) · acordeão 1 card |
+| 🏃 Garçom | `/garcom/:token` | Entrega + **voz engraçada** (nº da mesa) · acordeão 1 card |
+| 💵 Caixa | `/caixa` | Fecha conta, **divisão**, desconto/taxa, PIX · 1 sessão aberta |
+| ⚙️ Admin | `/admin` | Cardápio (CRUD + **upload foto**), mesas, dashboard · 1 pedido aberto |
 | 🔐 Login | `/login` | Auth por papel (admin / cozinha / caixa) |
 
 ---

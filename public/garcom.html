@@ -208,11 +208,24 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   document.getElementById('stats').textContent = pedidos.length
     ? `${pedidos.length} pronto(s) para entregar`
     : 'Nenhum pedido aguardando entrega';
+  // Accordion: no máximo 1 card aberto; preserva no re-render
+  const openEl = document.querySelector('#orders details.order-card[open]');
+  const openId = openEl ? openEl.getAttribute('data-id') : (window.__garcomOpenId || null);
   const __opsScroll = window.scrollY || document.documentElement.scrollTop || 0;
-  document.getElementById('orders').innerHTML = pedidos.length
+  const root = document.getElementById('orders');
+  root.innerHTML = pedidos.length
     ? pedidos.map(card).join('')
     : '<div class="panel empty-state"><div class="big">✅</div><div>Fila vazia.</div></div>';
   requestAnimationFrame(function(){ window.scrollTo(0, __opsScroll); });
+  if (openId && pedidos.length) {
+    const keep = root.querySelector('details.order-card[data-id="' + CSS.escape(String(openId)) + '"]');
+    if (keep) {
+      keep.open = true;
+      window.__garcomOpenId = String(openId);
+    } else {
+      window.__garcomOpenId = null;
+    }
+  }
 });
 async function entregar(id){
   if(advancing)return;advancing=true;
@@ -232,6 +245,20 @@ document.getElementById('orders').addEventListener('click',(ev)=>{
   if(printBtn){imprimirPedido(Number(printBtn.dataset.print));return;}
   const btn=ev.target.closest('[data-deliver]');if(!btn)return;entregar(Number(btn.dataset.deliver));
 });
+
+// Accordion: 1 card aberto por vez; clicar de novo retrai
+document.getElementById('orders').addEventListener('toggle', function(ev) {
+  const d = ev.target;
+  if (!d || d.tagName !== 'DETAILS' || !d.classList.contains('order-card')) return;
+  if (d.open) {
+    window.__garcomOpenId = d.getAttribute('data-id');
+    document.querySelectorAll('#orders details.order-card[open]').forEach(function(other) {
+      if (other !== d) other.open = false;
+    });
+  } else if (window.__garcomOpenId === d.getAttribute('data-id')) {
+    window.__garcomOpenId = null;
+  }
+}, true);
 (async()=>{
   await loadMe();
   await load();
