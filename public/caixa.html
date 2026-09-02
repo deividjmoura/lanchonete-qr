@@ -156,26 +156,16 @@ function refreshPix(id, valor) {
   if (label) label.textContent = 'PIX · ' + money(valor) + ' · ' + pixNome();
 }
 
-// Accordion de sessões: no máximo 1 aberta por vez
-window.__caixaOpenId = window.__caixaOpenId || null;
+window.__caixaOpenIds = window.__caixaOpenIds || new Set();
 function toggleSessaoCard(id) {
   id = String(id);
   const art = document.querySelector('article.sessao-fold[data-id="' + CSS.escape(id) + '"]');
   if (!art) return;
-  const willOpen = !art.classList.contains('open');
-  // Fecha todas as outras e sincroniza aria-expanded
-  document.querySelectorAll('article.sessao-fold').forEach(function(other) {
-    const oid = other.getAttribute('data-id');
-    const btn = other.querySelector('[data-toggle-sessao]');
-    if (willOpen && oid === id) {
-      other.classList.add('open');
-      if (btn) btn.setAttribute('aria-expanded', 'true');
-    } else {
-      other.classList.remove('open');
-      if (btn) btn.setAttribute('aria-expanded', 'false');
-    }
-  });
-  window.__caixaOpenId = willOpen ? id : null;
+  const open = art.classList.toggle('open');
+  const btn = art.querySelector('[data-toggle-sessao]');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) window.__caixaOpenIds.add(id);
+  else window.__caixaOpenIds.delete(id);
 }
 
 function card(s) {
@@ -219,7 +209,7 @@ function card(s) {
     : '';
 
   const nPed = (s.pedidosEntregues || []).length;
-  const isOpen = window.__caixaOpenId != null && String(window.__caixaOpenId) === String(s.id);
+  const isOpen = window.__caixaOpenIds && window.__caixaOpenIds.has(String(s.id));
   return `<article class="sessao-fold sessao-card ${s.podeFechar ? '' : 'blocked'}${s.pixInformadoEm ? ' pix-wait' : ''}${isOpen ? ' open' : ''}" data-id="${s.id}" data-total="${Number(s.valorTotal)}" data-pago="${valorPago}" data-restante="${valorRestante}" data-pix="${s.pixInformadoEm ? '1' : '0'}">
     <button type="button" class="sessao-sum" data-toggle-sessao="${s.id}" aria-expanded="${isOpen ? 'true' : 'false'}">
       <div class="order-sum-left">
@@ -336,16 +326,14 @@ const load = (window.LQRRealtime && LQRRealtime.createLoader
   if (!sessoes.length) {
     root.innerHTML = '<div class="panel empty-state" style="grid-column:1/-1"><div class="big">✅</div><div>Nenhuma sessão aberta no momento.</div></div>';
   } else {
-    // Accordion de pedidos internos: no máximo 1 aberto; preserva no re-render
-    const openPedEl = document.querySelector('#lista details.pedido[open]');
-    const openPedId = openPedEl ? openPedEl.getAttribute('data-pid') : (window.__caixaOpenPedidoId || null);
-    window.__caixaOpenPedidoId = openPedId;
+    const openPed = new Set([...document.querySelectorAll('#lista details.pedido[open]')].map(d => d.getAttribute('data-pid')).filter(Boolean));
+    window.__caixaOpenPedidos = openPed;
     const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
     root.innerHTML = sessoes.map(card).join('');
-    if (openPedId) {
-      const keepPed = root.querySelector('details.pedido[data-pid="' + CSS.escape(String(openPedId)) + '"]');
-      if (keepPed) keepPed.open = true;
-      else window.__caixaOpenPedidoId = null;
+    if (openPed.size) {
+      root.querySelectorAll('details.pedido[data-pid]').forEach(function(d){
+        if (openPed.has(d.getAttribute('data-pid'))) d.open = true;
+      });
     }
     requestAnimationFrame(function(){ window.scrollTo(0, scrollY); });
     sessoes.forEach((s) => {
@@ -461,21 +449,6 @@ document.getElementById('lista').addEventListener('click', async (ev) => {
   if (!btn || btn.disabled) return;
   fechar(Number(btn.dataset.close));
 });
-
-// Accordion: 1 pedido (details.pedido) aberto por vez
-document.getElementById('lista').addEventListener('toggle', function(ev) {
-  const d = ev.target;
-  if (!d || d.tagName !== 'DETAILS' || !d.classList.contains('pedido')) return;
-  if (d.open) {
-    window.__caixaOpenPedidoId = d.getAttribute('data-pid');
-    document.querySelectorAll('#lista details.pedido[open]').forEach(function(other) {
-      if (other !== d) other.open = false;
-    });
-  } else if (window.__caixaOpenPedidoId === d.getAttribute('data-pid')) {
-    window.__caixaOpenPedidoId = null;
-  }
-}, true);
-
 window.__caixaReload = load;
 (async () => {
   if (window.LQRPix) await LQRPix.loadConfig();

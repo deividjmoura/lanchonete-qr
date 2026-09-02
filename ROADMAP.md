@@ -90,11 +90,9 @@ v3.x ░░░░░░░░░░░░░░░░░░░░  Gateway · WA
 
 ### UX cards / acordeão (v2.9)
 - [x] Cozinha, mesa (conta), caixa: cards **recolhidos** por padrão
-- [x] Caixa: acordeão por mesa independente (sem `<details>` aninhados bugados)
+- [x] Caixa: acordeão por mesa **independente** (vários podem ficar abertos; sem `<details>` aninhados bugados)
 - [x] Admin cardápio: categorias recolhidas; várias podem ficar abertas
-- [x] **Acordeão estrito**: 1 card aberto por vez (Cozinha, Garçom, Admin pedidos, Conta do cliente)
-- [x] Caixa: 1 **sessão** aberta por vez + `aria-expanded` sincronizado; 1 pedido interno aberto
-- [x] Clicar de novo retrai; re-render/SSE preserva o card que estava aberto
+- [x] Cards **independentes**: abrir/fechar um não afeta os outros; re-render/SSE preserva os que estavam abertos
 
 ### Qualidade
 - [x] Smoke test automatizado (`npm run test:smoke`)

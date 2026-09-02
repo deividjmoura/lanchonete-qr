@@ -83,7 +83,7 @@ function notifyStatusChanges(pedidos){
   }
   lastStatusMap=next;
 }
-async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;notifyStatusChanges(s.pedidos||[]);document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen){const openEl=document.querySelector('.pedido-block details[open][data-pedido-id]');if(openEl){window._contaOpenPedidoId=String(openEl.getAttribute('data-pedido-id'));}openSessao();}}catch(_){}}
+async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;notifyStatusChanges(s.pedidos||[]);document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen){const openIds=[...document.querySelectorAll('.pedido-block details[open][data-pedido-id]')].map(d=>String(d.getAttribute('data-pedido-id')));if(openIds.length||!window._contaOpenPedidos){window._contaOpenPedidos=openIds.length?openIds:(window._contaOpenPedidos||[]);}openSessao();}}catch(_){}}
 async function cancelarPedido(pedidoId){
   if(!confirm('Cancelar o pedido #'+pedidoId+'? Só dá enquanto a cozinha ainda não começou o preparo.'))return;
   try{
@@ -121,16 +121,11 @@ function openSessao(){
   if(prevSheet) window._contaSheetScroll=prevSheet.scrollTop;
   const s=sessaoData||{pedidos:[],totalDevido:0,mesa:'—'};
   const pedidos=s.pedidos||[];
-  // Accordion: no máximo 1 pedido aberto na conta; preserva no re-render
-  let openId = null;
-  if (window._contaOpenPedidoId) openId = String(window._contaOpenPedidoId);
-  else {
-    const saved = lqLoadContaOpen();
-    if (Array.isArray(saved) && saved.length) openId = String(saved[0]);
-    else if (typeof saved === 'string' && saved) openId = saved;
-  }
-  const openEl = document.querySelector('.pedido-block details[open][data-pedido-id]');
-  if (openEl) openId = String(openEl.getAttribute('data-pedido-id'));
+  // Preserva quais cards estavam abertos (loadSessao/realtime re-renderizam)
+  const openIds=new Set((window._contaOpenPedidos&&window._contaOpenPedidos.length)?window._contaOpenPedidos:lqLoadContaOpen());
+  document.querySelectorAll('.pedido-block details[open][data-pedido-id]').forEach(function(d){
+    openIds.add(String(d.getAttribute('data-pedido-id')));
+  });
   const blocks=pedidos.length?pedidos.slice().reverse().map(p=>{
     const itens=(p.itens||[]).map(it=>`<div class="pedido-item"><div><b>${it.quantidade}× ${esc(it.nome)}</b></div><b>${br(it.totalLinha||0)}</b></div>`).join('');
     const editado=p.editadoEm||p.editado_em?' <span class="status-pill" style="background:#fef3c7;color:#92400e">Editado</span>':'';
@@ -145,7 +140,7 @@ function openSessao(){
     const firstNome=(p.itens&&p.itens[0]&&p.itens[0].nome)?p.itens[0].nome:'Pedido';
     const quem=p.clienteNome||p.cliente_nome||'';
     const titulo=quem?`${firstNome} · ${quem}`:firstNome;
-    const isOpen=openId != null && String(p.id) === String(openId);
+    const isOpen=openIds.has(String(p.id));
     const openDef=isOpen?' open':'';
     return `<div class="pedido-block"><details class="pedido-details" data-pedido-id="${p.id}"${openDef}>
       <summary class="pedido-sum">
@@ -174,22 +169,14 @@ function openSessao(){
   const totalLine=pago>0.009?`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div><div class="cart-total-row" style="font-size:.95rem;opacity:.9"><span>Já pago</span><span>${br(pago)}</span></div><div class="cart-total-row"><span>A pagar</span><span>${br(rest)}</span></div>`:`<div class="cart-total-row"><span>Total da conta</span><span>${br(s.totalDevido||0)}</span></div>`;
   document.getElementById('modal').innerHTML=`<div class="modal-root" role="dialog" aria-modal="true"><div class="modal-backdrop" onclick="closeModal()"></div><div class="modal-sheet conta-sheet"><button class="close" type="button" onclick="closeModal()">×</button><h2>Conta da mesa ${esc(String(s.mesa??''))}</h2>${blocks}<div class="conta-total-block">${totalLine}<details class="pix-total-details"><summary class="pix-total-sum"><span>Pagar total / restante no PIX</span><span class="expand-hint" aria-hidden="true"><span class="expand-chev">▾</span></span></summary><div class="pix-mesa-total" data-valor="${rest.toFixed(2)}"></div></details></div></div></div>`;
   document.body.classList.add('modal-open');
-  // Accordion: 1 pedido aberto; clicar de novo retrai; persiste o id
-  window._contaOpenPedidoId = openId;
-  lqSaveContaOpen(openId ? [openId] : []);
+  // track open/close without depender de re-fetch
+  window._contaOpenPedidos=Array.from(openIds);lqSaveContaOpen(window._contaOpenPedidos);
   document.querySelectorAll('.pedido-block details[data-pedido-id]').forEach(function(d){
-    d.addEventListener('toggle', function(){
-      const id = String(d.getAttribute('data-pedido-id'));
-      if (d.open) {
-        window._contaOpenPedidoId = id;
-        document.querySelectorAll('.pedido-block details[data-pedido-id][open]').forEach(function(other){
-          if (other !== d) other.open = false;
-        });
-        lqSaveContaOpen([id]);
-      } else if (window._contaOpenPedidoId === id) {
-        window._contaOpenPedidoId = null;
-        lqSaveContaOpen([]);
-      }
+    d.addEventListener('toggle',function(){
+      const id=String(d.getAttribute('data-pedido-id'));
+      const set=new Set(window._contaOpenPedidos||[]);
+      if(d.open) set.add(id); else set.delete(id);
+      window._contaOpenPedidos=Array.from(set);
     });
   });
   if(typeof window._afterOpenSessao==='function'){
