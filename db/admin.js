@@ -1,5 +1,6 @@
 // CRUD de cardápio e listagem de mesas para o painel admin.
 const pool = require('./pool');
+const { getEstabelecimentoPadraoId } = require('./tenant');
 
 function normalizeFotoUrl(raw) {
   if (raw === undefined) return undefined;
@@ -103,9 +104,10 @@ async function getCardapioAdmin() {
 async function criarCategoria({ nome, ordem = 0 }) {
   const n = String(nome || '').trim();
   if (!n) throw new ErroAdmin(400, 'Nome da categoria é obrigatório');
+  const estabelecimentoId = await getEstabelecimentoPadraoId();
   const { rows } = await pool.query(
-    'INSERT INTO categorias (nome, ordem) VALUES ($1, $2) RETURNING id, nome, ordem',
-    [n, Number(ordem) || 0]
+    'INSERT INTO categorias (nome, ordem, estabelecimento_id) VALUES ($1, $2, $3) RETURNING id, nome, ordem',
+    [n, Number(ordem) || 0, estabelecimentoId]
   );
   return rows[0];
 }

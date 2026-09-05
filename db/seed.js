@@ -34,6 +34,17 @@ async function run() {
 
     await client.query('BEGIN');
 
+    // Garante estabelecimento padrão (migration 0012)
+    await client.query(
+      `INSERT INTO estabelecimentos (nome, slug, tema, ativo)
+       VALUES ('Padrão', 'padrao', '{}'::jsonb, TRUE)
+       ON CONFLICT (slug) DO NOTHING`
+    );
+    const { rows: estRows } = await client.query(
+      `SELECT id FROM estabelecimentos WHERE slug = 'padrao' LIMIT 1`
+    );
+    const estabelecimentoId = estRows[0].id;
+
     if (force && existentes[0].n > 0) {
       await client.query('DELETE FROM itens_pedido_adicionais');
       await client.query('DELETE FROM itens_pedido_remocoes');
@@ -48,7 +59,11 @@ async function run() {
     }
 
     for (let numero = 1; numero <= NUM_MESAS; numero++) {
-      await client.query('INSERT INTO mesas (numero) VALUES ($1) ON CONFLICT (numero) DO NOTHING', [numero]);
+      await client.query(
+        `INSERT INTO mesas (numero, estabelecimento_id) VALUES ($1, $2)
+         ON CONFLICT (estabelecimento_id, numero) DO NOTHING`,
+        [numero, estabelecimentoId]
+      );
     }
     console.log(`✅ ${NUM_MESAS} mesas inseridas (tokens uuid gerados automaticamente).`);
 
@@ -58,8 +73,8 @@ async function run() {
     for (let i = 0; i < categoriasNomes.length; i++) {
       const nome = categoriasNomes[i];
       const { rows } = await client.query(
-        'INSERT INTO categorias (nome, ordem) VALUES ($1, $2) RETURNING id',
-        [nome, i]
+        'INSERT INTO categorias (nome, ordem, estabelecimento_id) VALUES ($1, $2, $3) RETURNING id',
+        [nome, i, estabelecimentoId]
       );
       categoriaIdPorNome[nome] = rows[0].id;
     }

@@ -1,4 +1,5 @@
 const pool = require('./pool');
+const { getEstabelecimentoPadraoId } = require('./tenant');
 
 class ErroGarcom extends Error {
   constructor(status, message) {
@@ -33,10 +34,11 @@ async function removerGarcom(id) {
 async function criarGarcom(body) {
   const nome = String(body.nome || '').trim().slice(0, 80);
   if (!nome) throw new ErroGarcom(400, 'Informe o nome do garçom');
+  const estabelecimentoId = await getEstabelecimentoPadraoId();
   const { rows } = await pool.query(
-    `INSERT INTO garcons (nome) VALUES ($1)
+    `INSERT INTO garcons (nome, estabelecimento_id) VALUES ($1, $2)
      RETURNING id, nome, token, ativo, criado_em`,
-    [nome]
+    [nome, estabelecimentoId]
   );
   return rows[0];
 }

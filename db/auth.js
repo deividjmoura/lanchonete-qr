@@ -101,6 +101,20 @@ async function garantirStaffSeed() {
   const n = await contarStaff();
   if (n > 0) return { created: false, count: n };
 
+  // Vincula staff ao estabelecimento padrão (migration 0012)
+  await pool.query(
+    `INSERT INTO estabelecimentos (nome, slug, tema, ativo)
+     VALUES ('Padrão', 'padrao', '{}'::jsonb, TRUE)
+     ON CONFLICT (slug) DO NOTHING`
+  );
+  const { rows: estRows } = await pool.query(
+    `SELECT id FROM estabelecimentos WHERE slug = 'padrao' LIMIT 1`
+  );
+  const estabelecimentoId = estRows[0] && estRows[0].id;
+  if (!estabelecimentoId) {
+    throw new Error('estabelecimento padrao não encontrado — rode as migrations');
+  }
+
   const senhaPadrao = process.env.STAFF_SEED_PASSWORD || process.env.ADMIN_PASSWORD || 'troque-esta-senha';
   const hash = await hashSenha(senhaPadrao);
   const users = [
@@ -110,10 +124,10 @@ async function garantirStaffSeed() {
   ];
   for (const u of users) {
     await pool.query(
-      `INSERT INTO staff (nome, login, senha_hash, papel)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO staff (nome, login, senha_hash, papel, estabelecimento_id)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (login) DO NOTHING`,
-      [u.nome, u.login, hash, u.papel]
+      [u.nome, u.login, hash, u.papel, estabelecimentoId]
     );
   }
   return { created: true, count: users.length, senhaPadraoUsada: true };
