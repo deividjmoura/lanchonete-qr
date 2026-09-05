@@ -711,7 +711,6 @@ const server = http.createServer(async (req, res) => {
       }
       file = '/mesa.html';
     }
-    if (file.startsWith('/pedido/')) file = '/pedido.html';
     if (file === '/cozinha') file = '/cozinha.html';
     if (file === '/garcom' || /^\/garcom\/[0-9a-f-]{36}$/i.test(file)) file = '/garcom.html';
     if (file === '/caixa') file = '/caixa.html';
