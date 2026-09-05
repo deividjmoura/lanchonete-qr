@@ -476,7 +476,7 @@ const server = http.createServer(async (req, res) => {
     if ((m = p.match(/^\/api\/pedidos\/(\d+)\/status$/)) && req.method === 'PATCH') {
       try {
         const b = await body(req);
-        const out = await avancarStatus(Number(m[1]), b.status);
+        const out = await avancarStatus(Number(m[1]), b.status, eid);
         broadcast('update', { type: 'status_alterado', pedidoId: Number(m[1]), status: b.status });
         return json(res, 200, out);
       } catch (e) {

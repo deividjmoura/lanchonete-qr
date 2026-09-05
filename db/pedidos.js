@@ -1,6 +1,6 @@
 // Criação de pedido, avanço de status, cancelar/editar (cliente) e leitura de sessão/fila.
 const pool = require('./pool');
-const { resolveEstabelecimentoId } = require('./tenant');
+const { resolveEstabelecimentoId, assertPertenceAoTenant } = require('./tenant');
 const { TRANSICOES, getMesaPorToken, getOuAbrirSessao, getProdutoComRegras } = require('./queries');
 const { ensurePixAvisosTable } = require('./pix-cliente');
 
@@ -331,10 +331,15 @@ async function editarPedidoCliente(token, pedidoId, body) {
   }
 }
 
-async function avancarStatus(pedidoId, novoStatus) {
+async function avancarStatus(pedidoId, novoStatus, estabelecimentoId) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // sem isso, cozinha de um estabelecimento podia avançar status (e até
+    // somar ao valor_total) de um pedido de outro estabelecimento só
+    // chutando o ID na URL
+    await assertPertenceAoTenant(client, 'pedidos', Number(pedidoId), estabelecimentoId);
 
     const { rows } = await client.query(
       'SELECT id, status, sessao_id FROM pedidos WHERE id = $1 FOR UPDATE',
