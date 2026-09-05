@@ -1,6 +1,6 @@
 // CRUD de cardápio e listagem de mesas para o painel admin.
 const pool = require('./pool');
-const { getEstabelecimentoPadraoId } = require('./tenant');
+const { getEstabelecimentoPadraoId, resolveEstabelecimentoId } = require('./tenant');
 
 function normalizeFotoUrl(raw) {
   if (raw === undefined) return undefined;
@@ -29,13 +29,16 @@ class ErroAdmin extends Error {
   }
 }
 
-async function listMesas() {
+async function listMesas(estabelecimentoId) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows } = await pool.query(
     `SELECT m.id, m.numero, m.token, m.status,
             s.id AS sessao_id, s.valor_total, s.aberta_em, s.cliente_nome
      FROM mesas m
      LEFT JOIN mesa_sessoes s ON s.mesa_id = m.id AND s.status = 'aberta'
-     ORDER BY m.numero`
+     WHERE m.estabelecimento_id = $1
+     ORDER BY m.numero`,
+    [eid]
   );
   return rows.map((r) => ({
     id: r.id,
@@ -67,20 +70,38 @@ function mapProdutoRow(p) {
   };
 }
 
-async function getCardapioAdmin() {
+async function getCardapioAdmin(estabelecimentoId) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows: categorias } = await pool.query(
-    'SELECT id, nome, ordem FROM categorias ORDER BY ordem, id'
+    'SELECT id, nome, ordem FROM categorias WHERE estabelecimento_id = $1 ORDER BY ordem, id',
+    [eid]
   );
   const { rows: produtos } = await pool.query(
-    `SELECT id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne,
-            controla_estoque, estoque, estoque_minimo
-     FROM produtos ORDER BY id`
+    `SELECT p.id, p.categoria_id, p.nome, p.descricao, p.preco, p.foto_url, p.disponivel, p.pede_ponto_carne,
+            p.controla_estoque, p.estoque, p.estoque_minimo
+     FROM produtos p
+     JOIN categorias c ON c.id = p.categoria_id
+     WHERE c.estabelecimento_id = $1
+     ORDER BY p.id`,
+    [eid]
   );
   const { rows: adicionais } = await pool.query(
-    'SELECT id, produto_id, nome, preco FROM adicionais ORDER BY id'
+    `SELECT a.id, a.produto_id, a.nome, a.preco
+     FROM adicionais a
+     JOIN produtos p ON p.id = a.produto_id
+     JOIN categorias c ON c.id = p.categoria_id
+     WHERE c.estabelecimento_id = $1
+     ORDER BY a.id`,
+    [eid]
   );
   const { rows: removiveis } = await pool.query(
-    'SELECT produto_id, ingrediente FROM produtos_ingredientes_removiveis ORDER BY produto_id, ingrediente'
+    `SELECT r.produto_id, r.ingrediente
+     FROM produtos_ingredientes_removiveis r
+     JOIN produtos p ON p.id = r.produto_id
+     JOIN categorias c ON c.id = p.categoria_id
+     WHERE c.estabelecimento_id = $1
+     ORDER BY r.produto_id, r.ingrediente`,
+    [eid]
   );
 
   return categorias.map((cat) => ({
@@ -101,13 +122,13 @@ async function getCardapioAdmin() {
   }));
 }
 
-async function criarCategoria({ nome, ordem = 0 }) {
+async function criarCategoria({ nome, ordem = 0 }, estabelecimentoId) {
   const n = String(nome || '').trim();
   if (!n) throw new ErroAdmin(400, 'Nome da categoria é obrigatório');
-  const estabelecimentoId = await getEstabelecimentoPadraoId();
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows } = await pool.query(
     'INSERT INTO categorias (nome, ordem, estabelecimento_id) VALUES ($1, $2, $3) RETURNING id, nome, ordem',
-    [n, Number(ordem) || 0, estabelecimentoId]
+    [n, Number(ordem) || 0, eid]
   );
   return rows[0];
 }

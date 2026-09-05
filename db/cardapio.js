@@ -1,28 +1,44 @@
-// Cardápio público, lido do Postgres, com cache em memória de curto prazo.
-// Invalidar após qualquer mutação no admin (ver invalidarCardapio).
+// Cardápio público, lido do Postgres, com cache em memória por tenant.
 const pool = require('./pool');
+const { resolveEstabelecimentoId } = require('./tenant');
 
 const CARDAPIO_TTL_MS = Number(process.env.CARDAPIO_CACHE_TTL_MS || 30_000);
 
-let cache = null;
-let cacheAt = 0;
+/** @type {Map<number, { data: any, at: number }>} */
+const cacheByTenant = new Map();
 
-async function carregarCardapio() {
+async function carregarCardapio(estabelecimentoId) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows: categorias } = await pool.query(
-    'SELECT id, nome, ordem FROM categorias ORDER BY ordem'
+    'SELECT id, nome, ordem FROM categorias WHERE estabelecimento_id = $1 ORDER BY ordem',
+    [eid]
   );
   const { rows: produtos } = await pool.query(
-    `SELECT id, categoria_id, nome, descricao, preco, foto_url, pede_ponto_carne
-     FROM produtos
-     WHERE disponivel = TRUE
-       AND (controla_estoque = false OR estoque IS NULL OR estoque > 0)
-     ORDER BY id`
+    `SELECT p.id, p.categoria_id, p.nome, p.descricao, p.preco, p.foto_url, p.pede_ponto_carne
+     FROM produtos p
+     JOIN categorias c ON c.id = p.categoria_id
+     WHERE c.estabelecimento_id = $1
+       AND p.disponivel = TRUE
+       AND (p.controla_estoque = false OR p.estoque IS NULL OR p.estoque > 0)
+     ORDER BY p.id`,
+    [eid]
   );
   const { rows: adicionais } = await pool.query(
-    'SELECT id, produto_id, nome, preco FROM adicionais ORDER BY id'
+    `SELECT a.id, a.produto_id, a.nome, a.preco
+     FROM adicionais a
+     JOIN produtos p ON p.id = a.produto_id
+     JOIN categorias c ON c.id = p.categoria_id
+     WHERE c.estabelecimento_id = $1
+     ORDER BY a.id`,
+    [eid]
   );
   const { rows: removiveis } = await pool.query(
-    'SELECT produto_id, ingrediente FROM produtos_ingredientes_removiveis'
+    `SELECT r.produto_id, r.ingrediente
+     FROM produtos_ingredientes_removiveis r
+     JOIN produtos p ON p.id = r.produto_id
+     JOIN categorias c ON c.id = p.categoria_id
+     WHERE c.estabelecimento_id = $1`,
+    [eid]
   );
 
   return categorias.map((cat) => ({
@@ -47,18 +63,24 @@ async function carregarCardapio() {
   }));
 }
 
-async function getCardapio() {
-  if (cache && Date.now() - cacheAt < CARDAPIO_TTL_MS) {
-    return cache;
+async function getCardapio(estabelecimentoId) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
+  const hit = cacheByTenant.get(eid);
+  if (hit && Date.now() - hit.at < CARDAPIO_TTL_MS) {
+    return hit.data;
   }
-  cache = await carregarCardapio();
-  cacheAt = Date.now();
-  return cache;
+  const data = await carregarCardapio(eid);
+  cacheByTenant.set(eid, { data, at: Date.now() });
+  return data;
 }
 
-function invalidarCardapio() {
-  cache = null;
-  cacheAt = 0;
+function invalidarCardapio(estabelecimentoId) {
+  if (estabelecimentoId != null) {
+    const n = Number(estabelecimentoId);
+    if (Number.isFinite(n)) cacheByTenant.delete(n);
+    return;
+  }
+  cacheByTenant.clear();
 }
 
 module.exports = { getCardapio, invalidarCardapio };

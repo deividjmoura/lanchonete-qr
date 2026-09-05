@@ -1,5 +1,6 @@
 // Caixa: sessões abertas, pagamentos parciais (divisão) e fechamento.
 const pool = require('./pool');
+const { resolveEstabelecimentoId } = require('./tenant');
 const { ensurePixAvisosTable } = require('./pix-cliente');
 
 const FORMAS = new Set(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']);
@@ -39,32 +40,38 @@ function parseMoney(v) {
   return Number(n.toFixed(2));
 }
 
-async function listSessoesAbertas() {
+async function listSessoesAbertas(estabelecimentoId) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows: sessoes } = await pool.query(
     `SELECT s.id, s.aberta_em, s.valor_total, s.pix_informado_em, s.cliente_nome,
             m.id AS mesa_id, m.numero AS mesa
      FROM mesa_sessoes s
      JOIN mesas m ON m.id = s.mesa_id
-     WHERE s.status = 'aberta'
-     ORDER BY m.numero`
+     WHERE s.status = 'aberta' AND m.estabelecimento_id = $1
+     ORDER BY m.numero`,
+    [eid]
   );
   if (!sessoes.length) return [];
 
   const sessaoIds = sessoes.map((s) => s.id);
   const { rows: pedidos } = await pool.query(
-    `SELECT id, sessao_id, status, criado_em, observacao_geral, cliente_nome
-     FROM pedidos
-     WHERE sessao_id = ANY($1::int[])
-     ORDER BY criado_em`,
-    [sessaoIds]
+    `SELECT p.id, p.sessao_id, p.status, p.criado_em, p.observacao_geral, p.cliente_nome
+     FROM pedidos p
+     JOIN mesa_sessoes s ON s.id = p.sessao_id
+     JOIN mesas m ON m.id = s.mesa_id
+     WHERE p.sessao_id = ANY($1::int[]) AND m.estabelecimento_id = $2
+     ORDER BY p.criado_em`,
+    [sessaoIds, eid]
   );
 
   const { rows: pagRows } = await pool.query(
-    `SELECT id, sessao_id, valor, forma_pagamento, criado_em
-     FROM sessao_pagamentos
-     WHERE sessao_id = ANY($1::int[])
-     ORDER BY criado_em`,
-    [sessaoIds]
+    `SELECT sp.id, sp.sessao_id, sp.valor, sp.forma_pagamento, sp.criado_em
+     FROM sessao_pagamentos sp
+     JOIN mesa_sessoes s ON s.id = sp.sessao_id
+     JOIN mesas m ON m.id = s.mesa_id
+     WHERE sp.sessao_id = ANY($1::int[]) AND m.estabelecimento_id = $2
+     ORDER BY sp.criado_em`,
+    [sessaoIds, eid]
   ).catch(() => ({ rows: [] }));
 
   const pagBySessao = new Map();

@@ -1,5 +1,6 @@
 // Criação de pedido, avanço de status, cancelar/editar (cliente) e leitura de sessão/fila.
 const pool = require('./pool');
+const { resolveEstabelecimentoId } = require('./tenant');
 const { TRANSICOES, getMesaPorToken, getOuAbrirSessao, getProdutoComRegras } = require('./queries');
 const { ensurePixAvisosTable } = require('./pix-cliente');
 
@@ -575,16 +576,17 @@ async function anexarExtrasAosItens(itens) {
   return itens;
 }
 
-async function listarPedidosPorStatus(statuses) {
+async function listarPedidosPorStatus(statuses, estabelecimentoId) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows: pedidos } = await pool.query(
     `SELECT p.id, p.status, p.criado_em, p.observacao_geral, p.cliente_nome, p.garcom_nome,
             p.editado_em, m.numero AS mesa
      FROM pedidos p
      JOIN mesa_sessoes s ON s.id = p.sessao_id
      JOIN mesas m ON m.id = s.mesa_id
-     WHERE p.status = ANY($1::text[])
+     WHERE p.status = ANY($1::text[]) AND m.estabelecimento_id = $2
      ORDER BY p.criado_em`,
-    [statuses]
+    [statuses, eid]
   );
   if (!pedidos.length) return [];
 
@@ -611,12 +613,12 @@ async function listarPedidosPorStatus(statuses) {
   }));
 }
 
-async function getFilaCozinha() {
-  return listarPedidosPorStatus(['recebido', 'em_producao']);
+async function getFilaCozinha(estabelecimentoId) {
+  return listarPedidosPorStatus(['recebido', 'em_producao'], estabelecimentoId);
 }
 
-async function getFilaGarcom() {
-  return listarPedidosPorStatus(['concluido']);
+async function getFilaGarcom(estabelecimentoId) {
+  return listarPedidosPorStatus(['concluido'], estabelecimentoId);
 }
 
 async function checkinCliente(token, body) {

@@ -1,11 +1,13 @@
 // Resumo do dia para o admin (faturamento, ticket, top produtos).
 const pool = require('./pool');
+const { resolveEstabelecimentoId } = require('./tenant');
 
 /**
  * @param {{ from?: string|null, to?: string|null }} [opts]
  * from/to em YYYY-MM-DD (opcional). Default: hoje (timezone do servidor / DB).
  */
 async function resumoDia(opts = {}) {
+  const eid = await resolveEstabelecimentoId(opts.estabelecimentoId);
   const from = opts.from || null;
   const to = opts.to || null;
 
@@ -15,18 +17,23 @@ async function resumoDia(opts = {}) {
 
   const sessoesQ = rangeSql
     ? await pool.query(
-        `SELECT id, valor_total, desconto, taxa_servico, valor_cobrado, forma_pagamento, fechada_em, aberta_em
-         FROM mesa_sessoes
-         WHERE status = 'fechada'
-           AND fechada_em::date >= $1::date
-           AND fechada_em::date <= $2::date`,
-        [rangeSql.start, rangeSql.end]
+        `SELECT s.id, s.valor_total, s.desconto, s.taxa_servico, s.valor_cobrado, s.forma_pagamento, s.fechada_em, s.aberta_em
+         FROM mesa_sessoes s
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE s.status = 'fechada'
+           AND m.estabelecimento_id = $1
+           AND s.fechada_em::date >= $2::date
+           AND s.fechada_em::date <= $3::date`,
+        [eid, rangeSql.start, rangeSql.end]
       )
     : await pool.query(
-        `SELECT id, valor_total, desconto, taxa_servico, valor_cobrado, forma_pagamento, fechada_em, aberta_em
-         FROM mesa_sessoes
-         WHERE status = 'fechada'
-           AND fechada_em::date = CURRENT_DATE`
+        `SELECT s.id, s.valor_total, s.desconto, s.taxa_servico, s.valor_cobrado, s.forma_pagamento, s.fechada_em, s.aberta_em
+         FROM mesa_sessoes s
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE s.status = 'fechada'
+           AND m.estabelecimento_id = $1
+           AND s.fechada_em::date = CURRENT_DATE`,
+        [eid]
       );
 
   const sessoes = sessoesQ.rows;
@@ -46,17 +53,24 @@ async function resumoDia(opts = {}) {
 
   const pedidosQ = rangeSql
     ? await pool.query(
-        `SELECT status, COUNT(*)::int AS n
-         FROM pedidos
-         WHERE criado_em::date >= $1::date AND criado_em::date <= $2::date
-         GROUP BY status`,
-        [rangeSql.start, rangeSql.end]
+        `SELECT p.status, COUNT(*)::int AS n
+         FROM pedidos p
+         JOIN mesa_sessoes s ON s.id = p.sessao_id
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE m.estabelecimento_id = $1
+           AND p.criado_em::date >= $2::date AND p.criado_em::date <= $3::date
+         GROUP BY p.status`,
+        [eid, rangeSql.start, rangeSql.end]
       )
     : await pool.query(
-        `SELECT status, COUNT(*)::int AS n
-         FROM pedidos
-         WHERE criado_em::date = CURRENT_DATE
-         GROUP BY status`
+        `SELECT p.status, COUNT(*)::int AS n
+         FROM pedidos p
+         JOIN mesa_sessoes s ON s.id = p.sessao_id
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE m.estabelecimento_id = $1
+           AND p.criado_em::date = CURRENT_DATE
+         GROUP BY p.status`,
+        [eid]
       );
 
   const pedidosPorStatus = {
@@ -72,14 +86,18 @@ async function resumoDia(opts = {}) {
   }
 
   const { rows: mesaRows } = await pool.query(
-    `SELECT status, COUNT(*)::int AS n FROM mesas GROUP BY status`
+    `SELECT status, COUNT(*)::int AS n FROM mesas WHERE estabelecimento_id = $1 GROUP BY status`,
+    [eid]
   );
   const mesas = { livre: 0, ocupada: 0 };
   for (const r of mesaRows) mesas[r.status] = r.n;
 
   const { rows: abertas } = await pool.query(
-    `SELECT COUNT(*)::int AS n, COALESCE(SUM(valor_total), 0)::float AS total
-     FROM mesa_sessoes WHERE status = 'aberta'`
+    `SELECT COUNT(*)::int AS n, COALESCE(SUM(s.valor_total), 0)::float AS total
+     FROM mesa_sessoes s
+     JOIN mesas m ON m.id = s.mesa_id
+     WHERE s.status = 'aberta' AND m.estabelecimento_id = $1`,
+    [eid]
   );
   const emAberto = {
     sessoes: abertas[0].n,
@@ -98,16 +116,19 @@ async function resumoDia(opts = {}) {
          FROM itens_pedido ip
          JOIN produtos pr ON pr.id = ip.produto_id
          JOIN pedidos p ON p.id = ip.pedido_id
+         JOIN mesa_sessoes s ON s.id = p.sessao_id
+         JOIN mesas m ON m.id = s.mesa_id
          LEFT JOIN (
            SELECT item_pedido_id, SUM(preco_unitario) AS total_ad
            FROM itens_pedido_adicionais
            GROUP BY item_pedido_id
          ) ad ON ad.item_pedido_id = ip.id
-         WHERE p.criado_em::date >= $1::date AND p.criado_em::date <= $2::date
+         WHERE m.estabelecimento_id = $1
+           AND p.criado_em::date >= $2::date AND p.criado_em::date <= $3::date
          GROUP BY pr.nome
          ORDER BY qtd DESC
          LIMIT 8`,
-        [rangeSql.start, rangeSql.end]
+        [eid, rangeSql.start, rangeSql.end]
       )
     : await pool.query(
         `SELECT pr.nome,
@@ -120,15 +141,19 @@ async function resumoDia(opts = {}) {
          FROM itens_pedido ip
          JOIN produtos pr ON pr.id = ip.produto_id
          JOIN pedidos p ON p.id = ip.pedido_id
+         JOIN mesa_sessoes s ON s.id = p.sessao_id
+         JOIN mesas m ON m.id = s.mesa_id
          LEFT JOIN (
            SELECT item_pedido_id, SUM(preco_unitario) AS total_ad
            FROM itens_pedido_adicionais
            GROUP BY item_pedido_id
          ) ad ON ad.item_pedido_id = ip.id
-         WHERE p.criado_em::date = CURRENT_DATE
+         WHERE m.estabelecimento_id = $1
+           AND p.criado_em::date = CURRENT_DATE
          GROUP BY pr.nome
          ORDER BY qtd DESC
-         LIMIT 8`
+         LIMIT 8`,
+        [eid]
       );
 
   const topProdutos = topQ.rows.map((r) => ({
@@ -155,7 +180,8 @@ async function resumoDia(opts = {}) {
 
 
 /** Top produtos do dia (público — só id, nome, qtd). */
-async function topProdutosHoje(limit = 6) {
+async function topProdutosHoje(limit = 6, estabelecimentoId = null) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const lim = Math.min(12, Math.max(1, Number(limit) || 6));
   const { rows } = await pool.query(
     `SELECT pr.id,
@@ -167,12 +193,15 @@ async function topProdutosHoje(limit = 6) {
      FROM itens_pedido ip
      JOIN produtos pr ON pr.id = ip.produto_id
      JOIN pedidos p ON p.id = ip.pedido_id
-     WHERE p.criado_em::date = CURRENT_DATE
+     JOIN mesa_sessoes s ON s.id = p.sessao_id
+     JOIN mesas m ON m.id = s.mesa_id
+     WHERE m.estabelecimento_id = $1
+       AND p.criado_em::date = CURRENT_DATE
        AND p.status <> 'cancelado'
      GROUP BY pr.id, pr.nome, pr.descricao, pr.preco, pr.foto_url
      ORDER BY quantidade DESC, pr.nome ASC
-     LIMIT $1`,
-    [lim]
+     LIMIT $2`,
+    [eid, lim]
   );
   return rows.map((r) => ({
     id: r.id,

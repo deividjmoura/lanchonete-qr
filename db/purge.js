@@ -1,5 +1,6 @@
 // Limpeza de histórico: remove sessões fechadas e TODO o que depende delas.
 const pool = require('./pool');
+const { resolveEstabelecimentoId } = require('./tenant');
 
 class ErroPurge extends Error {
   constructor(message, status = 400) {
@@ -20,6 +21,7 @@ class ErroPurge extends Error {
  * before = YYYY-MM-DD (exclusivo: apaga tudo com data de fechamento **antes** desse dia)
  */
 async function purgeHistorico(opts = {}) {
+  const eid = await resolveEstabelecimentoId(opts.estabelecimentoId);
   const before = opts.before;
   const confirm = opts.confirm === true;
   const dryRun = opts.dryRun === true || !confirm;
@@ -32,19 +34,23 @@ async function purgeHistorico(opts = {}) {
   try {
     const { rows: counts } = await client.query(
       `SELECT
-         (SELECT COUNT(*)::int FROM mesa_sessoes
-           WHERE status = 'fechada' AND fechada_em::date < $1::date) AS sessoes,
+         (SELECT COUNT(*)::int FROM mesa_sessoes s
+           JOIN mesas m ON m.id = s.mesa_id
+           WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2) AS sessoes,
          (SELECT COUNT(*)::int FROM pedidos p
            JOIN mesa_sessoes s ON s.id = p.sessao_id
-           WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date) AS pedidos,
+           JOIN mesas m ON m.id = s.mesa_id
+           WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2) AS pedidos,
          (SELECT COUNT(*)::int FROM itens_pedido ip
            JOIN pedidos p ON p.id = ip.pedido_id
            JOIN mesa_sessoes s ON s.id = p.sessao_id
-           WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date) AS itens,
+           JOIN mesas m ON m.id = s.mesa_id
+           WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2) AS itens,
          (SELECT COUNT(*)::int FROM sessao_pagamentos sp
            JOIN mesa_sessoes s ON s.id = sp.sessao_id
-           WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date) AS pagamentos`,
-      [before]
+           JOIN mesas m ON m.id = s.mesa_id
+           WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2) AS pagamentos`,
+      [before, eid]
     );
     const preview = {
       before,
@@ -76,9 +82,10 @@ async function purgeHistorico(opts = {}) {
          SELECT ip.id FROM itens_pedido ip
          JOIN pedidos p ON p.id = ip.pedido_id
          JOIN mesa_sessoes s ON s.id = p.sessao_id
-         WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2
        )`,
-      [before]
+      [before, eid]
     );
 
     await client.query(
@@ -87,9 +94,10 @@ async function purgeHistorico(opts = {}) {
          SELECT ip.id FROM itens_pedido ip
          JOIN pedidos p ON p.id = ip.pedido_id
          JOIN mesa_sessoes s ON s.id = p.sessao_id
-         WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2
        )`,
-      [before]
+      [before, eid]
     );
 
     await client.query(
@@ -97,35 +105,40 @@ async function purgeHistorico(opts = {}) {
        WHERE pedido_id IN (
          SELECT p.id FROM pedidos p
          JOIN mesa_sessoes s ON s.id = p.sessao_id
-         WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2
        )`,
-      [before]
+      [before, eid]
     );
 
     await client.query(
       `DELETE FROM pedidos
        WHERE sessao_id IN (
-         SELECT id FROM mesa_sessoes
-         WHERE status = 'fechada' AND fechada_em::date < $1::date
+         SELECT s.id FROM mesa_sessoes s
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2
        )`,
-      [before]
+      [before, eid]
     );
 
     // Pagamentos parciais das sessões (além do CASCADE, explícito para clareza)
     await client.query(
       `DELETE FROM sessao_pagamentos
        WHERE sessao_id IN (
-         SELECT id FROM mesa_sessoes
-         WHERE status = 'fechada' AND fechada_em::date < $1::date
+         SELECT s.id FROM mesa_sessoes s
+         JOIN mesas m ON m.id = s.mesa_id
+         WHERE s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2
        )`,
-      [before]
+      [before, eid]
     );
 
     const delSess = await client.query(
-      `DELETE FROM mesa_sessoes
-       WHERE status = 'fechada' AND fechada_em::date < $1::date
-       RETURNING id`,
-      [before]
+      `DELETE FROM mesa_sessoes s
+       USING mesas m
+       WHERE s.mesa_id = m.id
+         AND s.status = 'fechada' AND s.fechada_em::date < $1::date AND m.estabelecimento_id = $2
+       RETURNING s.id`,
+      [before, eid]
     );
 
     await client.query('COMMIT');

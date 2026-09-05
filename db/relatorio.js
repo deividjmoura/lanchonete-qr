@@ -1,11 +1,13 @@
 // Relatório de vendas por período (dados para PDF / impressão).
 const pool = require('./pool');
+const { resolveEstabelecimentoId } = require('./tenant');
 const { resumoDia } = require('./dashboard');
 
 /**
  * @param {{ from: string, to: string }} opts  YYYY-MM-DD obrigatórios
  */
-async function relatorioVendas({ from, to }) {
+async function relatorioVendas({ from, to, estabelecimentoId = null }) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   if (!from || !to) {
     const err = new Error('Informe from e to (YYYY-MM-DD)');
     err.status = 400;
@@ -22,19 +24,21 @@ async function relatorioVendas({ from, to }) {
     throw err;
   }
 
-  const resumo = await resumoDia({ from, to });
+  const resumo = await resumoDia({ from, to, estabelecimentoId: eid });
 
   const { rows: porDia } = await pool.query(
-    `SELECT fechada_em::date AS dia,
+    `SELECT s.fechada_em::date AS dia,
             COUNT(*)::int AS contas,
-            COALESCE(SUM(COALESCE(valor_cobrado, valor_total)), 0)::float AS faturamento
-     FROM mesa_sessoes
-     WHERE status = 'fechada'
-       AND fechada_em::date >= $1::date
-       AND fechada_em::date <= $2::date
-     GROUP BY fechada_em::date
+            COALESCE(SUM(COALESCE(s.valor_cobrado, s.valor_total)), 0)::float AS faturamento
+     FROM mesa_sessoes s
+     JOIN mesas m ON m.id = s.mesa_id
+     WHERE s.status = 'fechada'
+       AND m.estabelecimento_id = $1
+       AND s.fechada_em::date >= $2::date
+       AND s.fechada_em::date <= $3::date
+     GROUP BY s.fechada_em::date
      ORDER BY dia`,
-    [from, to]
+    [eid, from, to]
   );
 
   const { rows: sessoes } = await pool.query(
@@ -43,11 +47,12 @@ async function relatorioVendas({ from, to }) {
      FROM mesa_sessoes s
      JOIN mesas m ON m.id = s.mesa_id
      WHERE s.status = 'fechada'
-       AND s.fechada_em::date >= $1::date
-       AND s.fechada_em::date <= $2::date
+       AND m.estabelecimento_id = $1
+       AND s.fechada_em::date >= $2::date
+       AND s.fechada_em::date <= $3::date
      ORDER BY s.fechada_em DESC
      LIMIT 500`,
-    [from, to]
+    [eid, from, to]
   );
 
   return {

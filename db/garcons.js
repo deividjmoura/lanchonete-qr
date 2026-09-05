@@ -1,5 +1,5 @@
 const pool = require('./pool');
-const { getEstabelecimentoPadraoId } = require('./tenant');
+const { getEstabelecimentoPadraoId, resolveEstabelecimentoId } = require('./tenant');
 
 class ErroGarcom extends Error {
   constructor(status, message) {
@@ -8,14 +8,17 @@ class ErroGarcom extends Error {
   }
 }
 
-async function listGarcons() {
+async function listGarcons(estabelecimentoId) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows } = await pool.query(
     `SELECT g.id, g.nome, g.token, g.ativo, g.criado_em,
             COUNT(p.id) FILTER (WHERE p.status = 'entregue')::int AS entregas
      FROM garcons g
      LEFT JOIN pedidos p ON p.garcom_id = g.id
+     WHERE g.estabelecimento_id = $1
      GROUP BY g.id
-     ORDER BY g.ativo DESC, g.nome ASC`
+     ORDER BY g.ativo DESC, g.nome ASC`,
+    [eid]
   );
   return rows;
 }
@@ -31,14 +34,14 @@ async function removerGarcom(id) {
   return rows[0];
 }
 
-async function criarGarcom(body) {
+async function criarGarcom(body, estabelecimentoId) {
   const nome = String(body.nome || '').trim().slice(0, 80);
   if (!nome) throw new ErroGarcom(400, 'Informe o nome do garçom');
-  const estabelecimentoId = await getEstabelecimentoPadraoId();
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows } = await pool.query(
     `INSERT INTO garcons (nome, estabelecimento_id) VALUES ($1, $2)
      RETURNING id, nome, token, ativo, criado_em`,
-    [nome, estabelecimentoId]
+    [nome, eid]
   );
   return rows[0];
 }
@@ -56,7 +59,7 @@ async function setGarcomAtivo(id, ativo) {
 async function getGarcomPorToken(token) {
   if (!token) return null;
   const { rows } = await pool.query(
-    `SELECT id, nome, token, ativo FROM garcons WHERE token = $1`,
+    `SELECT id, nome, token, ativo, estabelecimento_id FROM garcons WHERE token = $1`,
     [token]
   );
   return rows[0] || null;
@@ -136,11 +139,12 @@ async function entregarComoGarcom(pedidoId, garcomToken) {
  * - from / to (YYYY-MM-DD) → histórico por período
  * 3 queries em lote (sem N+1).
  */
-async function listPedidosRecentes({ limit = 50, ativos = false, from = null, to = null } = {}) {
+async function listPedidosRecentes({ limit = 50, ativos = false, from = null, to = null, estabelecimentoId = null } = {}) {
+  const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const lim = Math.min(200, Math.max(1, Number(limit) || 50));
-  const where = [];
-  const params = [];
-  let idx = 1;
+  const where = ['m.estabelecimento_id = $1'];
+  const params = [eid];
+  let idx = 2;
 
   if (ativos) {
     where.push(`p.status = ANY($${idx}::text[])`);

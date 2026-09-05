@@ -88,6 +88,7 @@ function staffPublico(row) {
     nome: row.nome,
     login: row.login,
     papel: row.papel,
+    estabelecimentoId: row.estabelecimento_id != null ? Number(row.estabelecimento_id) : null,
   };
 }
 
@@ -140,7 +141,7 @@ async function autenticar(login, senha) {
   }
 
   const { rows } = await pool.query(
-    `SELECT id, nome, login, senha_hash, papel, ativo
+    `SELECT id, nome, login, senha_hash, papel, ativo, estabelecimento_id
      FROM staff WHERE lower(login) = $1 LIMIT 1`,
     [user]
   );
@@ -176,7 +177,7 @@ async function getStaffDaRequisicao(req) {
   if (!token) return null;
 
   const { rows } = await pool.query(
-    `SELECT s.id, s.nome, s.login, s.papel, s.ativo, ss.expira_em
+    `SELECT s.id, s.nome, s.login, s.papel, s.ativo, s.estabelecimento_id, ss.expira_em
      FROM staff_sessoes ss
      JOIN staff s ON s.id = ss.staff_id
      WHERE ss.token = $1`,

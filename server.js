@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { getCardapio, invalidarCardapio } = require('./db/cardapio');
+const { resolveEstabelecimentoId } = require('./db/tenant');
 const {
   criarPedido,
   avancarStatus,
@@ -173,7 +174,7 @@ const server = http.createServer(async (req, res) => {
     const p = u.pathname;
 
     if (p === '/api/cardapio' && req.method === 'GET') {
-      return json(res, 200, await getCardapio(), {
+      return json(res, 200, await getCardapio(null), {
         'Cache-Control': 'public, max-age=15, stale-while-revalidate=60',
       });
     }
@@ -291,7 +292,7 @@ const server = http.createServer(async (req, res) => {
     if ((m = p.match(/^\/api\/garcom\/([^/]+)\/pedidos$/)) && req.method === 'GET') {
       const g = await getGarcomPorToken(m[1]);
       if (!g || !g.ativo) return json(res, 401, { error: 'Link inválido ou desativado' });
-      return json(res, 200, await getFilaGarcom());
+      return json(res, 200, await getFilaGarcom(g.estabelecimento_id));
     }
     if ((m = p.match(/^\/api\/garcom\/([^/]+)\/pedidos\/(\d+)\/entregar$/)) && req.method === 'POST') {
       try {
@@ -362,28 +363,32 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { chave, nome, cidade });
     }
 
+    let requestStaff = null;
     try {
       if (p.startsWith('/api/admin')) {
-        await exigirAcesso(req, 'admin');
+        requestStaff = await exigirAcesso(req, 'admin');
       } else if (p.startsWith('/api/caixa')) {
-        await exigirAcesso(req, 'caixa');
+        requestStaff = await exigirAcesso(req, 'caixa');
       } else if (
         p.startsWith('/api/cozinha') ||
         (p.match(/^\/api\/pedidos\/\d+\/status$/) && req.method === 'PATCH')
       ) {
-        await exigirAcesso(req, 'cozinha');
+        requestStaff = await exigirAcesso(req, 'cozinha');
       }
     } catch (e) {
       if (e instanceof ErroAuth) return json(res, e.status, { error: e.message });
       throw e;
     }
+    const eid = requestStaff
+      ? await resolveEstabelecimentoId(requestStaff)
+      : null;
 
     if (p === '/api/cozinha/pedidos' && req.method === 'GET') {
-      return json(res, 200, await getFilaCozinha());
+      return json(res, 200, await getFilaCozinha(eid));
     }
 
     if (p === '/api/caixa/sessoes' && req.method === 'GET') {
-      return json(res, 200, await listSessoesAbertas());
+      return json(res, 200, await listSessoesAbertas(eid));
     }
     if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/pagamentos$/)) && req.method === 'POST') {
       try {
@@ -432,14 +437,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (p === '/api/admin/mesas' && req.method === 'GET') {
-      return json(res, 200, await listMesas());
+      return json(res, 200, await listMesas(eid));
     }
     if (p === '/api/admin/garcons' && req.method === 'GET') {
-      return json(res, 200, await listGarcons());
+      return json(res, 200, await listGarcons(eid));
     }
     if (p === '/api/admin/garcons' && req.method === 'POST') {
       try {
-        return json(res, 201, await criarGarcom(await body(req)));
+        return json(res, 201, await criarGarcom(await body(req), eid));
       } catch (e) {
         if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
         throw e;
@@ -464,12 +469,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/admin/dashboard' && req.method === 'GET') {
       const q = new URL(req.url, 'http://localhost').searchParams;
-      return json(res, 200, await resumoDia({ from: q.get('from') || null, to: q.get('to') || null }));
+      return json(res, 200, await resumoDia({ from: q.get('from') || null, to: q.get('to') || null, estabelecimentoId: eid }));
     }
     if (p === '/api/admin/relatorio' && req.method === 'GET') {
       try {
         const q = new URL(req.url, 'http://localhost').searchParams;
-        return json(res, 200, await relatorioVendas({ from: q.get('from'), to: q.get('to') }));
+        return json(res, 200, await relatorioVendas({ from: q.get('from'), to: q.get('to'), estabelecimentoId: eid }));
       } catch (e) {
         if (e.status) return json(res, e.status, { error: e.message });
         throw e;
@@ -482,6 +487,7 @@ const server = http.createServer(async (req, res) => {
           before: b.before,
           confirm: b.confirm === true,
           dryRun: b.dryRun === true,
+          estabelecimentoId: eid,
         }));
       } catch (e) {
         if (e instanceof ErroPurge || e.status) return json(res, e.status || 400, { error: e.message });
@@ -496,10 +502,11 @@ const server = http.createServer(async (req, res) => {
         ativos,
         from: q.get('from') || null,
         to: q.get('to') || null,
+        estabelecimentoId: eid,
       }));
     }
     if (p === '/api/admin/cardapio' && req.method === 'GET') {
-      return json(res, 200, await getCardapioAdmin());
+      return json(res, 200, await getCardapioAdmin(eid));
     }
 
     if (p === '/api/admin/upload-foto' && req.method === 'POST') {
@@ -516,7 +523,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/admin/categorias' && req.method === 'POST') {
       try {
-        const out = await criarCategoria(await body(req));
+        const out = await criarCategoria(await body(req), eid);
         invalidarCardapio();
         return json(res, 201, out);
       } catch (e) {
