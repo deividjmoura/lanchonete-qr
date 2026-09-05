@@ -52,10 +52,19 @@ async function getOuAbrirSessao(client, mesaId) {
 
 // Lê o produto junto com as regras que o servidor precisa pra validar o item
 // do pedido (nunca confiar em preço/adicional/remoção vindos do cliente).
-async function getProdutoComRegras(client, produtoId) {
+// estabelecimentoId é obrigatório: sem isso, um pedido poderia referenciar
+// um produto de outro estabelecimento (produtos não tem estabelecimento_id
+// direto, só via categoria_id -> categorias.estabelecimento_id).
+async function getProdutoComRegras(client, produtoId, estabelecimentoId) {
+  if (!estabelecimentoId) {
+    throw new Error('getProdutoComRegras: estabelecimentoId é obrigatório');
+  }
   const { rows } = await client.query(
-    'SELECT id, nome, preco, disponivel, pede_ponto_carne, controla_estoque, estoque FROM produtos WHERE id = $1',
-    [produtoId]
+    `SELECT p.id, p.nome, p.preco, p.disponivel, p.pede_ponto_carne, p.controla_estoque, p.estoque
+     FROM produtos p
+     JOIN categorias c ON c.id = p.categoria_id
+     WHERE p.id = $1 AND c.estabelecimento_id = $2`,
+    [produtoId, estabelecimentoId]
   );
   if (!rows[0]) return null;
 

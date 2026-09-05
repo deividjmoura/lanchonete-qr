@@ -31,13 +31,13 @@ async function restaurarEstoqueDoPedido(client, pedidoId) {
   }
 }
 
-async function gravarItensPedido(client, pedidoId, itensInput) {
+async function gravarItensPedido(client, pedidoId, itensInput, estabelecimentoId) {
   const itensGravados = [];
   let total = 0;
 
   for (const item of itensInput) {
     const produtoId = Number(item.productId ?? item.id);
-    const produto = await getProdutoComRegras(client, produtoId);
+    const produto = await getProdutoComRegras(client, produtoId, estabelecimentoId);
     if (!produto || !produto.disponivel) continue;
 
     const quantidade = Math.max(1, Math.min(99, Number(item.qty) || 1));
@@ -161,7 +161,12 @@ async function criarPedido(token, body) {
       [sessaoId]
     );
 
-    const { itensGravados, total } = await gravarItensPedido(client, pedido.id, itensInput);
+    const { itensGravados, total } = await gravarItensPedido(
+      client,
+      pedido.id,
+      itensInput,
+      mesa.estabelecimento_id
+    );
 
     await client.query('COMMIT');
 
@@ -286,7 +291,12 @@ async function editarPedidoCliente(token, pedidoId, body) {
         ? String(body.note || '').trim().slice(0, 500) || null
         : pedido.observacao_geral;
 
-    const { itensGravados, total } = await gravarItensPedido(client, pedido.id, itensInput);
+    const { itensGravados, total } = await gravarItensPedido(
+      client,
+      pedido.id,
+      itensInput,
+      mesa.estabelecimento_id
+    );
 
     const { rows: updated } = await client.query(
       `UPDATE pedidos
