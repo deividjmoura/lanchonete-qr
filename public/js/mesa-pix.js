@@ -81,7 +81,7 @@
       btn.textContent = 'Avisando…';
       try {
         const token = location.pathname.split('/').filter(Boolean).pop();
-        const r = await fetch('/api/mesas/' + token + '/pix-informado', {
+        const r = await fetch((typeof apiMesa==='function'?apiMesa('/pix-informado'):('/api/mesas/'+token+'/pix-informado')), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

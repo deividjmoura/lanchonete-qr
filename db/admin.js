@@ -33,8 +33,10 @@ async function listMesas(estabelecimentoId) {
   const eid = await resolveEstabelecimentoId(estabelecimentoId);
   const { rows } = await pool.query(
     `SELECT m.id, m.numero, m.token, m.status,
-            s.id AS sessao_id, s.valor_total, s.aberta_em, s.cliente_nome
+            s.id AS sessao_id, s.valor_total, s.aberta_em, s.cliente_nome,
+            e.slug AS estabelecimento_slug
      FROM mesas m
+     JOIN estabelecimentos e ON e.id = m.estabelecimento_id
      LEFT JOIN mesa_sessoes s ON s.mesa_id = m.id AND s.status = 'aberta'
      WHERE m.estabelecimento_id = $1
      ORDER BY m.numero`,
@@ -44,6 +46,7 @@ async function listMesas(estabelecimentoId) {
     id: r.id,
     numero: r.numero,
     token: r.token,
+    slug: r.estabelecimento_slug,
     status: r.sessao_id ? 'ocupada' : r.status,
     sessaoAberta: Boolean(r.sessao_id),
     sessaoId: r.sessao_id || null,

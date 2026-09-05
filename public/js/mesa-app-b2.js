@@ -40,14 +40,14 @@ function askPayPref(pedidoInfo){
 async function send(){await ensureClienteNome();if(!cart.length)return;const btn=document.getElementById('btnSend');if(btn){btn.disabled=true;btn.textContent='Enviando…';}const items=cart.map(i=>({productId:i.productId,qty:i.qty,additions:i.additions.map(a=>({id:a.id})),removals:i.removals,note:i.note}));const editId=window._editandoPedidoId;try{
   let r,o;
   if(editId){
-    r=await fetch('/api/mesas/'+token+'/pedidos/'+editId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items,note:''})});
+    r=await fetch(apiMesa('/pedidos/'+editId),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items,note:''})});
     o=await r.json();
     if(!r.ok){alert(o.error||'Não foi possível salvar a edição');if(btn){btn.disabled=false;btn.textContent='Salvar alterações';}return;}
     window._editandoPedidoId=null;cart=[];updateCartPill();await loadSessao();
     showToast('Pedido atualizado · '+br(o.total),2800);
     askPayPref({id:editId,total:o.total});
   }else{
-    r=await fetch('/api/mesas/'+token+'/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clienteNome:getClienteNome(),items,note:''})});
+    r=await fetch(apiMesa('/pedidos'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clienteNome:getClienteNome(),items,note:''})});
     o=await r.json();
     if(!r.ok){alert(o.error||'Não foi possível enviar');if(btn){btn.disabled=false;btn.textContent='Enviar pedido';}return;}
     cart=[];updateCartPill();await loadSessao();

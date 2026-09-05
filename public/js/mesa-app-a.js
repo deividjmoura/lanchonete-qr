@@ -1,6 +1,17 @@
-const token=location.pathname.split('/').filter(Boolean).pop()||'';
+const __pathParts=location.pathname.split('/').filter(Boolean);
+const token=__pathParts[__pathParts.length-1]||'';
+/** slug quando URL é /loja/{slug}/mesa/{token} */
+const lojaSlug=(__pathParts[0]==='loja'&&__pathParts[2]==='mesa')?__pathParts[1]:null;
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 if(!UUID_RE.test(token)){document.body.innerHTML='<main class="wrap"><div class="panel"><h2>Mesa inválida</h2><p class="muted">Escaneie o QR Code da mesa.</p></div></main>';throw new Error('token inválido');}
+function apiMesa(path){
+  if(lojaSlug) return '/api/loja/'+encodeURIComponent(lojaSlug)+'/mesas/'+token+(path||'');
+  return '/api/mesas/'+token+(path||'');
+}
+function apiCardapio(){
+  if(lojaSlug) return '/api/loja/'+encodeURIComponent(lojaSlug)+'/cardapio';
+  return '/api/cardapio';
+}
 let categorias=[],produtos=[],cart=[],totalDevido=0,cartOpen=false,sessaoData=null,sessaoOpen=false,clienteNome='';
 /** Último status visto por pedido — para toast de mudança */
 let lastStatusMap={};
@@ -40,7 +51,7 @@ function lqSaveContaOpen(ids){
 }
 function getClienteNome(){if(clienteNome)return clienteNome;try{clienteNome=sessionStorage.getItem('lq-cliente-nome-'+token)||'';}catch(_){}return clienteNome;}
 function setClienteNome(nome){clienteNome=String(nome||'').trim().slice(0,80);try{sessionStorage.setItem('lq-cliente-nome-'+token,clienteNome);}catch(_){}}
-function ensureClienteNome(){return new Promise((resolve)=>{if(getClienteNome())return resolve(getClienteNome());const gate=document.getElementById('nameGate');const input=document.getElementById('clienteNomeInput');const btn=document.getElementById('clienteNomeBtn');gate.hidden=false;setTimeout(()=>input.focus(),50);const done=()=>{const n=(input.value||'').trim();if(!n){input.focus();return;}setClienteNome(n);gate.hidden=true;fetch('/api/mesas/'+token+'/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clienteNome:n})}).catch(()=>{});resolve(n);};btn.addEventListener('click',done);input.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();done();}});});}
+function ensureClienteNome(){return new Promise((resolve)=>{if(getClienteNome())return resolve(getClienteNome());const gate=document.getElementById('nameGate');const input=document.getElementById('clienteNomeInput');const btn=document.getElementById('clienteNomeBtn');gate.hidden=false;setTimeout(()=>input.focus(),50);const done=()=>{const n=(input.value||'').trim();if(!n){input.focus();return;}setClienteNome(n);gate.hidden=true;fetch(apiMesa('/checkin'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clienteNome:n})}).catch(()=>{});resolve(n);};btn.addEventListener('click',done);input.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();done();}});});}
 // Status legíveis para o cliente
 const STATUS_LABEL={
   recebido:'Na cozinha',
@@ -83,11 +94,11 @@ function notifyStatusChanges(pedidos){
   }
   lastStatusMap=next;
 }
-async function loadSessao(){try{const r=await fetch('/api/mesas/'+token+'/sessao');if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;notifyStatusChanges(s.pedidos||[]);document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen){const openIds=[...document.querySelectorAll('.pedido-block details[open][data-pedido-id]')].map(d=>String(d.getAttribute('data-pedido-id')));if(openIds.length||!window._contaOpenPedidos){window._contaOpenPedidos=openIds.length?openIds:(window._contaOpenPedidos||[]);}openSessao();}}catch(_){}}
+async function loadSessao(){try{const r=await fetch(apiMesa('/sessao'));if(!r.ok)return;const s=await r.json();sessaoData=s;window.sessaoData=s;totalDevido=s.totalDevido||0;notifyStatusChanges(s.pedidos||[]);document.getElementById('mesaDesk').textContent='Mesa '+s.mesa+(getClienteNome()?' · '+getClienteNome():' · Cardápio');updateCartPill();if(sessaoOpen){const openIds=[...document.querySelectorAll('.pedido-block details[open][data-pedido-id]')].map(d=>String(d.getAttribute('data-pedido-id')));if(openIds.length||!window._contaOpenPedidos){window._contaOpenPedidos=openIds.length?openIds:(window._contaOpenPedidos||[]);}openSessao();}}catch(_){}}
 async function cancelarPedido(pedidoId){
   if(!confirm('Cancelar o pedido #'+pedidoId+'? Só dá enquanto a cozinha ainda não começou o preparo.'))return;
   try{
-    const r=await fetch('/api/mesas/'+token+'/pedidos/'+pedidoId,{method:'DELETE'});
+    const r=await fetch(apiMesa('/pedidos/'+pedidoId),{method:'DELETE'});
     const d=await r.json().catch(()=>({}));
     if(!r.ok){alert(d.error||'Não foi possível cancelar');return;}
     showToast('Pedido #'+pedidoId+' cancelado',2800);
@@ -198,7 +209,7 @@ async function loadCardapio(){
     menuEl.innerHTML='<div class="mesa-loading" aria-live="polite"><span class="mesa-loading__spin"></span> Carregando cardápio…</div>';
   }
   // Cardápio e destaques em paralelo; pinta o menu assim que o cardápio chegar
-  const pCard=fetch('/api/cardapio').then(async r=>{
+  const pCard=fetch(apiCardapio()).then(async r=>{
     if(!r.ok) throw new Error('cardapio');
     return r.json();
   });
@@ -233,7 +244,7 @@ function randomFirstMsg(){
 }
 async function loadDestaques(){
   try{
-    const r=await fetch('/api/cardapio/destaques?limit=6');
+    const r=await fetch(apiCardapio()+'/destaques?limit=6');
     if(!r.ok){mesaDestaques=[];mesaDestaquesMsg=randomFirstMsg();return;}
     const d=await r.json();
     const itens=Array.isArray(d.itens)?d.itens:[];

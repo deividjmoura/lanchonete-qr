@@ -10,7 +10,10 @@ const TRANSICOES = {
 
 async function getMesaPorToken(client, token) {
   const { rows } = await client.query(
-    'SELECT id, numero, status FROM mesas WHERE token = $1',
+    `SELECT m.id, m.numero, m.status, m.estabelecimento_id, e.slug
+     FROM mesas m
+     JOIN estabelecimentos e ON e.id = m.estabelecimento_id
+     WHERE m.token = $1`,
     [token]
   );
   return rows[0] || null;

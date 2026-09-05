@@ -4,7 +4,12 @@ const fs = require('fs');
 const path = require('path');
 
 const { getCardapio, invalidarCardapio } = require('./db/cardapio');
-const { resolveEstabelecimentoId } = require('./db/tenant');
+const {
+  resolveEstabelecimentoId,
+  getEstabelecimentoPorSlug,
+  getMesaPorTokenComTenant,
+  assertMesaAcesso,
+} = require('./db/tenant');
 const {
   criarPedido,
   avancarStatus,
@@ -173,7 +178,33 @@ const mime = {
 const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    const p = u.pathname;
+    let p = u.pathname;
+    let lojaSlug = null;
+    let m;
+
+    // /api/loja/{slug}/mesas/{token}/... → mesmo handler de /api/mesas/{token}/...
+    const lojaMesasMatch = p.match(/^\/api\/loja\/([^/]+)\/mesas\/(.+)$/);
+    if (lojaMesasMatch) {
+      lojaSlug = lojaMesasMatch[1];
+      p = '/api/mesas/' + lojaMesasMatch[2];
+    }
+
+    // Cardápio por slug
+    if ((m = p.match(/^\/api\/loja\/([^/]+)\/cardapio$/)) && req.method === 'GET') {
+      const est = await getEstabelecimentoPorSlug(m[1]);
+      if (!est) return json(res, 404, { error: 'Estabelecimento não encontrado' });
+      if (!est.ativo) return json(res, 403, { error: 'Estabelecimento inativo' });
+      return json(res, 200, await getCardapio(est.id), {
+        'Cache-Control': 'public, max-age=15, stale-while-revalidate=60',
+      });
+    }
+    if ((m = p.match(/^\/api\/loja\/([^/]+)\/cardapio\/destaques$/)) && req.method === 'GET') {
+      const est = await getEstabelecimentoPorSlug(m[1]);
+      if (!est) return json(res, 404, { error: 'Estabelecimento não encontrado' });
+      if (!est.ativo) return json(res, 403, { error: 'Estabelecimento inativo' });
+      const limit = Number(u.searchParams.get('limit') || 6);
+      return json(res, 200, { itens: await topProdutosHoje(limit, est.id) });
+    }
 
     if (p === '/api/cardapio' && req.method === 'GET') {
       return json(res, 200, await getCardapio(null), {
@@ -185,7 +216,6 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { itens: await topProdutosHoje(limit) });
     }
 
-    let m;
     if (p === '/api/events' && req.method === 'GET') {
       applySecurityHeaders(res);
       res.writeHead(200, {
@@ -219,6 +249,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 429, { error: 'Muitos pedidos em pouco tempo. Aguarde um instante.' });
       }
       try {
+        if (lojaSlug) await assertMesaAcesso(m[1], lojaSlug);
         const pedido = await criarPedido(m[1], await body(req));
         broadcast('update', { type: 'pedido_criado', pedidoId: pedido.id, mesaToken: m[1] });
         return json(res, 201, pedido);
@@ -229,6 +260,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/checkin$/)) && req.method === 'POST') {
       try {
+        if (lojaSlug) await assertMesaAcesso(m[1], lojaSlug);
         const out = await checkinCliente(m[1], await body(req));
         broadcast('update', { type: 'checkin', mesaToken: m[1], clienteNome: out.clienteNome });
         return json(res, 200, out);
@@ -239,6 +271,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/sessao$/)) && req.method === 'GET') {
       try {
+        if (lojaSlug) await assertMesaAcesso(m[1], lojaSlug);
         return json(res, 200, await getSessao(m[1]));
       } catch (e) {
         if (e instanceof ErroPedido) return json(res, e.status, { error: e.message });
@@ -247,6 +280,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pix-informado$/)) && req.method === 'POST') {
       try {
+        if (lojaSlug) await assertMesaAcesso(m[1], lojaSlug);
         const payload = await body(req).catch(() => ({}));
         const out = await informarPixPago(m[1], payload || {});
         broadcast('update', {
@@ -265,6 +299,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pedidos\/(\d+)$/)) && req.method === 'DELETE') {
       try {
+        if (lojaSlug) await assertMesaAcesso(m[1], lojaSlug);
         const out = await cancelarPedidoCliente(m[1], Number(m[2]));
         broadcast('update', { type: 'pedido_cancelado', pedidoId: Number(m[2]), mesaToken: m[1] });
         return json(res, 200, out);
@@ -275,6 +310,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/mesas\/([^/]+)\/pedidos\/(\d+)$/)) && req.method === 'PUT') {
       try {
+        if (lojaSlug) await assertMesaAcesso(m[1], lojaSlug);
         const out = await editarPedidoCliente(m[1], Number(m[2]), await body(req));
         broadcast('update', { type: 'pedido_editado', pedidoId: Number(m[2]), mesaToken: m[1] });
         return json(res, 200, out);
@@ -644,7 +680,33 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
     let file = p;
-    if (file.startsWith('/mesa/')) file = '/mesa.html';
+    // /loja/{slug}/mesa/{token}
+    if ((m = file.match(/^\/loja\/([^/]+)\/mesa\/([^/]+)$/))) {
+      try {
+        await assertMesaAcesso(m[2], m[1]);
+      } catch (e) {
+        if (e.status === 404) {
+          res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+          return res.end('Mesa não encontrada');
+        }
+        if (e.status === 403) {
+          res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+          return res.end(e.message || 'Acesso negado');
+        }
+        throw e;
+      }
+      file = '/mesa.html';
+    }
+    // Legado /mesa/{token} → /loja/{slug}/mesa/{token}
+    if (file.startsWith('/mesa/')) {
+      const tok = file.slice('/mesa/'.length).split('/')[0];
+      const mesaRow = await getMesaPorTokenComTenant(tok);
+      if (mesaRow && mesaRow.slug) {
+        res.writeHead(302, { Location: `/loja/${mesaRow.slug}/mesa/${tok}` });
+        return res.end();
+      }
+      file = '/mesa.html';
+    }
     if (file.startsWith('/pedido/')) file = '/pedido.html';
     if (file === '/cozinha') file = '/cozinha.html';
     if (file === '/garcom' || /^\/garcom\/[0-9a-f-]{36}$/i.test(file)) file = '/garcom.html';
