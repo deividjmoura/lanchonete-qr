@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Super Admin · Lanchonete QR</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/style-ops.css">
+<link rel="stylesheet" href="/theme-glass.css">
+<style>
+  .super-wrap{max-width:720px;margin:8vh auto;padding:0 16px}
+  .super-card{padding:28px 24px}
+  .super-card h1{margin:0 0 8px;font-size:1.4rem}
+  .super-meta{font-size:.9rem;color:var(--muted);margin-bottom:20px}
+  .super-note{padding:12px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--border);font-size:.9rem;line-height:1.45}
+  .super-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="super-wrap">
+  <section class="panel super-card">
+    <h1>Super Admin</h1>
+    <p class="super-meta" id="who">Carregando…</p>
+    <div class="super-note">
+      Painel mínimo da V3. O CRUD de estabelecimentos entra na issue <b>#31</b>.
+      Por enquanto isto só confirma que o login <code>super_admin</code> funciona.
+    </div>
+    <div class="super-actions">
+      <a class="btn" href="/admin">Abrir admin (loja padrão)</a>
+      <button type="button" class="btn" id="btnSair">Sair</button>
+    </div>
+  </section>
+</div>
+<script>
+(async function () {
+  const who = document.getElementById('who');
+  try {
+    const r = await fetch('/api/super/me');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      location.href = '/login?next=' + encodeURIComponent('/super');
+      return;
+    }
+    const s = d.staff || {};
+    who.textContent = (s.nome || s.login || 'Super') + ' · ' + (s.papel || 'super_admin');
+  } catch (e) {
+    who.textContent = 'Falha ao carregar sessão';
+  }
+  document.getElementById('btnSair').addEventListener('click', async () => {
+    try { await fetch('/api/logout', { method: 'POST' }); } catch (_) {}
+    location.href = '/login';
+  });
+})();
+</script>
+</body>
+</html>

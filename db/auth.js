@@ -9,19 +9,22 @@ const SESSION_COOKIE = 'lqr_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const SCRYPT_KEYLEN = 64;
 
-const PAPEIS = Object.freeze(['admin', 'cozinha', 'caixa']);
+const PAPEIS = Object.freeze(['admin', 'cozinha', 'caixa', 'super_admin']);
 
 // admin acessa tudo; cozinha e caixa só o próprio domínio
 const ACESSO = Object.freeze({
   admin: new Set(['admin', 'cozinha', 'caixa']),
   cozinha: new Set(['cozinha']),
   caixa: new Set(['caixa']),
+  // super vê tudo; painel próprio em /super (issue #31)
+  super_admin: new Set(['admin', 'cozinha', 'caixa', 'super']),
 });
 
 const HOME_POR_PAPEL = Object.freeze({
   admin: '/admin',
   cozinha: '/cozinha',
   caixa: '/caixa',
+  super_admin: '/super',
 });
 
 class ErroAuth extends Error {
@@ -89,6 +92,7 @@ function staffPublico(row) {
     login: row.login,
     papel: row.papel,
     estabelecimentoId: row.estabelecimento_id != null ? Number(row.estabelecimento_id) : null,
+    isSuperAdmin: row.papel === 'super_admin',
   };
 }
 
@@ -134,6 +138,37 @@ async function garantirStaffSeed() {
   return { created: true, count: users.length, senhaPadraoUsada: true };
 }
 
+/**
+ * Garante um super_admin global (opcional).
+ * Env: SUPER_ADMIN_LOGIN (default super) + SUPER_ADMIN_SENHA (obrigatória para criar).
+ * Idempotente: se já existir login, não altera senha.
+ */
+async function garantirSuperAdminSeed() {
+  const login = String(process.env.SUPER_ADMIN_LOGIN || 'super').trim().toLowerCase();
+  const senha = process.env.SUPER_ADMIN_SENHA || process.env.SUPER_ADMIN_PASSWORD || '';
+  if (!senha) {
+    return { created: false, skipped: true, reason: 'SUPER_ADMIN_SENHA não definida' };
+  }
+
+  const { rows } = await pool.query(
+    `SELECT id, papel FROM staff WHERE lower(login) = $1 LIMIT 1`,
+    [login]
+  );
+  if (rows[0]) {
+    return { created: false, exists: true, id: rows[0].id, papel: rows[0].papel };
+  }
+
+  const hash = await hashSenha(senha);
+  const nome = process.env.SUPER_ADMIN_NOME || 'Super Admin';
+  const { rows: ins } = await pool.query(
+    `INSERT INTO staff (nome, login, senha_hash, papel, estabelecimento_id, ativo)
+     VALUES ($1, $2, $3, 'super_admin', NULL, TRUE)
+     RETURNING id`,
+    [nome, login, hash]
+  );
+  return { created: true, id: ins[0].id, login };
+}
+
 async function autenticar(login, senha) {
   const user = String(login || '').trim().toLowerCase();
   if (!user || !senha) {
@@ -151,7 +186,17 @@ async function autenticar(login, senha) {
   }
   const ok = await verificarSenha(senha, row.senha_hash);
   if (!ok) {
-    throw new ErroAuth(401, 'Usuário ou senha incorretos');
+    throw new ErroAuth(401, 'Uuário ou senha incorretos');
+  }
+  // Staff de loja: estabelecimento deve existir e estar ativo
+  if (row.papel !== 'super_admin' && row.estabelecimento_id != null) {
+    const { rows: est } = await pool.query(
+      `SELECT id, ativo FROM estabelecimentos WHERE id = $1`,
+      [row.estabelecimento_id]
+    );
+    if (!est[0] || !est[0].ativo) {
+      throw new ErroAuth(403, 'Estabelecimento inativo ou não encontrado');
+    }
   }
   return staffPublico(row);
 }
@@ -211,7 +256,7 @@ function papelPodeAcessar(papel, recurso) {
   return Boolean(set && set.has(recurso));
 }
 
-/** recurso: 'admin' | 'cozinha' | 'caixa' */
+/** recurso: 'admin' | 'cozinha' | 'caixa' | 'super' */
 async function exigirAcesso(req, recurso) {
   const staff = await getStaffDaRequisicao(req);
   if (!staff) {
@@ -221,6 +266,13 @@ async function exigirAcesso(req, recurso) {
   if (!papelPodeAcessar(staff.papel, recurso)) {
     throw new ErroAuth(403, 'Sem permissão para esta área');
   }
+  return staff;
+}
+
+async function exigirSuperAdmin(req) {
+  const staff = await getStaffDaRequisicao(req);
+  if (!staff) throw new ErroAuth(401, 'Não autenticado');
+  if (staff.papel !== 'super_admin') throw new ErroAuth(403, 'Apenas super_admin');
   return staff;
 }
 
@@ -250,8 +302,11 @@ module.exports = {
   getStaffDaRequisicao,
   estaAutenticado,
   exigirAcesso,
+  exigirSuperAdmin,
   papelPodeAcessar,
   homeDoPapel,
   garantirStaffSeed,
+  garantirSuperAdminSeed,
   contarStaff,
+  staffPublico,
 };

@@ -50,6 +50,8 @@ const {
   exigirAcesso,
   homeDoPapel,
   garantirStaffSeed,
+  garantirSuperAdminSeed,
+  exigirSuperAdmin,
 } = require('./db/auth');
 const { golpePermitido } = require('./db/rateLimit');
 const { subscribe, broadcast } = require('./db/events');
@@ -317,6 +319,7 @@ const server = http.createServer(async (req, res) => {
       }
       try {
         await garantirStaffSeed();
+        await garantirSuperAdminSeed().catch(() => {});
         const b = await body(req);
         const staff = await autenticar(b.usuario || b.login || b.user, b.senha);
         const token = await criarSessao(staff.id);
@@ -340,6 +343,16 @@ const server = http.createServer(async (req, res) => {
       const staff = await getStaffDaRequisicao(req);
       if (!staff) return json(res, 401, { error: 'Não autenticado' });
       return json(res, 200, { staff, home: homeDoPapel(staff.papel) });
+    }
+
+    if (p === '/api/super/me' && req.method === 'GET') {
+      try {
+        const staff = await exigirSuperAdmin(req);
+        return json(res, 200, { staff });
+      } catch (e) {
+        if (e instanceof ErroAuth) return json(res, e.status, { error: e.message });
+        throw e;
+      }
     }
 
     if (p === '/api/config/pix' && req.method === 'GET') {
@@ -607,8 +620,8 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    if (p === '/admin' || p === '/caixa' || p === '/cozinha') {
-      const recurso = p.slice(1);
+    if (p === '/admin' || p === '/caixa' || p === '/cozinha' || p === '/super') {
+      const recurso = p === '/super' ? 'super' : p.slice(1);
       try {
         await exigirAcesso(req, recurso);
       } catch (e) {
@@ -638,6 +651,7 @@ const server = http.createServer(async (req, res) => {
     if (file === '/caixa') file = '/caixa.html';
     if (file === '/admin') file = '/admin.html';
     if (file === '/login') file = '/login.html';
+    if (file === '/super') file = '/super.html';
     const publicRoot = path.resolve(ROOT, 'public');
     const fp = path.resolve(publicRoot, '.' + (file.startsWith('/') ? file : '/' + file));
     if (!fp.startsWith(publicRoot + path.sep) && fp !== publicRoot) {
