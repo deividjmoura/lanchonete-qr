@@ -13,7 +13,8 @@
     "fotos:fix": "node scripts/fix-fotos-cardapio.js",
     "fotos:dry": "node scripts/fix-fotos-cardapio.js --dry-run",
     "test:full": "node scripts/smoke-full.js",
-    "test:tenant": "node scripts/smoke-tenant.js"
+    "test:tenant": "node scripts/smoke-tenant.js",
+    "test:security": "node scripts/smoke-security.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

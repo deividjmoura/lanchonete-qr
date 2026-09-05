@@ -8,6 +8,9 @@ const scrypt = promisify(crypto.scrypt);
 const SESSION_COOKIE = 'lqr_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const SCRYPT_KEYLEN = 64;
+/** Dias até uma senha ser considerada vencida e forçar troca no próximo login. */
+const SENHA_ROTACAO_DIAS = Number(process.env.SENHA_ROTACAO_DIAS || 90);
+const SENHA_MIN_LEN = 8;
 
 const PAPEIS = Object.freeze(['admin', 'cozinha', 'caixa', 'super_admin']);
 
@@ -84,6 +87,12 @@ async function verificarSenha(senha, stored) {
   }
 }
 
+function senhaExpirada(alteradaEm) {
+  if (!alteradaEm) return false;
+  const dias = (Date.now() - new Date(alteradaEm).getTime()) / (24 * 60 * 60 * 1000);
+  return dias >= SENHA_ROTACAO_DIAS;
+}
+
 function staffPublico(row) {
   if (!row) return null;
   return {
@@ -93,6 +102,7 @@ function staffPublico(row) {
     papel: row.papel,
     estabelecimentoId: row.estabelecimento_id != null ? Number(row.estabelecimento_id) : null,
     isSuperAdmin: row.papel === 'super_admin',
+    precisaTrocarSenha: Boolean(row.senha_deve_trocar) || senhaExpirada(row.senha_alterada_em),
   };
 }
 
@@ -176,7 +186,8 @@ async function autenticar(login, senha) {
   }
 
   const { rows } = await pool.query(
-    `SELECT id, nome, login, senha_hash, papel, ativo, estabelecimento_id
+    `SELECT id, nome, login, senha_hash, papel, ativo, estabelecimento_id,
+            senha_alterada_em, senha_deve_trocar
      FROM staff WHERE lower(login) = $1 LIMIT 1`,
     [user]
   );
@@ -222,7 +233,8 @@ async function getStaffDaRequisicao(req) {
   if (!token) return null;
 
   const { rows } = await pool.query(
-    `SELECT s.id, s.nome, s.login, s.papel, s.ativo, s.estabelecimento_id, ss.expira_em
+    `SELECT s.id, s.nome, s.login, s.papel, s.ativo, s.estabelecimento_id, ss.expira_em,
+            s.senha_alterada_em, s.senha_deve_trocar
      FROM staff_sessoes ss
      JOIN staff s ON s.id = ss.staff_id
      WHERE ss.token = $1`,
@@ -280,6 +292,51 @@ function homeDoPapel(papel) {
   return HOME_POR_PAPEL[papel] || '/admin';
 }
 
+/**
+ * Troca a senha do staff autenticado, exigindo a senha atual.
+ * Invalida as demais sessões abertas (mantém apenas a que fez a troca),
+ * derruba senha_deve_trocar e reinicia o prazo de rotação.
+ */
+async function trocarSenha(staffId, senhaAtual, novaSenha, { manterToken } = {}) {
+  const { rows } = await pool.query(
+    `SELECT id, login, senha_hash FROM staff WHERE id = $1 LIMIT 1`,
+    [staffId]
+  );
+  const row = rows[0];
+  if (!row) throw new ErroAuth(404, 'Usuário não encontrado');
+
+  const ok = await verificarSenha(senhaAtual, row.senha_hash);
+  if (!ok) throw new ErroAuth(401, 'Senha atual incorreta');
+
+  const nova = String(novaSenha || '');
+  if (nova.length < SENHA_MIN_LEN) {
+    throw new ErroAuth(400, `A nova senha deve ter pelo menos ${SENHA_MIN_LEN} caracteres`);
+  }
+  if (nova.toLowerCase() === String(row.login || '').toLowerCase()) {
+    throw new ErroAuth(400, 'A senha não pode ser igual ao usuário');
+  }
+  if (await verificarSenha(nova, row.senha_hash)) {
+    throw new ErroAuth(400, 'A nova senha deve ser diferente da atual');
+  }
+
+  const hash = await hashSenha(nova);
+  await pool.query(
+    `UPDATE staff
+     SET senha_hash = $1, senha_alterada_em = now(), senha_deve_trocar = false
+     WHERE id = $2`,
+    [hash, staffId]
+  );
+  if (manterToken) {
+    await pool.query('DELETE FROM staff_sessoes WHERE staff_id = $1 AND token <> $2', [
+      staffId,
+      manterToken,
+    ]);
+  } else {
+    await pool.query('DELETE FROM staff_sessoes WHERE staff_id = $1', [staffId]);
+  }
+  return { ok: true };
+}
+
 // Limpa sessões expiradas de tempos em tempos
 setInterval(() => {
   pool
@@ -299,6 +356,8 @@ module.exports = {
   autenticar,
   criarSessao,
   destruirSessao,
+  trocarSenha,
+  senhaExpirada,
   getStaffDaRequisicao,
   estaAutenticado,
   exigirAcesso,
