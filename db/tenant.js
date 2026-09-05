@@ -92,6 +92,84 @@ function clearTenantCache() {
   cachedPadraoId = null;
 }
 
+/**
+ * Mapa de tabelas que assertPertenceAoTenant sabe validar.
+ * `join` é opcional (só necessário quando a tabela não tem estabelecimento_id
+ * direto); `eidCol` deve vir qualificado com o nome da tabela/alias certo.
+ */
+const TENANT_TABELAS = {
+  categorias: {
+    pk: 'id',
+    eidCol: 'categorias.estabelecimento_id',
+  },
+  produtos: {
+    pk: 'id',
+    join: 'JOIN categorias ON categorias.id = produtos.categoria_id',
+    eidCol: 'categorias.estabelecimento_id',
+  },
+  adicionais: {
+    pk: 'id',
+    join:
+      'JOIN produtos ON produtos.id = adicionais.produto_id ' +
+      'JOIN categorias ON categorias.id = produtos.categoria_id',
+    eidCol: 'categorias.estabelecimento_id',
+  },
+  garcons: {
+    pk: 'id',
+    eidCol: 'garcons.estabelecimento_id',
+  },
+  mesa_sessoes: {
+    pk: 'id',
+    join: 'JOIN mesas ON mesas.id = mesa_sessoes.mesa_id',
+    eidCol: 'mesas.estabelecimento_id',
+  },
+  pedidos: {
+    pk: 'id',
+    join:
+      'JOIN mesa_sessoes ON mesa_sessoes.id = pedidos.sessao_id ' +
+      'JOIN mesas ON mesas.id = mesa_sessoes.mesa_id',
+    eidCol: 'mesas.estabelecimento_id',
+  },
+};
+
+class ErroTenant extends Error {
+  constructor(message = 'Recurso não encontrado') {
+    super(message);
+    // 404, não 403: não queremos confirmar pra fora do tenant que o
+    // registro existe em outra loja.
+    this.status = 404;
+  }
+}
+
+/**
+ * Garante que o registro `id` da `tabela` pertence a `estabelecimentoId`.
+ * Lança ErroTenant (404) se não pertencer ou não existir.
+ *
+ * `executor` é o pool ou um client de transação (pra poder chamar dentro
+ * de um BEGIN/COMMIT já aberto, com FOR UPDATE nas queries seguintes).
+ *
+ * Chamar isso no topo de todo handler de escrita que recebe um ID é o que
+ * evita o problema de "esquecer de nesse endpoint" — a validação fica
+ * centralizada aqui em vez de reimplementada (ou esquecida) em cada função.
+ */
+async function assertPertenceAoTenant(executor, tabela, id, estabelecimentoId) {
+  if (!estabelecimentoId) {
+    throw new Error(
+      `assertPertenceAoTenant: estabelecimentoId ausente (tabela "${tabela}")`
+    );
+  }
+  const cfg = TENANT_TABELAS[tabela];
+  if (!cfg) {
+    throw new Error(`assertPertenceAoTenant: tabela "${tabela}" não mapeada`);
+  }
+  const { rows } = await executor.query(
+    `SELECT 1 FROM ${tabela} ${cfg.join || ''}
+     WHERE ${tabela}.${cfg.pk} = $1 AND ${cfg.eidCol} = $2`,
+    [id, estabelecimentoId]
+  );
+  if (!rows[0]) throw new ErroTenant();
+}
+
 module.exports = {
   getEstabelecimentoPadraoId,
   resolveEstabelecimentoId,
@@ -99,4 +177,6 @@ module.exports = {
   getMesaPorTokenComTenant,
   assertMesaAcesso,
   clearTenantCache,
+  assertPertenceAoTenant,
+  ErroTenant,
 };

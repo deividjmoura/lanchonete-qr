@@ -441,7 +441,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/pagamentos$/)) && req.method === 'POST') {
       try {
-        const out = await registrarPagamento(Number(m[1]), await body(req));
+        const out = await registrarPagamento(Number(m[1]), await body(req), eid);
         broadcast('update', { type: 'pagamento_parcial', sessaoId: Number(m[1]) });
         return json(res, 201, out);
       } catch (e) {
@@ -451,7 +451,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/pix-avisos\/(\d+)\/confirmar$/)) && req.method === 'POST') {
       try {
-        const out = await confirmarPixAviso(Number(m[1]), Number(m[2]));
+        const out = await confirmarPixAviso(Number(m[1]), Number(m[2]), eid);
         broadcast('update', {
           type: 'pix_confirmado',
           sessaoId: Number(m[1]),
@@ -465,7 +465,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/caixa\/sessoes\/(\d+)\/fechar$/)) && req.method === 'POST') {
       try {
-        const out = await fecharSessao(Number(m[1]), await body(req));
+        const out = await fecharSessao(Number(m[1]), await body(req), eid);
         broadcast('update', { type: 'sessao_fechada', sessaoId: Number(m[1]) });
         return json(res, 200, out);
       } catch (e) {
@@ -502,7 +502,7 @@ const server = http.createServer(async (req, res) => {
     if ((m = p.match(/^\/api\/admin\/garcons\/(\d+)$/)) && req.method === 'PATCH') {
       try {
         const b = await body(req);
-        return json(res, 200, await setGarcomAtivo(Number(m[1]), b.ativo !== false));
+        return json(res, 200, await setGarcomAtivo(Number(m[1]), b.ativo !== false, eid));
       } catch (e) {
         if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
         throw e;
@@ -510,7 +510,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/garcons\/(\d+)$/)) && req.method === 'DELETE') {
       try {
-        return json(res, 200, await removerGarcom(Number(m[1])));
+        return json(res, 200, await removerGarcom(Number(m[1]), eid));
       } catch (e) {
         if (e instanceof ErroGarcom) return json(res, e.status, { error: e.message });
         throw e;
@@ -582,7 +582,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/categorias\/(\d+)$/)) && req.method === 'PATCH') {
       try {
-        const out = await atualizarCategoria(Number(m[1]), await body(req));
+        const out = await atualizarCategoria(Number(m[1]), await body(req), eid);
         invalidarCardapio();
         return json(res, 200, out);
       } catch (e) {
@@ -592,7 +592,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/admin/produtos' && req.method === 'POST') {
       try {
-        const out = await criarProduto(await body(req, { maxBytes: Number(process.env.FOTO_MAX_BODY_BYTES || 8 * 1024 * 1024) }));
+        const out = await criarProduto(
+          await body(req, { maxBytes: Number(process.env.FOTO_MAX_BODY_BYTES || 8 * 1024 * 1024) }),
+          eid
+        );
         invalidarCardapio();
         return json(res, 201, out);
       } catch (e) {
@@ -604,7 +607,8 @@ const server = http.createServer(async (req, res) => {
       try {
         const out = await atualizarProduto(
           Number(m[1]),
-          await body(req, { maxBytes: Number(process.env.FOTO_MAX_BODY_BYTES || 8 * 1024 * 1024) })
+          await body(req, { maxBytes: Number(process.env.FOTO_MAX_BODY_BYTES || 8 * 1024 * 1024) }),
+          eid
         );
         invalidarCardapio();
         return json(res, 200, out);
@@ -616,7 +620,7 @@ const server = http.createServer(async (req, res) => {
 
     if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)$/)) && req.method === 'DELETE') {
       try {
-        const out = await removerProduto(Number(m[1]));
+        const out = await removerProduto(Number(m[1]), eid);
         invalidarCardapio();
         return json(res, 200, out);
       } catch (e) {
@@ -626,7 +630,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)\/adicionais$/)) && req.method === 'POST') {
       try {
-        const out = await criarAdicional(Number(m[1]), await body(req));
+        const out = await criarAdicional(Number(m[1]), await body(req), eid);
         invalidarCardapio();
         return json(res, 201, out);
       } catch (e) {
@@ -636,7 +640,7 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = p.match(/^\/api\/admin\/adicionais\/(\d+)$/)) && req.method === 'DELETE') {
       try {
-        const out = await removerAdicional(Number(m[1]));
+        const out = await removerAdicional(Number(m[1]), eid);
         invalidarCardapio();
         return json(res, 200, out);
       } catch (e) {
@@ -647,7 +651,7 @@ const server = http.createServer(async (req, res) => {
     if ((m = p.match(/^\/api\/admin\/produtos\/(\d+)\/removiveis$/)) && req.method === 'PUT') {
       try {
         const b = await body(req);
-        const out = await setRemoviveis(Number(m[1]), b.ingredientes || b.removiveis || []);
+        const out = await setRemoviveis(Number(m[1]), b.ingredientes || b.removiveis || [], eid);
         invalidarCardapio();
         return json(res, 200, out);
       } catch (e) {

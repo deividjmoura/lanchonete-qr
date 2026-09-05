@@ -1,6 +1,6 @@
 // Caixa: sessões abertas, pagamentos parciais (divisão) e fechamento.
 const pool = require('./pool');
-const { resolveEstabelecimentoId } = require('./tenant');
+const { resolveEstabelecimentoId, assertPertenceAoTenant } = require('./tenant');
 const { ensurePixAvisosTable } = require('./pix-cliente');
 
 const FORMAS = new Set(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']);
@@ -212,7 +212,7 @@ async function listSessoesAbertas(estabelecimentoId) {
 }
 
 /** Registra pagamento parcial (divisão de conta). Não fecha a sessão. */
-async function registrarPagamento(sessaoId, body) {
+async function registrarPagamento(sessaoId, body, estabelecimentoId) {
   const forma = String(body.formaPagamento || body.forma_pagamento || '')
     .trim()
     .toLowerCase();
@@ -230,6 +230,7 @@ async function registrarPagamento(sessaoId, body) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await assertPertenceAoTenant(client, 'mesa_sessoes', sessaoId, estabelecimentoId);
     const { rows } = await client.query(
       `SELECT s.id, s.status, s.valor_total, m.numero AS mesa
        FROM mesa_sessoes s
@@ -286,7 +287,7 @@ async function registrarPagamento(sessaoId, body) {
   }
 }
 
-async function fecharSessao(sessaoId, body) {
+async function fecharSessao(sessaoId, body, estabelecimentoId) {
   const forma = String(body.formaPagamento || body.forma_pagamento || '')
     .trim()
     .toLowerCase();
@@ -305,6 +306,7 @@ async function fecharSessao(sessaoId, body) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await assertPertenceAoTenant(client, 'mesa_sessoes', sessaoId, estabelecimentoId);
 
     const { rows } = await client.query(
       `SELECT s.id, s.status, s.valor_total, s.mesa_id, m.numero AS mesa
@@ -396,11 +398,12 @@ async function fecharSessao(sessaoId, body) {
 
 
 /** Caixa confirma aviso PIX do cliente → registra pagamento parcial e quita o aviso. */
-async function confirmarPixAviso(sessaoId, avisoId) {
+async function confirmarPixAviso(sessaoId, avisoId, estabelecimentoId) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await ensurePixAvisosTable(client);
+    await assertPertenceAoTenant(client, 'mesa_sessoes', sessaoId, estabelecimentoId);
 
     const { rows: sessRows } = await client.query(
       `SELECT s.id, s.status, s.valor_total, m.numero AS mesa

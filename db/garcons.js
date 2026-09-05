@@ -1,5 +1,9 @@
 const pool = require('./pool');
-const { getEstabelecimentoPadraoId, resolveEstabelecimentoId } = require('./tenant');
+const {
+  getEstabelecimentoPadraoId,
+  resolveEstabelecimentoId,
+  assertPertenceAoTenant,
+} = require('./tenant');
 
 class ErroGarcom extends Error {
   constructor(status, message) {
@@ -23,8 +27,9 @@ async function listGarcons(estabelecimentoId) {
   return rows;
 }
 
-async function removerGarcom(id) {
+async function removerGarcom(id, estabelecimentoId) {
   const gid = Number(id);
+  await assertPertenceAoTenant(pool, 'garcons', gid, estabelecimentoId);
   await pool.query('UPDATE pedidos SET garcom_id = NULL WHERE garcom_id = $1', [gid]);
   const { rows } = await pool.query(
     'DELETE FROM garcons WHERE id = $1 RETURNING id, nome',
@@ -46,7 +51,8 @@ async function criarGarcom(body, estabelecimentoId) {
   return rows[0];
 }
 
-async function setGarcomAtivo(id, ativo) {
+async function setGarcomAtivo(id, ativo, estabelecimentoId) {
+  await assertPertenceAoTenant(pool, 'garcons', Number(id), estabelecimentoId);
   const { rows } = await pool.query(
     `UPDATE garcons SET ativo = $2 WHERE id = $1
      RETURNING id, nome, token, ativo, criado_em`,
@@ -75,6 +81,10 @@ async function entregarComoGarcom(pedidoId, garcomToken) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // sem isso, um garçom de um estabelecimento podia "entregar" (e somar ao
+    // valor_total da sessão) um pedido de outro estabelecimento só chutando o ID
+    await assertPertenceAoTenant(client, 'pedidos', Number(pedidoId), garcom.estabelecimento_id);
 
     const { rows } = await client.query(
       `SELECT id, status, sessao_id, garcom_id FROM pedidos WHERE id = $1 FOR UPDATE`,

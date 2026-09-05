@@ -1,6 +1,10 @@
 // CRUD de cardápio e listagem de mesas para o painel admin.
 const pool = require('./pool');
-const { getEstabelecimentoPadraoId, resolveEstabelecimentoId } = require('./tenant');
+const {
+  getEstabelecimentoPadraoId,
+  resolveEstabelecimentoId,
+  assertPertenceAoTenant,
+} = require('./tenant');
 
 function normalizeFotoUrl(raw) {
   if (raw === undefined) return undefined;
@@ -136,7 +140,8 @@ async function criarCategoria({ nome, ordem = 0 }, estabelecimentoId) {
   return rows[0];
 }
 
-async function atualizarCategoria(id, { nome, ordem }) {
+async function atualizarCategoria(id, { nome, ordem }, estabelecimentoId) {
+  await assertPertenceAoTenant(pool, 'categorias', id, estabelecimentoId);
   const campos = [];
   const vals = [];
   let i = 1;
@@ -160,13 +165,14 @@ async function atualizarCategoria(id, { nome, ordem }) {
   return rows[0];
 }
 
-async function criarProduto(body) {
+async function criarProduto(body, estabelecimentoId) {
   const nome = String(body.nome || '').trim();
   const categoriaId = Number(body.categoriaId);
   const preco = Number(body.preco);
   if (!nome) throw new ErroAdmin(400, 'Nome do produto é obrigatório');
   if (!categoriaId) throw new ErroAdmin(400, 'categoriaId é obrigatório');
   if (Number.isNaN(preco) || preco < 0) throw new ErroAdmin(400, 'Preço inválido');
+  await assertPertenceAoTenant(pool, 'categorias', categoriaId, estabelecimentoId);
 
   const { rows } = await pool.query(
     `INSERT INTO produtos (categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo)
@@ -188,7 +194,8 @@ async function criarProduto(body) {
   return { ...mapProdutoRow(rows[0]), adicionais: [], removiveis: [] };
 }
 
-async function atualizarProduto(id, body) {
+async function atualizarProduto(id, body, estabelecimentoId) {
+  await assertPertenceAoTenant(pool, 'produtos', id, estabelecimentoId);
   const campos = [];
   const vals = [];
   let i = 1;
@@ -222,8 +229,11 @@ async function atualizarProduto(id, body) {
     vals.push(Boolean(body.pedePontoCarne));
   }
   if (body.categoriaId !== undefined) {
+    const novaCategoriaId = Number(body.categoriaId);
+    // sem isso, dava pra "migrar" um produto pra categoria de outro tenant
+    await assertPertenceAoTenant(pool, 'categorias', novaCategoriaId, estabelecimentoId);
     campos.push(`categoria_id = $${i++}`);
-    vals.push(Number(body.categoriaId));
+    vals.push(novaCategoriaId);
   }
   if (body.controlaEstoque !== undefined || body.controla_estoque !== undefined) {
     campos.push(`controla_estoque = $${i++}`);
@@ -249,14 +259,13 @@ async function atualizarProduto(id, body) {
   return mapProdutoRow(rows[0]);
 }
 
-async function criarAdicional(produtoId, { nome, preco }) {
+async function criarAdicional(produtoId, { nome, preco }, estabelecimentoId) {
   const n = String(nome || '').trim();
   const p = Number(preco);
   if (!n) throw new ErroAdmin(400, 'Nome do adicional é obrigatório');
   if (Number.isNaN(p) || p < 0) throw new ErroAdmin(400, 'Preço inválido');
 
-  const { rows: prod } = await pool.query('SELECT id FROM produtos WHERE id = $1', [produtoId]);
-  if (!prod[0]) throw new ErroAdmin(404, 'Produto não encontrado');
+  await assertPertenceAoTenant(pool, 'produtos', produtoId, estabelecimentoId);
 
   const { rows } = await pool.query(
     'INSERT INTO adicionais (produto_id, nome, preco) VALUES ($1, $2, $3) RETURNING id, produto_id, nome, preco',
@@ -265,13 +274,14 @@ async function criarAdicional(produtoId, { nome, preco }) {
   return { id: rows[0].id, produtoId: rows[0].produto_id, nome: rows[0].nome, preco: Number(rows[0].preco) };
 }
 
-async function removerAdicional(id) {
+async function removerAdicional(id, estabelecimentoId) {
+  await assertPertenceAoTenant(pool, 'adicionais', id, estabelecimentoId);
   const { rowCount } = await pool.query('DELETE FROM adicionais WHERE id = $1', [id]);
   if (!rowCount) throw new ErroAdmin(404, 'Adicional não encontrado');
   return { ok: true };
 }
 
-async function setRemoviveis(produtoId, ingredientes) {
+async function setRemoviveis(produtoId, ingredientes, estabelecimentoId) {
   const lista = Array.isArray(ingredientes)
     ? [...new Set(ingredientes.map((x) => String(x).trim()).filter(Boolean))]
     : [];
@@ -279,8 +289,7 @@ async function setRemoviveis(produtoId, ingredientes) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows: prod } = await client.query('SELECT id FROM produtos WHERE id = $1', [produtoId]);
-    if (!prod[0]) throw new ErroAdmin(404, 'Produto não encontrado');
+    await assertPertenceAoTenant(client, 'produtos', produtoId, estabelecimentoId);
 
     await client.query('DELETE FROM produtos_ingredientes_removiveis WHERE produto_id = $1', [produtoId]);
     for (const ing of lista) {
@@ -300,7 +309,8 @@ async function setRemoviveis(produtoId, ingredientes) {
 }
 
 
-async function removerProduto(id) {
+async function removerProduto(id, estabelecimentoId) {
+  await assertPertenceAoTenant(pool, 'produtos', id, estabelecimentoId);
   const { rows: used } = await pool.query(
     'SELECT 1 FROM itens_pedido WHERE produto_id = $1 LIMIT 1',
     [id]
