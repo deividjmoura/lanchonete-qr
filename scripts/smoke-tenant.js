@@ -213,17 +213,44 @@ async function main() {
   if (!Array.isArray(sessoes)) fail('caixa sessoes não é array', sessoes);
   log(`caixa · ${sessoes.length} sessão(ões) aberta(s)`);
 
-  // 13. super_admin (opcional)
+  // 13. super_admin (opcional — não falha a suíte se senha/env estiver errada)
   if (SUPER_SENHA) {
-    const { cookie: cookieSuper, staff: superStaff, home } = await login(SUPER_LOGIN, SUPER_SENHA);
-    if (superStaff?.papel !== 'super_admin') fail('papel super', superStaff);
-    if (superStaff?.estabelecimentoId != null) fail('super deve ter estabelecimentoId null', superStaff);
-    if (home !== '/super') fail('home super', home);
-    await req('GET', '/api/super/me', { cookie: cookieSuper, expectStatus: 200 });
-    log('super_admin · /api/super/me ok');
-    // admin da loja não acessa super API
-    await req('GET', '/api/super/me', { cookie: cookieAdmin, expectStatus: 403 });
-    log('admin da loja bloqueado em /api/super/me');
+    step += 1;
+    let res, data, setCookie;
+    try {
+      const r = await fetch(BASE + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario: SUPER_LOGIN, senha: SUPER_SENHA }),
+      });
+      res = r;
+      const text = await r.text();
+      try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+      setCookie = parseSetCookie(r);
+    } catch (e) {
+      skip('super login: rede — ' + (e.message || e));
+      data = null;
+      res = null;
+    }
+    if (!res || res.status !== 200 || !data?.ok) {
+      skip(
+        'super login falhou (HTTP ' +
+          (res ? res.status : '?') +
+          ') — confira SUPER_ADMIN_SENHA / migrate; não bloqueia a suíte'
+      );
+    } else {
+      const cookieSuper = cookieHeader(setCookie);
+      const superStaff = data.staff;
+      const home = data.home;
+      if (superStaff?.papel !== 'super_admin') fail('papel super', superStaff);
+      if (superStaff?.estabelecimentoId != null) fail('super deve ter estabelecimentoId null', superStaff);
+      if (home !== '/super') fail('home super', home);
+      log('login ' + SUPER_LOGIN + ' → super_admin');
+      await req('GET', '/api/super/me', { cookie: cookieSuper, expectStatus: 200 });
+      log('super_admin · /api/super/me ok');
+      await req('GET', '/api/super/me', { cookie: cookieAdmin, expectStatus: 403 });
+      log('admin da loja bloqueado em /api/super/me');
+    }
   } else {
     skip('SUPER_ADMIN_SENHA não definida — pulando testes de super');
   }

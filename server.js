@@ -726,6 +726,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 404, 'text/plain', '404');
     }
   } catch (e) {
+    if (e && e.status && e.status < 500) {
+      return json(res, e.status, { error: e.message || 'Erro' });
+    }
     console.error(e);
     if (e && e.status) {
       return json(res, e.status, { error: e.message || 'Erro' });
