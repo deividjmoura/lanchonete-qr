@@ -5,76 +5,9 @@
  *      (ou local com servidor no ar)
  */
 require('dotenv').config();
+const { criarCliente } = require('./_smoke-lib');
 
-const BASE = (process.env.BASE_URL || `http://127.0.0.1:${process.env.PORT || 3000}`).replace(/\/$/, '');
-const SENHA = process.env.STAFF_SEED_PASSWORD || process.env.ADMIN_PASSWORD || 'troque-esta-senha';
-
-let step = 0;
-const issues = [];
-const log = (msg) => console.log(`  ✓ ${msg}`);
-const note = (msg) => {
-  issues.push(msg);
-  console.log(`  ⚠ ${msg}`);
-};
-const fail = (msg, detail) => {
-  console.error(`\n  ✗ FALHOU no passo ${step}: ${msg}`);
-  if (detail) console.error('   ', typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2));
-  process.exit(1);
-};
-
-function parseSetCookie(res) {
-  if (typeof res.headers.getSetCookie === 'function') return res.headers.getSetCookie();
-  const raw = res.headers.get('set-cookie');
-  return raw ? [raw] : [];
-}
-function cookieHeader(setCookies) {
-  return setCookies.map((c) => String(c).split(';')[0].trim()).filter(Boolean).join('; ');
-}
-
-async function req(method, path, { body, cookie, expectStatus, soft } = {}) {
-  step += 1;
-  const headers = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (cookie) headers.Cookie = cookie;
-  let res;
-  try {
-    res = await fetch(BASE + path, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  } catch (e) {
-    if (soft) {
-      note(`rede ${method} ${path}: ${e.message}`);
-      return { res: null, data: null, setCookie: [] };
-    }
-    fail(`rede ${method} ${path}`, e.message || e);
-  }
-  const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-  if (expectStatus != null && res.status !== expectStatus) {
-    if (soft) {
-      note(`${method} ${path} → HTTP ${res.status} (esperado ${expectStatus})`);
-      return { res, data, setCookie: parseSetCookie(res) };
-    }
-    fail(`${method} ${path} → HTTP ${res.status} (esperado ${expectStatus})`, data);
-  }
-  return { res, data, setCookie: parseSetCookie(res) };
-}
-
-async function login(usuario) {
-  const { data, setCookie } = await req('POST', '/api/login', {
-    body: { usuario, senha: SENHA },
-    expectStatus: 200,
-  });
-  if (!data?.ok) fail(`login ${usuario}`, data);
-  return cookieHeader(setCookie);
-}
+const { BASE, issues, log, note, fail, req, login } = criarCliente();
 
 async function main() {
   console.log(`\n🔬 Smoke FULL · ${BASE}\n`);

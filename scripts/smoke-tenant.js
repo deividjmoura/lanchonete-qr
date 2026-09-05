@@ -13,81 +13,20 @@
  *   SUPER_ADMIN_LOGIN / SUPER_ADMIN_SENHA no .env para testar /super
  */
 require('dotenv').config();
+const { criarCliente } = require('./_smoke-lib');
 
-const BASE = (process.env.BASE_URL || `http://127.0.0.1:${process.env.PORT || 3000}`).replace(
-  /\/$/,
-  ''
-);
-const SENHA = process.env.STAFF_SEED_PASSWORD || process.env.ADMIN_PASSWORD || 'troque-esta-senha';
 const SUPER_LOGIN = process.env.SUPER_ADMIN_LOGIN || 'super';
 const SUPER_SENHA = process.env.SUPER_ADMIN_SENHA || process.env.SUPER_ADMIN_PASSWORD || '';
 
-let step = 0;
-const log = (msg) => console.log(`  ✓ ${msg}`);
-const skip = (msg) => console.log(`  ○ ${msg}`);
-const fail = (msg, detail) => {
-  console.error(`\n  ✗ FALHOU no passo ${step}: ${msg}`);
-  if (detail) {
-    console.error('   ', typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2));
-  }
-  process.exit(1);
-};
+const { BASE, SENHA, log, skip, fail, bumpStep, req: reqBase, login: loginBase, cookieHeader, parseSetCookie } =
+  criarCliente({ redirectManual: true });
 
-function parseSetCookie(res) {
-  if (typeof res.headers.getSetCookie === 'function') return res.headers.getSetCookie();
-  const raw = res.headers.get('set-cookie');
-  return raw ? [raw] : [];
+// wrapper: mantém a assinatura local (usuario, senha) e sempre devolve o objeto completo
+async function req(method, path, opts) {
+  return reqBase(method, path, opts);
 }
-function cookieHeader(setCookies) {
-  return setCookies
-    .map((c) => String(c).split(';')[0].trim())
-    .filter(Boolean)
-    .join('; ');
-}
-
-async function req(method, path, { body, cookie, expectStatus, raw = false } = {}) {
-  step += 1;
-  const headers = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (cookie) headers.Cookie = cookie;
-  let res;
-  try {
-    res = await fetch(BASE + path, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      redirect: 'manual',
-    });
-  } catch (e) {
-    fail(`rede ${method} ${path}`, e.message || e);
-  }
-  const text = await res.text();
-  let data = null;
-  if (!raw) {
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-  } else {
-    data = text;
-  }
-  if (expectStatus != null && res.status !== expectStatus) {
-    fail(`${method} ${path} → HTTP ${res.status} (esperado ${expectStatus})`, data);
-  }
-  return { res, data, setCookie: parseSetCookie(res) };
-}
-
 async function login(usuario, senha = SENHA) {
-  const { data, setCookie } = await req('POST', '/api/login', {
-    body: { usuario, senha },
-    expectStatus: 200,
-  });
-  if (!data?.ok) fail(`login ${usuario}`, data);
-  const cookie = cookieHeader(setCookie);
-  if (!cookie) fail(`login ${usuario}: sem cookie`);
-  log(`login ${usuario} → ${data.staff?.papel || '?'}`);
-  return { cookie, staff: data.staff, home: data.home };
+  return loginBase(usuario, { senha, full: true });
 }
 
 function extrairProdutos(cardapio) {
@@ -103,7 +42,7 @@ async function main() {
 
   // 0. servidor
   {
-    step += 1;
+    bumpStep();
     try {
       const r = await fetch(BASE + '/api/config/pix');
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -215,7 +154,7 @@ async function main() {
 
   // 13. super_admin (opcional — não falha a suíte se senha/env estiver errada)
   if (SUPER_SENHA) {
-    step += 1;
+    bumpStep();
     let res, data, setCookie;
     try {
       const r = await fetch(BASE + '/api/login', {
