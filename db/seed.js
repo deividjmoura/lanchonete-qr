@@ -1,6 +1,7 @@
 // Popula categorias/produtos/adicionais a partir do data/db.json atual
 // (usado só uma vez, na migração do MVP em JSON para o Postgres).
-// Idempotente: se já existir alguma categoria, aborta sem duplicar.
+// Idempotente: se já existir alguma categoria, aborta cardápio sem duplicar.
+// Mesas 1..NUM_MESAS sempre garantidas (ON CONFLICT DO NOTHING).
 //
 // Uso: node db/seed.js
 require('dotenv').config();
@@ -11,7 +12,15 @@ const { garantirStaffSeed } = require('./auth');
 
 const DB_JSON = path.join(__dirname, '..', 'data', 'db.json');
 
-const NUM_MESAS = 12; // atual: qr/mesa-1.png ... mesa-12.png já gerados
+const NUM_MESAS = 20;
+
+async function garantirMesas(client) {
+  for (let numero = 1; numero <= NUM_MESAS; numero++) {
+    await client.query('INSERT INTO mesas (numero) VALUES ($1) ON CONFLICT (numero) DO NOTHING', [numero]);
+  }
+  const { rows } = await client.query('SELECT COUNT(*)::int AS n FROM mesas');
+  console.log(`✅ Mesas 1–${NUM_MESAS} garantidas (total no banco: ${rows[0].n}).`);
+}
 
 async function run() {
   const raw = JSON.parse(fs.readFileSync(DB_JSON, 'utf8'));
@@ -19,6 +28,8 @@ async function run() {
   const force = process.env.FORCE_SEED === '1' || process.argv.includes('--force');
 
   try {
+    await garantirMesas(client);
+
     const { rows: existentes } = await client.query('SELECT COUNT(*)::int AS n FROM categorias');
     if (existentes[0].n > 0 && !force) {
       console.log('⚠️  Já existem categorias no banco. Seed de cardápio abortado para não duplicar.');
@@ -46,11 +57,6 @@ async function run() {
       await client.query('DELETE FROM categorias');
       console.log('🗑️  Cardápio e pedidos anteriores removidos (FORCE_SEED).');
     }
-
-    for (let numero = 1; numero <= NUM_MESAS; numero++) {
-      await client.query('INSERT INTO mesas (numero) VALUES ($1) ON CONFLICT (numero) DO NOTHING', [numero]);
-    }
-    console.log(`✅ ${NUM_MESAS} mesas inseridas (tokens uuid gerados automaticamente).`);
 
     const categoriasNomes = [...new Set(raw.menu.map((p) => p.category))];
     const categoriaIdPorNome = {};
