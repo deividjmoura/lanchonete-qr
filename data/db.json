@@ -6,13 +6,15 @@
       "id": 1,
       "name": "Água",
       "price": 6.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "description": "Água mineral sem gás"
     },
     {
       "id": 2,
       "name": "Água com Gás",
       "price": 6.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "description": "Água mineral com gás"
     },
     {
       "id": 3,
@@ -30,7 +32,8 @@
       "id": 5,
       "name": "Energético Red Bull",
       "price": 18.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "description": "Lata"
     },
     {
       "id": 6,
@@ -42,13 +45,36 @@
       "id": 7,
       "name": "Refrigerante Lata",
       "price": 7.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "description": "Escolha o sabor",
+      "customization": {
+        "additions": [
+          {"name": "Coca-Cola", "price": 0},
+          {"name": "Coca-Cola Zero", "price": 0},
+          {"name": "Guaraná Antarctica", "price": 0},
+          {"name": "Guaraná Zero", "price": 0},
+          {"name": "Fanta Laranja", "price": 0},
+          {"name": "Fanta Uva", "price": 0},
+          {"name": "Sprite", "price": 0}
+        ],
+        "removals": []
+      }
     },
     {
       "id": 8,
       "name": "Suco Lata",
       "price": 8.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "description": "Escolha o sabor",
+      "customization": {
+        "additions": [
+          {"name": "Laranja", "price": 0},
+          {"name": "Uva", "price": 0},
+          {"name": "Pêssego", "price": 0},
+          {"name": "Maracujá", "price": 0}
+        ],
+        "removals": []
+      }
     },
     {
       "id": 9,
@@ -72,43 +98,61 @@
       "id": 12,
       "name": "Suco Polpa com Leite",
       "price": 12.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "description": "Polpa batida com leite"
     },
     {
       "id": 13,
       "name": "Condensado",
       "price": 14.0,
-      "category": "Bebidas"
+      "category": "Bebidas",
+      "description": "Bebida com leite condensado"
     },
     {
       "id": 14,
       "name": "Amstel",
       "price": 17.0,
-      "category": "Cerveja 600ml"
+      "category": "Cerveja 600ml",
+      "description": "Garrafa 600ml"
     },
     {
       "id": 15,
       "name": "Brahma",
       "price": 16.0,
-      "category": "Cerveja 600ml"
+      "category": "Cerveja 600ml",
+      "description": "Garrafa 600ml"
     },
     {
       "id": 16,
       "name": "Heineken",
       "price": 20.0,
-      "category": "Cerveja 600ml"
+      "category": "Cerveja 600ml",
+      "description": "Garrafa 600ml"
     },
     {
       "id": 17,
       "name": "Original",
       "price": 19.0,
-      "category": "Cerveja 600ml"
+      "category": "Cerveja 600ml",
+      "description": "Garrafa 600ml"
     },
     {
       "id": 18,
       "name": "Long Neck",
       "price": 15.0,
-      "category": "Long Neck"
+      "category": "Long Neck",
+      "description": "Escolha a marca",
+      "customization": {
+        "additions": [
+          {"name": "Heineken", "price": 0},
+          {"name": "Budweiser", "price": 0},
+          {"name": "Stella Artois", "price": 0},
+          {"name": "Corona", "price": 0},
+          {"name": "Original", "price": 0},
+          {"name": "Brahma", "price": 0}
+        ],
+        "removals": []
+      }
     },
     {
       "id": 19,
@@ -193,7 +237,7 @@
       "name": "Soda Italiana",
       "price": 14.0,
       "category": "Drinks Sem Álcool",
-      "description": "Frutas vermelhas, blue Curaçao, maçã verde, morango e tangerina.",
+      "description": "Escolha o sabor: frutas vermelhas, blue Curaçao, maçã verde, morango ou tangerina.",
       "customization": {
         "additions": [
           {"name": "Frutas vermelhas", "price": 0},
@@ -231,7 +275,7 @@
       "name": "Gin de Frutas",
       "price": 26.0,
       "category": "Drinks de Gin",
-      "description": "Dose de Gin, xarope de frutas, água com gás e gelo. Sabores: blue Curaçau, maçã verde, tangerina e frutas vermelhas.",
+      "description": "Dose de Gin, xarope de frutas, água com gás e gelo. Escolha o sabor.",
       "customization": {
         "additions": [
           {"name": "Blue Curaçao", "price": 0},
@@ -303,7 +347,7 @@
       "name": "Smirnoff Cream",
       "price": 27.0,
       "category": "Drinks Diversos",
-      "description": "Smirnoff, morango ou maracujá com leite condensado e gelo.",
+      "description": "Smirnoff com morango ou maracujá, leite condensado e gelo. Escolha o sabor.",
       "customization": {
         "additions": [
           {"name": "Morango", "price": 0},
@@ -316,14 +360,15 @@
       "id": 46,
       "name": "Caipirinha de Limão",
       "price": 20.0,
-      "category": "Caipirinhas"
+      "category": "Caipirinhas",
+      "description": "Caipirinha clássica de limão."
     },
     {
       "id": 47,
       "name": "Caipirinha de Frutas",
       "price": 23.0,
       "category": "Caipirinhas",
-      "description": "Sabores: kiwi, maracujá ou morango. Escolha a bebida: cachaça, gin, saquê, steinhager ou vodka",
+      "description": "Escolha a fruta e a bebida base.",
       "customization": {
         "additions": [
           {"name": "Kiwi", "price": 0},
@@ -371,7 +416,7 @@
       "name": "Isca de Alcatra, Calabresa e Batata ou Polenta",
       "price": 86.0,
       "category": "Porções",
-      "description": "300g de isca de alcatra chapeada com cebola + 300g de linguiça calabresa + 300g de batata ou polenta crocante. Acompanha farofa, molho da casa e pão.",
+      "description": "300g de isca de alcatra chapeada com cebola + 300g de linguiça calabresa + 300g de batata ou polenta crocante. Acompanha farofa, molho da casa e pão. Escolha o acompanhamento.",
       "customization": {
         "additions": [
           {"name": "Batata", "price": 0},
@@ -385,7 +430,7 @@
       "name": "Isca de Alcatra, Frango e Batata ou Polenta",
       "price": 79.0,
       "category": "Porções",
-      "description": "300g de isca de alcatra chapeada com cebola + 300g de filé de frango grelhado + 300g de batata ou polenta crocante. Acompanha farofa, molho da casa e pão.",
+      "description": "300g de isca de alcatra chapeada com cebola + 300g de filé de frango grelhado + 300g de batata ou polenta crocante. Acompanha farofa, molho da casa e pão. Escolha o acompanhamento.",
       "customization": {
         "additions": [
           {"name": "Batata", "price": 0},
@@ -399,7 +444,7 @@
       "name": "Isca de Alcatra com Batata ou Polenta",
       "price": 89.0,
       "category": "Porções",
-      "description": "500g de isca de alcatra chapeada com cebola + 300g de batata ou polenta crocante. Acompanha farofa, molho da casa e pão.",
+      "description": "500g de isca de alcatra chapeada com cebola + 300g de batata ou polenta crocante. Acompanha farofa, molho da casa e pão. Escolha o acompanhamento.",
       "customization": {
         "additions": [
           {"name": "Batata", "price": 0},
@@ -413,7 +458,7 @@
       "name": "Frango com Batata ou Polenta",
       "price": 59.0,
       "category": "Porções",
-      "description": "500g de filé de frango em cubos grelhado + 300g de batata ou polenta crocante. Acompanha farofa, molho da casa e pão.",
+      "description": "500g de filé de frango em cubos grelhado + 300g de batata ou polenta crocante. Acompanha farofa, molho da casa e pão. Escolha o acompanhamento.",
       "customization": {
         "additions": [
           {"name": "Batata", "price": 0},
@@ -434,7 +479,7 @@
       "name": "Porção Mista Grelhada",
       "price": 122.0,
       "category": "Porções",
-      "description": "300g de isca de carne, 300g de calabresa, 300g de filé de frango e 500g de batata ou polenta. Acompanha farofa, molho da casa e pão.",
+      "description": "300g de isca de carne, 300g de calabresa, 300g de filé de frango e 500g de batata ou polenta. Acompanha farofa, molho da casa e pão. Escolha o acompanhamento.",
       "customization": {
         "additions": [
           {"name": "Batata", "price": 0},
