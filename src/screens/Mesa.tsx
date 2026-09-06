@@ -56,14 +56,26 @@ export default function Mesa({ token }: { token: string }) {
   const editarPedido = usePub((s) => s.editarPedido);
   const categoriasStore = usePub((s) => s.categorias);
   const hydrateMesaToken = usePub((s) => s.hydrateMesaToken);
+  const loading = usePub((s) => s.loading);
+  const lastError = usePub((s) => s.lastError);
+  const [boot, setBoot] = useState(true);
 
   useEffect(() => {
-    if (!token) return;
-    void hydrateMesaToken(token);
+    if (!token) {
+      setBoot(false);
+      return;
+    }
+    let alive = true;
+    setBoot(true);
+    void hydrateMesaToken(token).finally(() => {
+      if (alive) setBoot(false);
+    });
     const t = setInterval(() => void hydrateMesaToken(token), 12000);
-    return () => clearInterval(t);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
   }, [token, hydrateMesaToken]);
-
 
   const mesa = mesas.find((m) => m.token === token);
 
@@ -104,14 +116,40 @@ export default function Mesa({ token }: { token: string }) {
   }, [produtos, categoria, busca]);
 
 
+    if (boot || (loading && !mesa)) {
+    return (
+      <div className="min-h-dvh grid place-items-center p-6 text-center">
+        <div>
+          <div className="mx-auto size-16 rounded-full border border-white/10 grid place-items-center text-2xl animate-pulse">🍺</div>
+          <h1 className="font-display text-4xl text-white mt-6">Carregando mesa…</h1>
+          <p className="text-stone-400 mt-2 text-sm">Conferindo o QR no servidor.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!mesa) {
     return (
       <div className="min-h-dvh grid place-items-center p-6 text-center">
         <div>
-          <Logo size="sm" />
+          <div className="mx-auto size-16 rounded-full border border-white/10 grid place-items-center text-2xl">🍺</div>
           <h1 className="font-display text-5xl text-white mt-6">QR inválido</h1>
-          <p className="text-stone-400 mt-2 text-sm">Este QR Code não pertence a nenhuma mesa do pub.</p>
-          <Btn className="mt-6" onClick={() => ir("/")}>Voltar ao início</Btn>
+          <p className="text-stone-400 mt-2 text-sm">
+            {lastError || "Este QR Code não pertence a nenhuma mesa do pub."}
+          </p>
+          <p className="text-stone-600 mt-3 text-xs font-mono break-all max-w-sm mx-auto">
+            token: {token || "(vazio)"}
+          </p>
+          <p className="text-stone-500 mt-3 text-xs max-w-sm mx-auto">
+            Use o link/QR gerado no <b>Admin → Mesas</b> (UUID do banco), não o link demo da home.
+          </p>
+          <button
+            type="button"
+            onClick={() => ir("/")}
+            className="mt-8 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-coal-950 font-bold text-sm h-12 px-8 shadow-[0_0_40px_-8px_rgba(251,146,60,0.7)] cursor-pointer"
+          >
+            Voltar ao início
+          </button>
         </div>
       </div>
     );

@@ -134,10 +134,14 @@ export const usePub = create<PubState>((set, get) => ({
 
   hydrateMesas: async () => {
     try {
-      const rows = await api.adminMesas();
+      let rows: any[];
+      try {
+        rows = await api.mesasPublic();
+      } catch {
+        rows = await api.adminMesas();
+      }
       set({ mesas: mapMesas(rows), lastError: null });
     } catch (e: any) {
-      /* sem auth admin: tenta não quebrar landing */
       set({ lastError: e.message || "Falha ao carregar mesas" });
     }
   },

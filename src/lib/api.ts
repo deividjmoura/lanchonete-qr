@@ -72,6 +72,7 @@ export const api = {
   fecharSessao: (sessaoId: number, body?: unknown) =>
     apiSend(`/api/caixa/sessoes/${sessaoId}/fechar`, "POST", body || {}),
 
+  mesasPublic: () => apiGet<any[]>("/api/mesas"),
   adminMesas: () => apiGet<any[]>("/api/admin/mesas"),
   adminCardapio: () => apiGet<any[]>("/api/admin/cardapio"),
   adminDashboard: () => apiGet<any>("/api/admin/dashboard"),

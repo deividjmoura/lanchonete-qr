@@ -7,7 +7,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { Badge, Btn, LivePill, Logo, Secao } from "../components/ui";
 import { ir } from "../router";
-import { GARCOM_TOKEN, HERO_IMG, MESAS_SEED } from "../lib/data";
+import { GARCOM_TOKEN, HERO_IMG } from "../lib/data";
 import { usePub, totalSessao } from "../store/usePub";
 import { BRL } from "../lib/utils";
 
@@ -48,7 +48,7 @@ export default function Landing() {
   const sessoes = usePub((s) => s.sessoes);
   const pedidos = usePub((s) => s.pedidos);
 
-  const mesaDemo = MESAS_SEED[2];
+  const mesaDemo = mesas[0];
   const naFila = pedidos.filter((p) => p.status === "na_fila" || p.status === "em_producao").length;
   const comandas = sessoes.filter((s) => s.status === "aberta").length;
   const consumoAberto = sessoes
@@ -104,7 +104,7 @@ export default function Landing() {
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Btn size="lg" onClick={() => ir(`/mesa/${mesaDemo.token}`)}>
+                <Btn size="lg" disabled={!mesaDemo} onClick={() => mesaDemo && ir(`/mesa/${mesaDemo.token}`)}>
                   <QrCode className="size-5" /> Sou cliente — abrir mesa
                 </Btn>
                 <Btn size="lg" variant="glass" onClick={() => ir("/login")}>
@@ -204,9 +204,14 @@ export default function Landing() {
           <Secao
             kicker="cada mesa, um QR"
             titulo={<>Escolha uma mesa <span className="text-gradient">e peça agora</span></>}
-            right={<Badge tone="zinc">demo · {mesas.length} mesas</Badge>}
+            right={<Badge tone="zinc">{mesas.length ? `${mesas.length} mesas` : "carregue o admin / API"}</Badge>}
           />
         </motion.div>
+        {!mesas.length && (
+          <p className="mt-8 text-sm text-stone-400 max-w-md">
+            Nenhuma mesa carregada da API. Faça login no <button type="button" className="text-amber-300 underline cursor-pointer" onClick={() => ir("/login")}>Admin</button> ou confira se a API está no ar (porta 3000). Os links demo antigos não funcionam com o banco real.
+          </p>
+        )}
         <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {mesas.map((m, i) => {
             const aberta = sessoes.some((s) => s.mesaId === m.id && s.status === "aberta");

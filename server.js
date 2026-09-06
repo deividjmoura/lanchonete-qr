@@ -431,6 +431,20 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    if (p === '/api/mesas' && req.method === 'GET') {
+      try {
+        const rows = await listMesas();
+        return json(res, 200, rows.map((m) => ({
+          id: m.id,
+          numero: m.numero,
+          token: m.token,
+          status: m.status,
+          sessaoAberta: m.sessaoAberta,
+        })));
+      } catch (e) {
+        throw e;
+      }
+    }
     if (p === '/api/admin/mesas' && req.method === 'GET') {
       return json(res, 200, await listMesas());
     }
