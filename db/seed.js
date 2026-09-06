@@ -1,7 +1,7 @@
 // Popula categorias/produtos/adicionais a partir do data/db.json atual
 // (usado só uma vez, na migração do MVP em JSON para o Postgres).
 // Idempotente: se já existir alguma categoria, aborta cardápio sem duplicar.
-// Mesas 1..NUM_MESAS sempre garantidas (ON CONFLICT DO NOTHING).
+// Mesas 1..NUM_MESAS sempre garantidas (INSERT WHERE NOT EXISTS).
 //
 // Uso: node db/seed.js
 require('dotenv').config();
@@ -15,8 +15,35 @@ const DB_JSON = path.join(__dirname, '..', 'data', 'db.json');
 const NUM_MESAS = 20;
 
 async function garantirMesas(client) {
+  // Garante UNIQUE em numero se a migration antiga não criou (evita 42P10 no ON CONFLICT)
+  await client.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint c
+        JOIN pg_class t ON c.conrelid = t.oid
+        WHERE t.relname = 'mesas' AND c.contype = 'u'
+          AND pg_get_constraintdef(c.oid) ILIKE '%(numero)%'
+      ) AND NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE tablename = 'mesas' AND indexdef ILIKE '%UNIQUE%(%numero%)%'
+      ) THEN
+        BEGIN
+          ALTER TABLE mesas ADD CONSTRAINT mesas_numero_key UNIQUE (numero);
+        EXCEPTION WHEN duplicate_table OR duplicate_object THEN
+          NULL;
+        END;
+      END IF;
+    END $$;
+  `);
+
   for (let numero = 1; numero <= NUM_MESAS; numero++) {
-    await client.query('INSERT INTO mesas (numero) VALUES ($1) ON CONFLICT (numero) DO NOTHING', [numero]);
+    await client.query(
+      `INSERT INTO mesas (numero)
+       SELECT $1::int
+       WHERE NOT EXISTS (SELECT 1 FROM mesas WHERE numero = $1::int)`,
+      [numero]
+    );
   }
   const { rows } = await client.query('SELECT COUNT(*)::int AS n FROM mesas');
   console.log(`✅ Mesas 1–${NUM_MESAS} garantidas (total no banco: ${rows[0].n}).`);
@@ -46,10 +73,23 @@ async function run() {
     await client.query('BEGIN');
 
     if (force && existentes[0].n > 0) {
+      // Ordem respeitando FKs (tabelas extras de migrations posteriores são opcionais)
       await client.query('DELETE FROM itens_pedido_adicionais');
       await client.query('DELETE FROM itens_pedido_remocoes');
       await client.query('DELETE FROM itens_pedido');
       await client.query('DELETE FROM pedidos');
+      // pagamentos / pix se existirem
+      await client.query(`
+        DO $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'sessao_pagamentos') THEN
+            DELETE FROM sessao_pagamentos;
+          END IF;
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pix_avisos') THEN
+            DELETE FROM pix_avisos;
+          END IF;
+        END $$;
+      `);
       await client.query('DELETE FROM mesa_sessoes');
       await client.query('DELETE FROM adicionais');
       await client.query('DELETE FROM produtos_ingredientes_removiveis');
@@ -113,7 +153,7 @@ async function run() {
       console.log('👤 Staff inicial criado (admin / cozinha / caixa).');
     }
   } catch (err) {
-    await client.query('ROLLBACK');
+    try { await client.query('ROLLBACK'); } catch (_) {}
     throw err;
   } finally {
     client.release();
