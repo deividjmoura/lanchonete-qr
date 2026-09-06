@@ -1,9 +1,13 @@
 {
   "name": "lanchonete-qr",
-  "version": "2.1.0",
   "private": true,
+  "version": "3.0.0-style",
+  "type": "module",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server.js",
     "start": "node server.js",
     "qr": "python3 generate_qr.py",
     "db:migrate": "node db/migrate.js",
@@ -15,8 +19,27 @@
     "test:full": "node scripts/smoke-full.js"
   },
   "dependencies": {
+    "clsx": "2.1.1",
     "dotenv": "^16.4.5",
+    "framer-motion": "^13.2.0",
+    "lucide-react": "^1.41.0",
     "pg": "^8.13.1",
-    "sharp": "^0.33.5"
+    "qrcode.react": "^4.2.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "sharp": "^0.33.5",
+    "tailwind-merge": "3.4.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.1.17",
+    "@types/node": "22.19.17",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.1",
+    "tailwindcss": "4.1.17",
+    "typescript": "5.9.3",
+    "vite": "7.3.2",
+    "vite-plugin-singlefile": "2.3.0"
   }
 }

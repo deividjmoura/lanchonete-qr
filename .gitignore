@@ -5,3 +5,7 @@ node_modules/
 # fotos enviadas em runtime
 public/uploads/*
 !public/uploads/.gitkeep
+
+dist/
+.DS_Store
+*.local
