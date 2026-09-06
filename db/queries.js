@@ -8,10 +8,17 @@ const TRANSICOES = {
   concluido: 'entregue',
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(v) {
+  return typeof v === 'string' && UUID_RE.test(v.trim());
+}
+
 async function getMesaPorToken(client, token) {
+  if (!isUuid(token)) return null;
   const { rows } = await client.query(
     'SELECT id, numero, status FROM mesas WHERE token = $1',
-    [token]
+    [token.trim()]
   );
   return rows[0] || null;
 }

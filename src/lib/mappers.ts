@@ -9,6 +9,25 @@ import type {
   Sessao,
 } from "./types";
 
+/** URL de foto usável no browser (proxy Vite cobre /uploads). */
+export function fotoSrc(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const s = String(raw).trim();
+  if (!s) return "";
+  if (s.startsWith("data:") || s.startsWith("blob:") || /^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("/")) return s;
+  return s;
+}
+
+export const FOTO_PLACEHOLDER =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+      <rect fill="#1a1714" width="400" height="300"/>
+      <text x="200" y="155" text-anchor="middle" fill="#a8a29e" font-family="system-ui" font-size="18">sem foto</text>
+    </svg>`
+  );
+
 /** Backend → UI */
 export function statusToUi(s: string): PedidoStatus {
   switch (s) {
@@ -70,7 +89,7 @@ export function mapCardapio(apiCats: any[]): { categorias: Categoria[]; produtos
         descricao: String(p.descricao || ""),
         preco: Number(p.preco) || 0,
         categoria: String(c.nome),
-        foto: String(p.fotoUrl || p.foto_url || ""),
+        foto: fotoSrc(p.fotoUrl || p.foto_url || "") || FOTO_PLACEHOLDER,
         tipo,
         adicionais,
         removiveis,
@@ -181,7 +200,9 @@ export function mapCozinhaPedidos(rows: any[]): Pedido[] {
       id: Number(p.id),
       sessaoId: Number(p.sessao_id || p.sessaoId || 0),
       mesaId: Number(p.mesa_id || p.mesaId || 0),
-      mesaNome: p.mesa_numero != null ? `Mesa ${String(p.mesa_numero).padStart(2, "0")}` : String(p.mesaNome || "Mesa"),
+      mesaNome: (p.mesa != null || p.mesa_numero != null)
+        ? `Mesa ${String(p.mesa ?? p.mesa_numero).padStart(2, "0")}`
+        : String(p.mesaNome || "Mesa"),
       clienteNome: String(p.cliente_nome || p.clienteNome || ""),
       itens,
       status: statusToUi(String(p.status)),

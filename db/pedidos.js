@@ -161,6 +161,9 @@ async function criarPedido(token, body) {
     );
 
     const { itensGravados, total } = await gravarItensPedido(client, pedido.id, itensInput);
+    if (!itensGravados.length) {
+      throw new ErroPedido(400, 'Nenhum item válido no pedido (produto indisponível ou id inválido)');
+    }
 
     await client.query('COMMIT');
 

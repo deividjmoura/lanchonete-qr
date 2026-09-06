@@ -6,6 +6,7 @@ import { Badge, Btn, LivePill } from "../components/ui";
 import { useAgora } from "../router";
 import type { Pedido } from "../lib/types";
 import { usePub } from "../store/usePub";
+import { connectEvents } from "../lib/api";
 import { elapsed } from "../lib/utils";
 import { cn } from "../utils/cn";
 import { ir } from "../router";
@@ -22,20 +23,27 @@ export default function Cozinha() {
     if (!auth) ir("/login");
   }, [auth]);
   useAnuncios("cozinha");
+  // lastError exibido abaixo
   useAgora(1000);
 
   const pedidos = usePub((s) => s.pedidos);
   const hydrateCozinha = usePub((s) => s.hydrateCozinha);
+  const lastError = usePub((s) => s.lastError);
   useEffect(() => {
     void hydrateCozinha();
-    const t = setInterval(() => void hydrateCozinha(), 8000);
-    return () => clearInterval(t);
+    const t = setInterval(() => void hydrateCozinha(), 5000);
+    const off = connectEvents(() => void hydrateCozinha());
+    return () => {
+      clearInterval(t);
+      off();
+    };
   }, [hydrateCozinha]);
 
   const ativos = pedidos.filter((p) => p.status !== "entregue");
 
   const extras = (
     <div className="flex items-center gap-2">
+      {lastError && <Badge tone="rose">API: {lastError}</Badge>}
       <Badge tone="amber" pulse>{ativos.filter((p) => p.status === "na_fila").length} novos</Badge>
       <Badge tone="sky">{ativos.filter((p) => p.status === "em_producao").length} na chapa</Badge>
       <Badge tone="lime">{ativos.filter((p) => p.status === "pronto").length} prontos</Badge>

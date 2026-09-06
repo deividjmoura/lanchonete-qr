@@ -48,7 +48,7 @@ function cookieDeSessao(token) {
     `${SESSION_COOKIE}=${token}`,
     'HttpOnly',
     'Path=/',
-    'SameSite=Strict',
+    'SameSite=Lax',
     `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`,
   ];
   if (process.env.NODE_ENV === 'production') partes.push('Secure');
@@ -56,7 +56,7 @@ function cookieDeSessao(token) {
 }
 
 function cookieDeLogout() {
-  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0`;
+  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`;
 }
 
 async function hashSenha(senha) {

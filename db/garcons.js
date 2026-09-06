@@ -53,9 +53,14 @@ async function setGarcomAtivo(id, ativo) {
 
 async function getGarcomPorToken(token) {
   if (!token) return null;
+  const t = String(token).trim();
+  // token de garçom no banco é UUID; evita crash 22P02 com tokens demo
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(t)) {
+    return null;
+  }
   const { rows } = await pool.query(
     `SELECT id, nome, token, ativo FROM garcons WHERE token = $1`,
-    [token]
+    [t]
   );
   return rows[0] || null;
 }

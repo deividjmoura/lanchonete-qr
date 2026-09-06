@@ -23,6 +23,7 @@ import { Badge, Btn, Input, Logo, Modal, Qtd } from "../components/ui";
 import { ir } from "../router";
 import type { Opcao, Pedido, Produto } from "../lib/types";
 import { usePub, sessaoDaMesa, totalSessao } from "../store/usePub";
+import { FOTO_PLACEHOLDER, fotoSrc } from "../lib/mappers";
 import { BRL } from "../lib/utils";
 import { cn } from "../utils/cn";
 
@@ -211,7 +212,7 @@ export default function Mesa({ token }: { token: string }) {
                   exit={{ opacity: 0, x: -20, height: 0, marginBottom: 0 }}
                   className="flex gap-3 rounded-2xl bg-white/[0.04] border border-white/[0.07] p-3"
                 >
-                  <img src={c.produto.foto} alt="" className="size-14 rounded-xl object-cover" />
+                  <img src={fotoSrc(c.produto.foto) || FOTO_PLACEHOLDER} alt="" className="size-14 rounded-xl object-cover" onError={(e) => { (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER; }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold text-white leading-tight">{c.produto.nome}</p>
@@ -501,7 +502,7 @@ export default function Mesa({ token }: { token: string }) {
                       )}
                     >
                       <div className="relative h-44 overflow-hidden">
-                        <img src={p.foto} alt={p.nome} loading="lazy" className="h-full w-full object-cover" />
+                        <img src={fotoSrc(p.foto) || FOTO_PLACEHOLDER} alt={p.nome} loading="lazy" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER; }} />
                         <div className="absolute inset-0 bg-gradient-to-t from-coal-950/90 via-transparent to-transparent" />
                         <div className="absolute top-3 left-3 flex gap-1.5">
                           {p.vendidos > 90 && <Badge tone="amber"><Sparkles className="size-3" /> hit da casa</Badge>}
@@ -725,7 +726,7 @@ function ProdutoModal({
     <Modal open onClose={onClose}>
       <div>
         <div className="relative h-52">
-          <img src={produto.foto} alt={produto.nome} className="h-full w-full object-cover" />
+          <img src={fotoSrc(produto.foto) || FOTO_PLACEHOLDER} alt={produto.nome} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER; }} />
           <div className="absolute inset-0 bg-gradient-to-t from-coal-900 via-transparent to-transparent" />
           <div className="absolute bottom-4 left-5 right-14">
             <Badge tone="amber">{produto.categoria}</Badge>

@@ -189,12 +189,16 @@ export const usePub = create<PubState>((set, get) => ({
     try {
       const rows = await api.cozinhaPedidos();
       const cozinha = mapCozinhaPedidos(rows);
-      /* mantém pedidos de outras origens (mesa) que não estão na fila */
-      const ids = new Set(cozinha.map((p) => p.id));
-      const rest = get().pedidos.filter((p) => !ids.has(p.id) && p.status === "entregue");
-      set({ pedidos: [...cozinha, ...rest], lastError: null });
+      /* fila da cozinha substitui estados ativos; preserva entregues locais */
+      const ativosIds = new Set(cozinha.map((p) => p.id));
+      const rest = get().pedidos.filter(
+        (p) => !ativosIds.has(p.id) && (p.status === "entregue" || p.status === "pronto")
+      );
+      set({ pedidos: [...cozinha, ...rest], lastError: null, apiReady: true });
     } catch (e: any) {
-      set({ lastError: e.message || "Falha ao carregar cozinha" });
+      const msg = e.message || "Falha ao carregar cozinha";
+      set({ lastError: msg });
+      console.warn("[hydrateCozinha]", msg);
     }
   },
 
