@@ -17,7 +17,6 @@ import {
   Trash2,
   UtensilsCrossed,
   X,
-  ,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Btn, Input, Logo, Modal, Qtd } from "../components/ui";
