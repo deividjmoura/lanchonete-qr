@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BadgeCheck, Banknote, Check, ChevronRight, CircleCheck, ClipboardList, Copy,
   Flame, HandPlatter, Minus, PartyPopper, Plus, QrCode, Receipt, Search,
-  ShoppingBag, Sparkles, Timer, Trash2, UtensilsCrossed, X,
+  Pencil, ShoppingBag, Sparkles, Timer, Trash2, UtensilsCrossed, X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useMemo, useState } from "react";
@@ -40,7 +40,10 @@ export default function Mesa({ token }: { token: string }) {
   const sessoes = usePub((s) => s.sessoes);
   const pedidos = usePub((s) => s.pedidos);
   const criarPedido = usePub((s) => s.criarPedido);
+  const cancelarPedido = usePub((s) => s.cancelarPedido);
+  const editarPedido = usePub((s) => s.editarPedido);
   const informarPix = usePub((s) => s.informarPix);
+  const categoriasStore = usePub((s) => s.categorias);
 
   const mesa = mesas.find((m) => m.token === token);
 
@@ -64,10 +67,14 @@ export default function Mesa({ token }: { token: string }) {
   const totalCart = cart.reduce((a, c) => a + totalItem(c), 0);
   const qtdCart = cart.reduce((a, c) => a + c.qtd, 0);
 
-  const categorias = useMemo(() => {
-    const set = [...new Set(produtos.filter((p) => p.ativo).map((p) => p.categoria))];
-    return set;
-  }, [produtos]);
+    const categorias = useMemo(() => {
+    const ordered = [...categoriasStore].sort((a, b) => a.ordem - b.ordem).map((c) => c.nome);
+    const presentes = new Set(produtos.filter((p) => p.ativo).map((p) => p.categoria));
+    const list = ordered.filter((n) => presentes.has(n));
+    // categorias órfãs (produto sem cat no store)
+    for (const n of presentes) if (!list.includes(n)) list.push(n);
+    return list.length ? list : ["Lanches"];
+  }, [produtos, categoriasStore]);
 
   const lista = useMemo(() => {
     const b = busca.trim().toLowerCase();
@@ -254,6 +261,61 @@ export default function Mesa({ token }: { token: string }) {
                     </li>
                   ))}
                 </ul>
+
+                {p.status === "na_fila" && (
+                  <div className="mt-3 flex gap-2">
+                    <Btn
+                      size="sm"
+                      variant="ghost"
+                      className="flex-1"
+                      onClick={() => {
+                        // carrega itens no carrinho e remove o pedido antigo ao reenviar
+                        const items: CartItem[] = p.itens.map((i) => {
+                          const prod = produtos.find((x) => x.id === i.produtoId) || {
+                            id: i.produtoId,
+                            nome: i.nome,
+                            descricao: "",
+                            preco: i.precoBase,
+                            categoria: "",
+                            foto: "",
+                            tipo: "simples" as const,
+                            adicionais: [],
+                            removiveis: [],
+                            ativo: true,
+                            estoque: null,
+                            vendidos: 0,
+                          };
+                          return {
+                            uid: Math.random().toString(36).slice(2),
+                            produto: prod,
+                            qtd: i.qtd,
+                            adicionais: i.adicionais,
+                            removidos: i.removidos,
+                            escolha: i.escolha,
+                            obs: i.obs,
+                          };
+                        });
+                        cancelarPedido(p.id);
+                        setCart(items);
+                        setSheet("cart");
+                      }}
+                    >
+                      <Pencil className="size-3.5" /> Editar
+                    </Btn>
+                    <Btn
+                      size="sm"
+                      variant="danger"
+                      className="flex-1"
+                      onClick={() => {
+                        if (confirm(`Cancelar o pedido #${p.id}? Só dá enquanto a cozinha ainda não começou o preparo.`)) {
+                          cancelarPedido(p.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="size-3.5" /> Cancelar
+                    </Btn>
+                  </div>
+                )}
               </div>
             );
           })}

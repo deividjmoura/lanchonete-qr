@@ -109,8 +109,11 @@ function CardPedido({ pedido, borda }: { pedido: Pedido; borda: string }) {
             {pedido.mesaNome.replace("Mesa ", "")}
             <span className="text-base text-stone-500 ml-1.5 font-sans font-bold tracking-normal">mesa</span>
           </p>
-          <p className="mt-1 text-[11px] font-semibold text-stone-400">
-            <span className="text-amber-300">{pedido.clienteNome}</span> · #{pedido.id}
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 border border-amber-400/30 px-2.5 py-0.5 text-xs font-bold text-amber-200">
+              {pedido.clienteNome}
+            </span>
+            <span className="font-mono text-[11px] text-stone-500">#{pedido.id}</span>
           </p>
         </div>
         <div className="text-right">

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Boxes, Camera, ChartNoAxesColumn, CircleAlert, Download, Eye, EyeOff,
+  ArrowDown, ArrowUp, Boxes, Camera, ChartNoAxesColumn, CircleAlert, Download, Eye, EyeOff,
   FileText, LayoutGrid, Link2, Pencil, Plus, QrCode, Receipt, Trash2,
   TrendingUp, Trophy, Users, UtensilsCrossed, Wallet,
 } from "lucide-react";
@@ -192,56 +192,142 @@ function Painel() {
 /* ================= CARDÁPIO (CRUD) ================= */
 function Cardapio() {
   const produtos = usePub((s) => s.produtos);
+  const categorias = usePub((s) => s.categorias);
   const toggle = usePub((s) => s.toggleProduto);
   const remover = usePub((s) => s.removerProduto);
+  const addCategoria = usePub((s) => s.addCategoria);
+  const renameCategoria = usePub((s) => s.renameCategoria);
+  const removeCategoria = usePub((s) => s.removeCategoria);
+  const moverCategoria = usePub((s) => s.moverCategoria);
   const [editando, setEditando] = useState<Produto | null>(null);
   const [novoAberto, setNovoAberto] = useState(false);
+  const [novaCat, setNovaCat] = useState("");
+
+  const catsOrdenadas = [...categorias].sort((a, b) => a.ordem - b.ordem);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-stone-400">{produtos.length} produtos · {produtos.filter((p) => p.ativo).length} ativos</p>
-        <Btn size="sm" onClick={() => setNovoAberto(true)}>
-          <Plus className="size-4" /> Novo produto
-        </Btn>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {produtos.map((p) => (
-          <motion.article
-            key={p.id}
-            layout
-            className={cn("glass rounded-3xl overflow-hidden transition-opacity", !p.ativo && "opacity-55")}
+    <div className="space-y-8">
+      {/* —— Categorias (ordem = como aparece no cardápio da mesa) —— */}
+      <section className="glass rounded-3xl p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="font-display text-2xl text-white leading-none">Categorias</h3>
+            <p className="mt-1 text-[11px] text-stone-500">Ordem em que aparecem no cardápio do cliente · ↑↓ para reordenar</p>
+          </div>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!novaCat.trim()) return;
+              addCategoria(novaCat);
+              setNovaCat("");
+            }}
           >
-            <div className="flex gap-3.5 p-3.5">
-              <img src={p.foto} alt="" className="size-20 rounded-2xl object-cover shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-white text-sm leading-tight truncate">{p.nome}</p>
-                  <span className="font-mono text-xs font-bold text-amber-300 shrink-0">{BRL(p.preco)}</span>
-                </div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  <Badge tone="zinc">{p.categoria}</Badge>
-                  <Badge tone={p.tipo === "escolher" ? "sky" : p.tipo === "personalizavel" ? "violet" : "zinc"}>
-                    {p.tipo === "escolher" ? "escolher" : p.tipo === "personalizavel" ? "personalizável" : "simples"}
-                  </Badge>
-                  {p.estoque !== null && <Badge tone={p.estoque <= 8 ? "rose" : "zinc"}>est. {p.estoque}</Badge>}
-                </div>
-                <div className="mt-2.5 flex items-center gap-1.5">
-                  <button onClick={() => toggle(p.id)} title={p.ativo ? "Desativar" : "Ativar"} className={cn("btn-press grid place-items-center size-8 rounded-lg border cursor-pointer transition-colors", p.ativo ? "bg-lime-400/10 border-lime-400/30 text-lime-300" : "bg-white/[0.05] border-white/10 text-stone-500")}>
-                    {p.ativo ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
-                  </button>
-                  <button onClick={() => setEditando(p)} title="Editar" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer">
-                    <Pencil className="size-3.5" />
-                  </button>
-                  <button onClick={() => remover(p.id)} title="Excluir" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer">
-                    <Trash2 className="size-3.5" />
-                  </button>
+            <Input value={novaCat} onChange={setNovaCat} placeholder="Nova categoria" className="w-40 sm:w-52" />
+            <Btn size="sm" onClick={() => { if (novaCat.trim()) { addCategoria(novaCat); setNovaCat(""); } }}>
+              <Plus className="size-4" /> Criar
+            </Btn>
+          </form>
+        </div>
+
+        <ul className="space-y-2">
+          {catsOrdenadas.map((c, i) => {
+            const nProd = produtos.filter((p) => p.categoria === c.nome).length;
+            return (
+              <li key={c.id} className="flex items-center gap-2 rounded-2xl bg-black/30 border border-white/[0.07] px-3 py-2.5">
+                <span className="font-mono text-[10px] text-stone-600 w-5 tabular">{i + 1}</span>
+                <span className="flex-1 font-semibold text-sm text-white truncate">{c.nome}</span>
+                <Badge tone="zinc">{nProd} prod.</Badge>
+                <button
+                  type="button"
+                  title="Subir"
+                  disabled={i === 0}
+                  onClick={() => moverCategoria(c.id, -1)}
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 disabled:opacity-30 cursor-pointer"
+                >
+                  <ArrowUp className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Descer"
+                  disabled={i === catsOrdenadas.length - 1}
+                  onClick={() => moverCategoria(c.id, 1)}
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 disabled:opacity-30 cursor-pointer"
+                >
+                  <ArrowDown className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Renomear"
+                  onClick={() => {
+                    const n = prompt("Nome da categoria:", c.nome);
+                    if (n && n.trim()) renameCategoria(c.id, n);
+                  }}
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title={nProd > 0 ? "Remova os produtos antes" : "Excluir"}
+                  disabled={nProd > 0}
+                  onClick={() => removeCategoria(c.id)}
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 disabled:opacity-30 cursor-pointer"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      {/* —— Produtos —— */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-stone-400">{produtos.length} produtos · {produtos.filter((p) => p.ativo).length} ativos</p>
+          <Btn size="sm" onClick={() => setNovoAberto(true)}>
+            <Plus className="size-4" /> Novo produto
+          </Btn>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {produtos.map((p) => (
+            <motion.article
+              key={p.id}
+              layout
+              className={cn("glass rounded-3xl overflow-hidden transition-opacity", !p.ativo && "opacity-55")}
+            >
+              <div className="flex gap-3.5 p-3.5">
+                <img src={p.foto} alt="" className="size-20 rounded-2xl object-cover shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-white text-sm leading-tight truncate">{p.nome}</p>
+                    <span className="font-mono text-xs font-bold text-amber-300 shrink-0">{BRL(p.preco)}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Badge tone="zinc">{p.categoria}</Badge>
+                    <Badge tone={p.tipo === "escolher" ? "sky" : p.tipo === "personalizavel" ? "violet" : "zinc"}>
+                      {p.tipo === "escolher" ? "escolher" : p.tipo === "personalizavel" ? "personalizável" : "simples"}
+                    </Badge>
+                    {p.estoque !== null && <Badge tone={p.estoque <= 8 ? "rose" : "zinc"}>est. {p.estoque}</Badge>}
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-1.5">
+                    <button onClick={() => toggle(p.id)} title={p.ativo ? "Desativar" : "Ativar"} className={cn("btn-press grid place-items-center size-8 rounded-lg border cursor-pointer transition-colors", p.ativo ? "bg-lime-400/10 border-lime-400/30 text-lime-300" : "bg-white/[0.05] border-white/10 text-stone-500")}>
+                      {p.ativo ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+                    </button>
+                    <button onClick={() => setEditando(p)} title="Editar" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer">
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button onClick={() => remover(p.id)} title="Excluir" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer">
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.article>
-        ))}
+            </motion.article>
+          ))}
+        </div>
       </div>
 
       <ProdutoForm produto={editando} onClose={() => setEditando(null)} />
@@ -252,14 +338,17 @@ function Cardapio() {
 
 function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; novo?: boolean; onClose: () => void }) {
   const produtos = usePub((s) => s.produtos);
+  const cats = usePub((s) => s.categorias);
   const upsert = usePub((s) => s.upsertProduto);
   const open = !!produto || !!novo;
   const editando = !!produto;
+  const nomesCat = [...cats].sort((a, b) => a.ordem - b.ordem).map((c) => c.nome);
+  const catPadrao = nomesCat[0] || CATEGORIAS[0];
 
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [preco, setPreco] = useState("");
-  const [categoria, setCategoria] = useState(CATEGORIAS[0]);
+  const [categoria, setCategoria] = useState(catPadrao);
   const [tipo, setTipo] = useState<TipoProduto>("simples");
   const [foto, setFoto] = useState("");
   const [adicionais, setAdicionais] = useState("");
@@ -277,7 +366,7 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
       setAdicionais(produto.adicionais.map((a) => `${a.nome}:${a.preco}`).join(", "));
       setRemoviveis(produto.removiveis.map((r) => r.nome).join(", "));
     } else if (novo) {
-      setNome(""); setDescricao(""); setPreco(""); setCategoria(CATEGORIAS[0]);
+      setNome(""); setDescricao(""); setPreco(""); setCategoria(catPadrao);
       setTipo("simples"); setFoto(""); setAdicionais(""); setRemoviveis("");
     }
   }, [produto, novo]);
@@ -381,7 +470,7 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
               <Input value={preco} onChange={setPreco} placeholder="0,00" prefix="R$" type="number" />
               <div className="relative">
                 <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full h-12 rounded-2xl bg-black/40 border border-white/12 px-4 text-sm text-white focus:outline-none focus:border-amber-400/60 appearance-none cursor-pointer">
-                  {CATEGORIAS.map((c) => <option key={c} value={c} className="bg-coal-900">{c}</option>)}
+                  {(nomesCat.length ? nomesCat : CATEGORIAS).map((c) => <option key={c} value={c} className="bg-coal-900">{c}</option>)}
                 </select>
               </div>
             </div>

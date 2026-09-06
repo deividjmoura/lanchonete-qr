@@ -3,7 +3,15 @@ import type { Mesa, PixConfig, Produto } from "./types";
 const px = (id: number, w = 900) =>
   `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${w}`;
 
-export const CATEGORIAS = ["Lanches", "Porções", "Bebidas", "Sobremesas"];
+export const CATEGORIAS_SEED: { id: number; nome: string; ordem: number }[] = [
+  { id: 1, nome: "Lanches", ordem: 0 },
+  { id: 2, nome: "Porções", ordem: 1 },
+  { id: 3, nome: "Bebidas", ordem: 2 },
+  { id: 4, nome: "Sobremesas", ordem: 3 },
+];
+
+/** nomes na ordem atual (compat com selects legados) */
+export const CATEGORIAS = CATEGORIAS_SEED.map((c) => c.nome);
 
 export const PRODUTOS_SEED: Produto[] = [
   {

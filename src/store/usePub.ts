@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type {
+  Categoria,
   Evento,
   EventoTipo,
   FormaPagamento,
@@ -11,11 +12,12 @@ import type {
   Role,
   Sessao,
 } from "../lib/types";
-import { MESAS_SEED, PRODUTOS_SEED, STAFF } from "../lib/data";
+import { CATEGORIAS_SEED, MESAS_SEED, PRODUTOS_SEED, STAFF } from "../lib/data";
 
 interface PubState {
   mesas: Mesa[];
   produtos: Produto[];
+  categorias: Categoria[];
   sessoes: Sessao[];
   pedidos: Pedido[];
   eventos: Evento[];
@@ -25,9 +27,12 @@ interface PubState {
   seqSessao: number;
   seqPagamento: number;
   seqEvento: number;
+  seqCategoria: number;
 
   /* cliente / mesa */
   criarPedido: (mesaId: number, clienteNome: string, itens: ItemPedido[]) => number | null;
+  cancelarPedido: (pedidoId: number) => boolean;
+  editarPedido: (pedidoId: number, itens: ItemPedido[]) => boolean;
   informarPix: (mesaId: number) => void;
 
   /* cozinha */
@@ -48,6 +53,11 @@ interface PubState {
   removerProduto: (id: number) => void;
   toggleProduto: (id: number) => void;
   ajustarEstoque: (id: number, delta: number) => void;
+  addCategoria: (nome: string) => void;
+  renameCategoria: (id: number, nome: string) => void;
+  removeCategoria: (id: number) => void;
+  moverCategoria: (id: number, delta: -1 | 1) => void;
+  setCategoriasOrdem: (ids: number[]) => void;
 
   /* auth + som */
   login: (usuario: string, senha: string) => Role | null;
@@ -128,6 +138,7 @@ const seedPedidos: Pedido[] = [
 export const usePub = create<PubState>((set, get) => ({
   mesas: MESAS_SEED,
   produtos: PRODUTOS_SEED,
+  categorias: CATEGORIAS_SEED.map((c) => ({ ...c })),
   sessoes: seedSessoes,
   pedidos: seedPedidos,
   eventos: [],
@@ -137,6 +148,7 @@ export const usePub = create<PubState>((set, get) => ({
   seqSessao: 42,
   seqPagamento: 2,
   seqEvento: 0,
+  seqCategoria: 4,
 
   criarPedido: (mesaId, clienteNome, itens) => {
     if (!itens.length) return null;
@@ -191,6 +203,25 @@ export const usePub = create<PubState>((set, get) => ({
     const sessoes = st.sessoes.map((x) => (x.id === s.id ? { ...x, pixAvisos: x.pixAvisos + 1 } : x));
     set({ sessoes });
     emit(get, set, "pix-avisado", `PIX informado na ${s.mesaNome}`, s.mesaNome);
+  },
+
+  cancelarPedido: (pedidoId) => {
+    const st = get();
+    const p = st.pedidos.find((x) => x.id === pedidoId);
+    if (!p || p.status !== "na_fila") return false;
+    set({ pedidos: st.pedidos.filter((x) => x.id !== pedidoId) });
+    emit(get, set, "pedido-cancelado", `Pedido #${pedidoId} cancelado · ${p.mesaNome}`, p.mesaNome);
+    return true;
+  },
+  editarPedido: (pedidoId, itens) => {
+    const st = get();
+    const p = st.pedidos.find((x) => x.id === pedidoId);
+    if (!p || p.status !== "na_fila") return false;
+    const total = itens.reduce((a, i) => a + i.totalUnit * i.qtd, 0);
+    set({
+      pedidos: st.pedidos.map((x) => (x.id === pedidoId ? { ...x, itens, total } : x)),
+    });
+    return true;
   },
 
   aceitarPedido: (pedidoId) => {
@@ -268,6 +299,57 @@ export const usePub = create<PubState>((set, get) => ({
         p.id === id && p.estoque !== null ? { ...p, estoque: Math.max(0, p.estoque + delta) } : p
       ),
     }),
+
+  addCategoria: (nome) => {
+    const n = nome.trim();
+    if (!n) return;
+    const st = get();
+    if (st.categorias.some((c) => c.nome.toLowerCase() === n.toLowerCase())) return;
+    const seqCategoria = st.seqCategoria + 1;
+    const ordem = st.categorias.length ? Math.max(...st.categorias.map((c) => c.ordem)) + 1 : 0;
+    set({
+      categorias: [...st.categorias, { id: seqCategoria, nome: n, ordem }],
+      seqCategoria,
+    });
+  },
+  renameCategoria: (id, nome) => {
+    const n = nome.trim();
+    if (!n) return;
+    const st = get();
+    const oldCat = st.categorias.find((c) => c.id === id);
+    if (!oldCat || oldCat.nome === n) return;
+    const categorias = st.categorias.map((c) => (c.id === id ? { ...c, nome: n } : c));
+    const produtos = st.produtos.map((p) => (p.categoria === oldCat.nome ? { ...p, categoria: n } : p));
+    set({ categorias, produtos });
+  },
+  removeCategoria: (id) => {
+    const st = get();
+    const cat = st.categorias.find((c) => c.id === id);
+    if (!cat) return;
+    if (st.produtos.some((p) => p.categoria === cat.nome)) return;
+    set({ categorias: st.categorias.filter((c) => c.id !== id) });
+  },
+  moverCategoria: (id, delta) => {
+    const st = get();
+    const sorted = [...st.categorias].sort((a, b) => a.ordem - b.ordem);
+    const idx = sorted.findIndex((c) => c.id === id);
+    const j = idx + delta;
+    if (idx < 0 || j < 0 || j >= sorted.length) return;
+    const ids = sorted.map((c) => c.id);
+    const tmp = ids[idx];
+    ids[idx] = ids[j];
+    ids[j] = tmp;
+    const categorias = st.categorias.map((c) => ({ ...c, ordem: ids.indexOf(c.id) }));
+    set({ categorias });
+  },
+  setCategoriasOrdem: (ids) => {
+    const st = get();
+    const categorias = st.categorias.map((c) => {
+      const i = ids.indexOf(c.id);
+      return { ...c, ordem: i >= 0 ? i : c.ordem };
+    });
+    set({ categorias });
+  },
 
   login: (usuario, senha) => {
     const r = STAFF[usuario.trim().toLowerCase()];

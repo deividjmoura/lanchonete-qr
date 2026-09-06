@@ -139,8 +139,11 @@ function CardPronto({ pedido, onEntregar }: { pedido: Pedido; onEntregar: () => 
         {pedido.mesaNome.replace("Mesa ", "")}
       </motion.p>
 
-      <p className="text-sm text-stone-300">
-        p/ <b className="text-amber-300">{pedido.clienteNome}</b> · pedido #{pedido.id}
+      <p className="mt-1 flex flex-wrap items-center justify-center gap-2 text-sm text-stone-300">
+        <span className="inline-flex items-center rounded-full bg-amber-400/15 border border-amber-400/35 px-3 py-1 text-sm font-bold text-amber-200">
+          {pedido.clienteNome}
+        </span>
+        <span className="font-mono text-xs text-stone-500">pedido #{pedido.id}</span>
       </p>
 
       <ul className="mx-auto mt-4 max-w-xs space-y-1.5 rounded-2xl bg-black/35 border border-white/[0.07] p-3.5 text-left">

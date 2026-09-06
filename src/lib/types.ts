@@ -14,6 +14,12 @@ export interface Removivel {
   nome: string;
 }
 
+export interface Categoria {
+  id: number;
+  nome: string;
+  ordem: number;
+}
+
 export type TipoProduto = "simples" | "personalizavel" | "escolher";
 
 export interface Produto {
@@ -94,6 +100,7 @@ export type EventoTipo =
   | "pedido-aceito"
   | "pedido-pronto"
   | "pedido-entregue"
+  | "pedido-cancelado"
   | "pix-avisado"
   | "sessao-fechada";
 
