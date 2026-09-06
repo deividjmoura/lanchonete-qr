@@ -6,13 +6,21 @@ import type {
   FormaPagamento,
   ItemPedido,
   Mesa,
-  Pagamento,
   Pedido,
   Produto,
   Role,
   Sessao,
 } from "../lib/types";
-import { CATEGORIAS_SEED, MESAS_SEED, PRODUTOS_SEED, STAFF } from "../lib/data";
+import { api } from "../lib/api";
+import {
+  itensToApiBody,
+  mapCaixaSessoes,
+  mapCardapio,
+  mapCozinhaPedidos,
+  mapMesas,
+  mapSessaoFromMesaApi,
+  statusToApi,
+} from "../lib/mappers";
 
 interface PubState {
   mesas: Mesa[];
@@ -23,11 +31,19 @@ interface PubState {
   eventos: Evento[];
   auth: { role: Role; nome: string } | null;
   somLigado: boolean;
-  seqPedido: number;
-  seqSessao: number;
-  seqPagamento: number;
+  loading: boolean;
+  apiReady: boolean;
+  lastError: string | null;
   seqEvento: number;
-  seqCategoria: number;
+
+  /* bootstrap / refresh */
+  hydrateCardapio: () => Promise<void>;
+  hydrateMesas: () => Promise<void>;
+  hydrateMesaToken: (token: string) => Promise<void>;
+  hydrateCozinha: () => Promise<void>;
+  hydrateGarcom: (token: string) => Promise<void>;
+  hydrateCaixa: () => Promise<void>;
+  hydrateMe: () => Promise<void>;
 
   /* cliente / mesa */
   criarPedido: (mesaId: number, clienteNome: string, itens: ItemPedido[]) => number | null;
@@ -48,7 +64,7 @@ interface PubState {
   setTaxa: (sessaoId: number, valor: number) => void;
   fecharSessao: (sessaoId: number, forma: FormaPagamento) => void;
 
-  /* admin */
+  /* admin (local + best-effort API depois) */
   upsertProduto: (p: Produto) => void;
   removerProduto: (id: number) => void;
   toggleProduto: (id: number) => void;
@@ -61,6 +77,7 @@ interface PubState {
 
   /* auth + som */
   login: (usuario: string, senha: string) => Role | null;
+  loginApi: (usuario: string, senha: string) => Promise<Role | null>;
   logout: () => void;
   toggleSom: () => void;
   limparEventos: () => void;
@@ -75,252 +92,328 @@ const emit = (get: () => PubState, set: (p: Partial<PubState>) => void, tipo: Ev
 const sessaoAberta = (sessoes: Sessao[], mesaId: number) =>
   sessoes.find((s) => s.mesaId === mesaId && s.status === "aberta");
 
-/* ---- cenário demo inicial: casa em movimento ---- */
-const agora = Date.now();
-const seedSessoes: Sessao[] = [
-  { id: 41, mesaId: 2, mesaNome: "Mesa 02", status: "aberta", abertaEm: agora - 1000 * 60 * 34, fechadaEm: null, pagamentos: [], pixAvisos: 0, desconto: 0, taxa: 0 },
-  { id: 42, mesaId: 5, mesaNome: "Mesa 05", status: "aberta", abertaEm: agora - 1000 * 60 * 52, fechadaEm: null, pagamentos: [{ id: 1, valor: 25, forma: "pix", criadoEm: agora - 1000 * 60 * 10 }], pixAvisos: 1, desconto: 0, taxa: 0 },
-  { id: 40, mesaId: 7, mesaNome: "Mesa 07", status: "fechada", abertaEm: agora - 1000 * 60 * 148, fechadaEm: agora - 1000 * 60 * 96, pagamentos: [{ id: 0, valor: 63, forma: "credito", criadoEm: agora - 1000 * 60 * 96 }], pixAvisos: 0, desconto: 0, taxa: 0 },
-];
+function formaToApi(forma: FormaPagamento): string {
+  if (forma === "credito") return "cartao_credito";
+  if (forma === "debito") return "cartao_debito";
+  return forma;
+}
 
-const item = (
-  produtoId: number,
-  nome: string,
-  qtd: number,
-  precoBase: number,
-  adicionais: { id: string; nome: string; preco: number }[] = [],
-  removidos: string[] = [],
-  escolha: { id: string; nome: string; preco: number } | null = null,
-  obs = ""
-): ItemPedido => {
-  const soma = adicionais.reduce((a, b) => a + b.preco, 0) + (escolha ? escolha.preco : 0);
-  return {
-    id: Math.random().toString(36).slice(2, 9),
-    produtoId, nome, qtd, precoBase, adicionais, removidos, escolha, obs,
-    totalUnit: precoBase + soma,
-  };
-};
+function mesaToken(get: () => PubState, mesaId: number): string | null {
+  return get().mesas.find((m) => m.id === mesaId)?.token || null;
+}
 
-const seedPedidos: Pedido[] = [
-  {
-    id: 96, sessaoId: 41, mesaId: 2, mesaNome: "Mesa 02", clienteNome: "Alpha",
-    itens: [item(1, "Major Smash duplo", 1, 32, [{ id: "a1", nome: "Bacon crocante", preco: 5 }], ["Cebola"])],
-    status: "na_fila", criadoEm: agora - 1000 * 60 * 12,
-    total: 37,
-  },
-  {
-    id: 97, sessaoId: 42, mesaId: 5, mesaNome: "Mesa 05", clienteNome: "Renata",
-    itens: [
-      item(2, "Clássico da casa", 2, 27),
-      item(8, "Chopp da casa", 2, 9, [], [], { id: "a16", nome: "Caneca 500ml", preco: 4 }),
-    ],
-    status: "na_fila", criadoEm: agora - 1000 * 60 * 22,
-    total: 80,
-  },
-  {
-    id: 98, sessaoId: 42, mesaId: 5, mesaNome: "Mesa 05", clienteNome: "Caio",
-    itens: [item(5, "Batata rústica da casa", 1, 22, [{ id: "a13", nome: "Cheddar em creme", preco: 6 }])],
-    status: "entregue", criadoEm: agora - 1000 * 60 * 40,
-    total: 28,
-  },
-  {
-    id: 95, sessaoId: 40, mesaId: 7, mesaNome: "Mesa 07", clienteNome: "Bruno",
-    itens: [
-      item(2, "Clássico da casa", 1, 27),
-      item(9, "Refrigerante", 2, 6, [], [], { id: "a18", nome: "Lata 350ml", preco: 0 }),
-      item(11, "Brownie vulcão", 1, 18, [{ id: "a23", nome: "Bola de sorvete", preco: 7 }]),
-    ],
-    status: "entregue", criadoEm: agora - 1000 * 60 * 140,
-    total: 64,
-  },
-];
+function tokenByPedido(get: () => PubState, pedidoId: number): string | null {
+  const p = get().pedidos.find((x) => x.id === pedidoId);
+  if (!p) return null;
+  return mesaToken(get, p.mesaId);
+}
 
 export const usePub = create<PubState>((set, get) => ({
-  mesas: MESAS_SEED,
-  produtos: PRODUTOS_SEED,
-  categorias: CATEGORIAS_SEED.map((c) => ({ ...c })),
-  sessoes: seedSessoes,
-  pedidos: seedPedidos,
+  mesas: [],
+  produtos: [],
+  categorias: [],
+  sessoes: [],
+  pedidos: [],
   eventos: [],
   auth: JSON.parse(sessionStorage.getItem("pub-auth") || "null"),
   somLigado: true,
-  seqPedido: 99,
-  seqSessao: 42,
-  seqPagamento: 2,
+  loading: false,
+  apiReady: false,
+  lastError: null,
   seqEvento: 0,
-  seqCategoria: 4,
+
+  hydrateCardapio: async () => {
+    try {
+      const raw = await api.cardapio();
+      const { categorias, produtos } = mapCardapio(raw);
+      set({ categorias, produtos, apiReady: true, lastError: null });
+    } catch (e: any) {
+      set({ lastError: e.message || "Falha ao carregar cardápio" });
+    }
+  },
+
+  hydrateMesas: async () => {
+    try {
+      const rows = await api.adminMesas();
+      set({ mesas: mapMesas(rows), lastError: null });
+    } catch (e: any) {
+      /* sem auth admin: tenta não quebrar landing */
+      set({ lastError: e.message || "Falha ao carregar mesas" });
+    }
+  },
+
+  hydrateMesaToken: async (token: string) => {
+    try {
+      set({ loading: true });
+      const [card, sess] = await Promise.all([api.cardapio(), api.mesaSessao(token)]);
+      const { categorias, produtos } = mapCardapio(card);
+
+      let mesas = get().mesas;
+      let mesa = mesas.find((m) => m.token === token);
+      if (!mesa) {
+        /* monta mesa mínima a partir da sessão */
+        const numero = Number(sess.mesa) || 0;
+        mesa = {
+          id: numero || Date.now(),
+          numero,
+          token,
+          nome: `Mesa ${String(numero).padStart(2, "0")}`,
+        };
+        mesas = [...mesas.filter((m) => m.token !== token), mesa];
+      }
+
+      const { sessao, pedidos } = mapSessaoFromMesaApi(token, mesa, sess);
+      const otherSessoes = get().sessoes.filter((s) => s.mesaId !== mesa!.id);
+      const otherPedidos = get().pedidos.filter((p) => p.mesaId !== mesa!.id);
+
+      set({
+        categorias,
+        produtos,
+        mesas,
+        sessoes: sessao ? [...otherSessoes, sessao] : otherSessoes,
+        pedidos: [...otherPedidos, ...pedidos],
+        loading: false,
+        apiReady: true,
+        lastError: null,
+      });
+    } catch (e: any) {
+      set({ loading: false, lastError: e.message || "Falha ao carregar mesa" });
+    }
+  },
+
+  hydrateCozinha: async () => {
+    try {
+      const rows = await api.cozinhaPedidos();
+      const cozinha = mapCozinhaPedidos(rows);
+      /* mantém pedidos de outras origens (mesa) que não estão na fila */
+      const ids = new Set(cozinha.map((p) => p.id));
+      const rest = get().pedidos.filter((p) => !ids.has(p.id) && p.status === "entregue");
+      set({ pedidos: [...cozinha, ...rest], lastError: null });
+    } catch (e: any) {
+      set({ lastError: e.message || "Falha ao carregar cozinha" });
+    }
+  },
+
+  hydrateGarcom: async (token: string) => {
+    try {
+      const rows = await api.garcomPedidos(token);
+      const prontos = mapCozinhaPedidos(rows).map((p) => ({ ...p, status: "pronto" as const }));
+      const others = get().pedidos.filter((p) => p.status !== "pronto");
+      set({ pedidos: [...prontos, ...others], lastError: null });
+    } catch (e: any) {
+      set({ lastError: e.message || "Falha ao carregar fila do garçom" });
+    }
+  },
+
+  hydrateCaixa: async () => {
+    try {
+      const rows = await api.caixaSessoes();
+      const { sessoes, pedidos } = mapCaixaSessoes(rows);
+      set({ sessoes, pedidos, lastError: null });
+    } catch (e: any) {
+      set({ lastError: e.message || "Falha ao carregar caixa" });
+    }
+  },
+
+  hydrateMe: async () => {
+    try {
+      const me = await api.me();
+      if (me && me.papel) {
+        const auth = { role: me.papel as Role, nome: me.nome || me.papel };
+        sessionStorage.setItem("pub-auth", JSON.stringify(auth));
+        set({ auth });
+      }
+    } catch (_) {
+      /* anônimo ok */
+    }
+  },
 
   criarPedido: (mesaId, clienteNome, itens) => {
     if (!itens.length) return null;
-    const st = get();
-    const mesa = st.mesas.find((m) => m.id === mesaId);
-    if (!mesa) return null;
-
-    // produto indisponível / estoque zerado
-    if (itens.some((i) => {
-      const p = st.produtos.find((x) => x.id === i.produtoId);
-      return !p || !p.ativo || (p.estoque !== null && p.estoque <= 0);
-    })) return null;
-
-    let sessoes = [...st.sessoes];
-    let seqSessao = st.seqSessao;
-    let s = sessaoAberta(sessoes, mesaId);
-    if (!s) {
-      seqSessao += 1;
-      s = { id: seqSessao, mesaId, mesaNome: mesa.nome, status: "aberta", abertaEm: Date.now(), fechadaEm: null, pagamentos: [], pixAvisos: 0, desconto: 0, taxa: 0 };
-      sessoes.push(s);
-      emit(get, set, "sessao-fechada", `${mesa.nome} abriu conta`, mesa.nome);
+    const token = mesaToken(get, mesaId);
+    if (!token) {
+      set({ lastError: "Mesa sem token — recarregue a página" });
+      return null;
     }
-
-    const id = st.seqPedido + 1;
-    const total = itens.reduce((a, i) => a + i.totalUnit * i.qtd, 0);
-    const pedido: Pedido = {
-      id, sessaoId: s.id, mesaId, mesaNome: mesa.nome,
-      clienteNome: clienteNome.trim() || "Cliente",
-      itens, status: "na_fila", criadoEm: Date.now(), total,
-    };
-
-    // baixa de estoque
-    const produtos = st.produtos.map((p) => {
-      const usados = itens.filter((i) => i.produtoId === p.id).reduce((a, i) => a + i.qtd, 0);
-      if (!usados) return p;
-      return {
-        ...p,
-        estoque: p.estoque === null ? null : Math.max(0, p.estoque - usados),
-        vendidos: p.vendidos + usados,
-      };
-    });
-
-    set({ pedidos: [...st.pedidos, pedido], sessoes, seqPedido: id, produtos });
-    emit(get, set, "pedido-novo", `Pedido novo · ${mesa.nome} · ${pedido.clienteNome}`, mesa.nome);
-    return id;
-  },
-
-  informarPix: (mesaId) => {
-    const st = get();
-    const s = sessaoAberta(st.sessoes, mesaId);
-    if (!s) return;
-    const sessoes = st.sessoes.map((x) => (x.id === s.id ? { ...x, pixAvisos: x.pixAvisos + 1 } : x));
-    set({ sessoes });
-    emit(get, set, "pix-avisado", `PIX informado na ${s.mesaNome}`, s.mesaNome);
+    const tempId = -Date.now();
+    /* otimista: UI responde; API confirma em seguida */
+    void (async () => {
+      try {
+        if (clienteNome) await api.checkin(token, clienteNome).catch(() => null);
+        await api.criarPedido(token, {
+          clienteNome,
+          items: itensToApiBody(itens),
+          note: "",
+        });
+        emit(get, set, "pedido-novo", `Novo pedido · ${clienteNome || "cliente"}`, get().mesas.find((m) => m.id === mesaId)?.nome);
+        await get().hydrateMesaToken(token);
+      } catch (e: any) {
+        set({ lastError: e.message || "Erro ao enviar pedido" });
+        alert(e.message || "Erro ao enviar pedido");
+      }
+    })();
+    return tempId;
   },
 
   cancelarPedido: (pedidoId) => {
-    const st = get();
-    const p = st.pedidos.find((x) => x.id === pedidoId);
-    if (!p || p.status !== "na_fila") return false;
-    set({ pedidos: st.pedidos.filter((x) => x.id !== pedidoId) });
-    emit(get, set, "pedido-cancelado", `Pedido #${pedidoId} cancelado · ${p.mesaNome}`, p.mesaNome);
+    const token = tokenByPedido(get, pedidoId);
+    if (!token) return false;
+    void (async () => {
+      try {
+        await api.cancelarPedido(token, pedidoId);
+        emit(get, set, "pedido-cancelado", `Pedido #${pedidoId} cancelado`);
+        await get().hydrateMesaToken(token);
+      } catch (e: any) {
+        alert(e.message || "Não foi possível cancelar");
+      }
+    })();
     return true;
   },
+
   editarPedido: (pedidoId, itens) => {
-    const st = get();
-    const p = st.pedidos.find((x) => x.id === pedidoId);
-    if (!p || p.status !== "na_fila") return false;
-    const total = itens.reduce((a, i) => a + i.totalUnit * i.qtd, 0);
-    set({
-      pedidos: st.pedidos.map((x) => (x.id === pedidoId ? { ...x, itens, total } : x)),
-    });
+    const token = tokenByPedido(get, pedidoId);
+    if (!token || !itens.length) return false;
+    void (async () => {
+      try {
+        await api.editarPedido(token, pedidoId, { items: itensToApiBody(itens), note: "" });
+        await get().hydrateMesaToken(token);
+      } catch (e: any) {
+        alert(e.message || "Não foi possível editar");
+      }
+    })();
     return true;
+  },
+
+  informarPix: (mesaId) => {
+    const token = mesaToken(get, mesaId);
+    if (!token) return;
+    void (async () => {
+      try {
+        await api.pixInformado(token, {});
+        emit(get, set, "pix-avisado", "Cliente avisou PIX", get().mesas.find((m) => m.id === mesaId)?.nome);
+        await get().hydrateMesaToken(token);
+      } catch (e: any) {
+        alert(e.message || "Erro ao avisar PIX");
+      }
+    })();
   },
 
   aceitarPedido: (pedidoId) => {
-    const st = get();
-    const p = st.pedidos.find((x) => x.id === pedidoId);
-    if (!p || p.status !== "na_fila") return;
-    set({ pedidos: st.pedidos.map((x) => (x.id === pedidoId ? { ...x, status: "em_producao" } : x)) });
-    emit(get, set, "pedido-aceito", `${p.mesaNome} em produção`, p.mesaNome);
+    void (async () => {
+      try {
+        await api.statusPedido(pedidoId, statusToApi("em_producao"));
+        emit(get, set, "pedido-aceito", `Pedido #${pedidoId} em produção`);
+        await get().hydrateCozinha();
+      } catch (e: any) {
+        alert(e.message || "Erro ao aceitar");
+      }
+    })();
   },
 
   concluirPedido: (pedidoId) => {
-    const st = get();
-    const p = st.pedidos.find((x) => x.id === pedidoId);
-    if (!p || p.status !== "em_producao") return;
-    set({ pedidos: st.pedidos.map((x) => (x.id === pedidoId ? { ...x, status: "pronto" } : x)) });
-    emit(get, set, "pedido-pronto", `Pronto para entrega · ${p.mesaNome}`, p.mesaNome);
+    void (async () => {
+      try {
+        await api.statusPedido(pedidoId, statusToApi("pronto"));
+        emit(get, set, "pedido-pronto", `Pedido #${pedidoId} pronto`);
+        await get().hydrateCozinha();
+      } catch (e: any) {
+        alert(e.message || "Erro ao concluir");
+      }
+    })();
   },
 
   entregarPedido: (pedidoId) => {
-    const st = get();
-    const p = st.pedidos.find((x) => x.id === pedidoId);
-    if (!p || p.status !== "pronto") return;
-    set({ pedidos: st.pedidos.map((x) => (x.id === pedidoId ? { ...x, status: "entregue" } : x)) });
-    emit(get, set, "pedido-entregue", `Entregue na ${p.mesaNome}`, p.mesaNome);
+    void (async () => {
+      try {
+        await api.statusPedido(pedidoId, statusToApi("entregue"));
+        emit(get, set, "pedido-entregue", `Pedido #${pedidoId} entregue`);
+        await get().hydrateCozinha();
+        await get().hydrateCaixa().catch(() => null);
+      } catch (e: any) {
+        alert(e.message || "Erro ao entregar");
+      }
+    })();
   },
 
   registrarPagamento: (sessaoId, valor, forma) => {
-    const st = get();
-    if (valor <= 0) return;
-    const s = st.sessoes.find((x) => x.id === sessaoId && x.status === "aberta");
-    if (!s) return;
-    const pag: Pagamento = { id: st.seqPagamento, valor, forma, criadoEm: Date.now() };
-    const sessoes = st.sessoes.map((x) => (x.id === sessaoId ? { ...x, pagamentos: [...x.pagamentos, pag] } : x));
-    set({ sessoes, seqPagamento: st.seqPagamento + 1 });
-    emit(get, set, "sessao-fechada", `Pagamento parcial · ${s.mesaNome}`, s.mesaNome);
+    void (async () => {
+      try {
+        await api.registrarPagamento(sessaoId, valor, formaToApi(forma));
+        await get().hydrateCaixa();
+      } catch (e: any) {
+        alert(e.message || "Erro no pagamento");
+      }
+    })();
   },
 
-  setDesconto: (sessaoId, valor) =>
-    set({ sessoes: get().sessoes.map((s) => (s.id === sessaoId ? { ...s, desconto: Math.max(0, valor) } : s)) }),
-  setTaxa: (sessaoId, valor) =>
-    set({ sessoes: get().sessoes.map((s) => (s.id === sessaoId ? { ...s, taxa: Math.max(0, valor) } : s)) }),
+  setDesconto: (sessaoId, valor) => {
+    set({
+      sessoes: get().sessoes.map((s) => (s.id === sessaoId ? { ...s, desconto: Math.max(0, valor) } : s)),
+    });
+  },
+  setTaxa: (sessaoId, valor) => {
+    set({
+      sessoes: get().sessoes.map((s) => (s.id === sessaoId ? { ...s, taxa: Math.max(0, valor) } : s)),
+    });
+  },
 
   fecharSessao: (sessaoId, forma) => {
-    const st = get();
-    const s = st.sessoes.find((x) => x.id === sessaoId && x.status === "aberta");
-    if (!s) return;
-    const total = totalSessao(st.pedidos, sessaoId) - s.desconto + s.taxa;
-    const pago = s.pagamentos.reduce((a, p) => a + p.valor, 0);
-    const restante = Math.max(0, total - pago);
-    let pagamentos = [...s.pagamentos];
-    let seqPagamento = st.seqPagamento;
-    if (restante > 0.004) {
-      pagamentos = [...pagamentos, { id: seqPagamento, valor: restante, forma, criadoEm: Date.now() }];
-      seqPagamento += 1;
-    }
-    const sessoes = st.sessoes.map((x) =>
-      x.id === sessaoId ? { ...x, status: "fechada" as const, fechadaEm: Date.now(), pagamentos } : x
-    );
-    set({ sessoes, seqPagamento });
-    emit(get, set, "sessao-fechada", `${s.mesaNome} fechada · mesa liberada`, s.mesaNome);
+    void (async () => {
+      try {
+        const s = get().sessoes.find((x) => x.id === sessaoId);
+        await api.fecharSessao(sessaoId, {
+          formaPagamento: formaToApi(forma),
+          desconto: s?.desconto || 0,
+          taxaServico: s?.taxa || 0,
+        });
+        emit(get, set, "sessao-fechada", `Sessão #${sessaoId} fechada`, s?.mesaNome);
+        await get().hydrateCaixa();
+        await get().hydrateMesas().catch(() => null);
+      } catch (e: any) {
+        alert(e.message || "Erro ao fechar conta");
+      }
+    })();
   },
 
+  /* admin local até plugar CRUD completo */
   upsertProduto: (p) => {
     const st = get();
-    const existe = st.produtos.some((x) => x.id === p.id);
-    const produtos = existe ? st.produtos.map((x) => (x.id === p.id ? p : x)) : [...st.produtos, p];
-    set({ produtos });
+    const i = st.produtos.findIndex((x) => x.id === p.id);
+    if (i >= 0) {
+      const produtos = st.produtos.slice();
+      produtos[i] = p;
+      set({ produtos });
+    } else set({ produtos: [...st.produtos, p] });
   },
   removerProduto: (id) => set({ produtos: get().produtos.filter((p) => p.id !== id) }),
   toggleProduto: (id) =>
-    set({ produtos: get().produtos.map((p) => (p.id === id ? { ...p, ativo: !p.ativo } : p)) }),
+    set({
+      produtos: get().produtos.map((p) => (p.id === id ? { ...p, ativo: !p.ativo } : p)),
+    }),
   ajustarEstoque: (id, delta) =>
     set({
       produtos: get().produtos.map((p) =>
-        p.id === id && p.estoque !== null ? { ...p, estoque: Math.max(0, p.estoque + delta) } : p
+        p.id === id && p.estoque != null ? { ...p, estoque: Math.max(0, p.estoque + delta) } : p
       ),
     }),
-
   addCategoria: (nome) => {
     const n = nome.trim();
     if (!n) return;
     const st = get();
     if (st.categorias.some((c) => c.nome.toLowerCase() === n.toLowerCase())) return;
-    const seqCategoria = st.seqCategoria + 1;
-    const ordem = st.categorias.length ? Math.max(...st.categorias.map((c) => c.ordem)) + 1 : 0;
-    set({
-      categorias: [...st.categorias, { id: seqCategoria, nome: n, ordem }],
-      seqCategoria,
-    });
+    const id = Math.max(0, ...st.categorias.map((c) => c.id)) + 1;
+    set({ categorias: [...st.categorias, { id, nome: n, ordem: st.categorias.length }] });
   },
   renameCategoria: (id, nome) => {
     const n = nome.trim();
     if (!n) return;
     const st = get();
-    const oldCat = st.categorias.find((c) => c.id === id);
-    if (!oldCat || oldCat.nome === n) return;
-    const categorias = st.categorias.map((c) => (c.id === id ? { ...c, nome: n } : c));
-    const produtos = st.produtos.map((p) => (p.categoria === oldCat.nome ? { ...p, categoria: n } : p));
-    set({ categorias, produtos });
+    const old = st.categorias.find((c) => c.id === id);
+    if (!old) return;
+    set({
+      categorias: st.categorias.map((c) => (c.id === id ? { ...c, nome: n } : c)),
+      produtos: st.produtos.map((p) => (p.categoria === old.nome ? { ...p, categoria: n } : p)),
+    });
   },
   removeCategoria: (id) => {
     const st = get();
@@ -339,27 +432,40 @@ export const usePub = create<PubState>((set, get) => ({
     const tmp = ids[idx];
     ids[idx] = ids[j];
     ids[j] = tmp;
-    const categorias = st.categorias.map((c) => ({ ...c, ordem: ids.indexOf(c.id) }));
-    set({ categorias });
+    set({ categorias: st.categorias.map((c) => ({ ...c, ordem: ids.indexOf(c.id) })) });
   },
   setCategoriasOrdem: (ids) => {
     const st = get();
-    const categorias = st.categorias.map((c) => {
-      const i = ids.indexOf(c.id);
-      return { ...c, ordem: i >= 0 ? i : c.ordem };
+    set({
+      categorias: st.categorias.map((c) => {
+        const i = ids.indexOf(c.id);
+        return { ...c, ordem: i >= 0 ? i : c.ordem };
+      }),
     });
-    set({ categorias });
   },
 
   login: (usuario, senha) => {
-    const r = STAFF[usuario.trim().toLowerCase()];
-    if (!r || r.senha !== senha) return null;
-    const auth = { role: r.role, nome: r.nome };
-    sessionStorage.setItem("pub-auth", JSON.stringify(auth));
-    set({ auth });
-    return r.role;
+    /* compat: preferir loginApi no Login.tsx */
+    return null;
   },
+  loginApi: async (usuario: string, senha: string): Promise<Role | null> => {
+    try {
+      const out = await api.login(usuario, senha);
+      const r = (out.staff?.papel || "") as Role;
+      if (!r) return null;
+      const auth = { role: r, nome: out.staff?.nome || r };
+      sessionStorage.setItem("pub-auth", JSON.stringify(auth));
+      set({ auth, lastError: null });
+      return r;
+    } catch (e: any) {
+      set({ lastError: e.message || "Login inválido" });
+      return null;
+    }
+  },
+
+
   logout: () => {
+    void api.logout().catch(() => null);
     sessionStorage.removeItem("pub-auth");
     set({ auth: null });
   },
@@ -369,7 +475,7 @@ export const usePub = create<PubState>((set, get) => ({
 
 /* ---------- seletores ---------- */
 export const totalSessao = (pedidos: Pedido[], sessaoId: number) =>
-  pedidos.filter((p) => p.sessaoId === sessaoId).reduce((a, p) => a + p.total, 0);
+  pedidos.filter((p) => p.sessaoId === sessaoId && p.status === "entregue").reduce((a, p) => a + p.total, 0);
 
 export const pagoSessao = (s: Sessao) => s.pagamentos.reduce((a, p) => a + p.valor, 0);
 
@@ -382,15 +488,10 @@ export const FORMAS: { id: FormaPagamento; label: string }[] = [
   { id: "debito", label: "Débito" },
 ];
 
-/* faturamento dos últimos 7 dias (histórico + hoje ao vivo) */
 export function faturamentoSemana(sessoes: Sessao[]): { dia: string; valor: number }[] {
-  const base = [1820, 2140, 1660, 2480, 2890, 3420, 0];
-  const hoje = sessoes
-    .filter((s) => s.status === "fechada")
-    .reduce((a, s) => a + pagoSessao(s), 0);
-  const abertas = sessoes
-    .filter((s) => s.status === "aberta")
-    .reduce((a, s) => a + pagoSessao(s), 0);
+  const base = [0, 0, 0, 0, 0, 0, 0];
+  const hoje = sessoes.filter((s) => s.status === "fechada").reduce((a, s) => a + pagoSessao(s), 0);
+  const abertas = sessoes.filter((s) => s.status === "aberta").reduce((a, s) => a + pagoSessao(s), 0);
   const dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Hoje"];
-  return base.map((v, i) => ({ dia: dias[i], valor: i === 6 ? 620 + hoje + abertas : v }));
+  return base.map((v, i) => ({ dia: dias[i], valor: i === 6 ? hoje + abertas : v }));
 }

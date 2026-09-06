@@ -16,7 +16,10 @@
     "test:smoke": "node scripts/smoke.js",
     "fotos:fix": "node scripts/fix-fotos-cardapio.js",
     "fotos:dry": "node scripts/fix-fotos-cardapio.js --dry-run",
-    "test:full": "node scripts/smoke-full.js"
+    "test:full": "node scripts/smoke-full.js",
+    "dev:api": "node server.js",
+    "dev:ui": "vite",
+    "start:api": "node server.js"
   },
   "dependencies": {
     "clsx": "2.1.1",

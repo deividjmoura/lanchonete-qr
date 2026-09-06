@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRight, ArrowUpRight, ChefHat, ConciergeBell, QrCode, Receipt, Smartphone,
@@ -35,6 +36,15 @@ const RECURSOS = [
 
 export default function Landing() {
   const mesas = usePub((s) => s.mesas);
+  const hydrateCardapio = usePub((s) => s.hydrateCardapio);
+  const hydrateMesas = usePub((s) => s.hydrateMesas);
+  const hydrateMe = usePub((s) => s.hydrateMe);
+  useEffect(() => {
+    void hydrateCardapio();
+    void hydrateMe();
+    void hydrateMesas().catch(() => null);
+  }, [hydrateCardapio, hydrateMesas, hydrateMe]);
+
   const sessoes = usePub((s) => s.sessoes);
   const pedidos = usePub((s) => s.pedidos);
 

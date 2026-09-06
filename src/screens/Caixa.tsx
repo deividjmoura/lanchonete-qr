@@ -23,6 +23,13 @@ export default function Caixa() {
   useAgora(1000);
 
   const sessoes = usePub((s) => s.sessoes);
+  const hydrateCaixa = usePub((s) => s.hydrateCaixa);
+  useEffect(() => {
+    void hydrateCaixa();
+    const t = setInterval(() => void hydrateCaixa(), 10000);
+    return () => clearInterval(t);
+  }, [hydrateCaixa]);
+
   const pedidos = usePub((s) => s.pedidos);
   const [selId, setSelId] = useState<number | null>(null);
 

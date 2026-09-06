@@ -27,6 +27,13 @@ type AbaId = (typeof ABAS)[number]["id"];
 
 export default function Admin() {
   const auth = usePub((s) => s.auth);
+  const hydrateCardapio = usePub((s) => s.hydrateCardapio);
+  const hydrateMesas = usePub((s) => s.hydrateMesas);
+  useEffect(() => {
+    void hydrateCardapio();
+    void hydrateMesas();
+  }, [hydrateCardapio, hydrateMesas]);
+
   useEffect(() => {
     if (!auth) ir("/login");
   }, [auth]);

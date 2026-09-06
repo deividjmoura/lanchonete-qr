@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BellRing, CheckCircle2, CircleAlert, Flame, Timer } from "lucide-react";
 import { OpsShell, useAnuncios } from "../components/OpsShell";
@@ -7,7 +8,6 @@ import type { Pedido } from "../lib/types";
 import { usePub } from "../store/usePub";
 import { elapsed } from "../lib/utils";
 import { cn } from "../utils/cn";
-import { useEffect } from "react";
 import { ir } from "../router";
 
 const COLUNAS = [
@@ -25,6 +25,13 @@ export default function Cozinha() {
   useAgora(1000);
 
   const pedidos = usePub((s) => s.pedidos);
+  const hydrateCozinha = usePub((s) => s.hydrateCozinha);
+  useEffect(() => {
+    void hydrateCozinha();
+    const t = setInterval(() => void hydrateCozinha(), 8000);
+    return () => clearInterval(t);
+  }, [hydrateCozinha]);
+
   const ativos = pedidos.filter((p) => p.status !== "entregue");
 
   const extras = (

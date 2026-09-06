@@ -55,6 +55,15 @@ export default function Mesa({ token }: { token: string }) {
   const cancelarPedido = usePub((s) => s.cancelarPedido);
   const editarPedido = usePub((s) => s.editarPedido);
   const categoriasStore = usePub((s) => s.categorias);
+  const hydrateMesaToken = usePub((s) => s.hydrateMesaToken);
+
+  useEffect(() => {
+    if (!token) return;
+    void hydrateMesaToken(token);
+    const t = setInterval(() => void hydrateMesaToken(token), 12000);
+    return () => clearInterval(t);
+  }, [token, hydrateMesaToken]);
+
 
   const mesa = mesas.find((m) => m.token === token);
 

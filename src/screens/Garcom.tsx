@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BellRing, CheckCheck, ConciergeBell, Footprints, Sparkles, Timer } from "lucide-react";
 import { OpsShell, useAnuncios } from "../components/OpsShell";
@@ -13,6 +14,14 @@ export default function Garcom({ token }: { token: string }) {
   useAgora(1000);
 
   const pedidos = usePub((s) => s.pedidos);
+  const hydrateGarcom = usePub((s) => s.hydrateGarcom);
+  useEffect(() => {
+    if (!token) return;
+    void hydrateGarcom(token);
+    const t = setInterval(() => void hydrateGarcom(token), 8000);
+    return () => clearInterval(t);
+  }, [token, hydrateGarcom]);
+
   const entregar = usePub((s) => s.entregarPedido);
 
   const prontos = pedidos.filter((p) => p.status === "pronto").sort((a, b) => a.criadoEm - b.criadoEm);

@@ -13,14 +13,17 @@ const PAPEIS = [
 ];
 
 export default function Login() {
-  const login = usePub((s) => s.login);
+  const loginApi = usePub((s) => s.loginApi);
   const [papel, setPapel] = useState<string | null>(null);
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const entrar = () => {
-    if (!papel) return;
-    const role = login(papel, senha);
+  const entrar = async () => {
+    if (!papel || busy) return;
+    setBusy(true);
+    const role = await loginApi(papel, senha);
+    setBusy(false);
     if (!role) {
       setErro(true);
       setTimeout(() => setErro(false), 1600);
