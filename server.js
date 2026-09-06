@@ -22,8 +22,10 @@ const {
   getCardapioAdmin,
   criarCategoria,
   atualizarCategoria,
+  reordenarCategorias,
   criarProduto,
   atualizarProduto,
+  reordenarProdutos,
   criarAdicional,
   removerAdicional,
   setRemoviveis,
@@ -527,6 +529,28 @@ const server = http.createServer(async (req, res) => {
     if ((m = p.match(/^\/api\/admin\/categorias\/(\d+)$/)) && req.method === 'PATCH') {
       try {
         const out = await atualizarCategoria(Number(m[1]), await body(req));
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/categorias/ordem' && req.method === 'PUT') {
+      try {
+        const b = await body(req);
+        const out = await reordenarCategorias(b.ids || b.ordem || []);
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/produtos/ordem' && req.method === 'PUT') {
+      try {
+        const b = await body(req);
+        const out = await reordenarProdutos(b.categoriaId, b.ids || b.ordem || []);
         invalidarCardapio();
         return json(res, 200, out);
       } catch (e) {

@@ -9,14 +9,14 @@ let cacheAt = 0;
 
 async function carregarCardapio() {
   const { rows: categorias } = await pool.query(
-    'SELECT id, nome, ordem FROM categorias ORDER BY ordem'
+    'SELECT id, nome, ordem FROM categorias ORDER BY ordem, id'
   );
   const { rows: produtos } = await pool.query(
     `SELECT id, categoria_id, nome, descricao, preco, foto_url, pede_ponto_carne
      FROM produtos
      WHERE disponivel = TRUE
        AND (controla_estoque = false OR estoque IS NULL OR estoque > 0)
-     ORDER BY id`
+     ORDER BY ordem, id`
   );
   const { rows: adicionais } = await pool.query(
     'SELECT id, produto_id, nome, preco FROM adicionais ORDER BY id'

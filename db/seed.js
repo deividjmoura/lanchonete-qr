@@ -196,6 +196,8 @@ async function run() {
     console.log(`✅ ${categoriasNomes.length} categorias inseridas.`);
 
     const prodHasPonto = await columnExists(client, 'produtos', 'pede_ponto_carne');
+    const prodHasOrdem = await columnExists(client, 'produtos', 'ordem');
+    const ordemPorCategoria = {};
 
     let totalProdutos = 0;
     let totalAdicionais = 0;
@@ -204,8 +206,22 @@ async function run() {
     for (const p of raw.menu) {
       const categoriaId = categoriaIdPorNome[p.category];
       const pedePontoCarne = Boolean(p.customization?.meatPoint);
+      const nextOrdem = ordemPorCategoria[categoriaId] || 0;
+      ordemPorCategoria[categoriaId] = nextOrdem + 1;
       let rows;
-      if (prodHasPonto) {
+      if (prodHasOrdem && prodHasPonto) {
+        ({ rows } = await client.query(
+          `INSERT INTO produtos (categoria_id, nome, descricao, preco, disponivel, pede_ponto_carne, ordem)
+           VALUES ($1, $2, $3, $4, TRUE, $5, $6) RETURNING id`,
+          [categoriaId, p.name, p.description || null, p.price, pedePontoCarne, nextOrdem]
+        ));
+      } else if (prodHasOrdem) {
+        ({ rows } = await client.query(
+          `INSERT INTO produtos (categoria_id, nome, descricao, preco, disponivel, ordem)
+           VALUES ($1, $2, $3, $4, TRUE, $5) RETURNING id`,
+          [categoriaId, p.name, p.description || null, p.price, nextOrdem]
+        ));
+      } else if (prodHasPonto) {
         ({ rows } = await client.query(
           `INSERT INTO produtos (categoria_id, nome, descricao, preco, disponivel, pede_ponto_carne)
            VALUES ($1, $2, $3, $4, TRUE, $5) RETURNING id`,

@@ -4,7 +4,14 @@ function fotoThumb(url) {
   return '<img src="' + esc(url) + '" alt="" class="prod-thumb" loading="lazy" onerror="this.style.display=\'none\'">';
 }
 
-function renderProduto(p) {
+function renderProduto(p, opts) {
+  opts = opts || {};
+  const catId = opts.catId;
+  const pIndex = opts.index != null ? opts.index : 0;
+  const pTotal = opts.total != null ? opts.total : 1;
+  const upDis = pIndex === 0 ? ' disabled' : '';
+  const downDis = pIndex === pTotal - 1 ? ' disabled' : '';
+
   const statusChip = p.disponivel ? '<span class="chip on">disponível</span>' : '<span class="chip off">indisponível</span>';
   const stockChip = p.controlaEstoque
     ? (p.estoqueBaixo
@@ -18,10 +25,17 @@ function renderProduto(p) {
     '<div class="row" style="margin-bottom:6px"><span>' + esc(a.nome) + ' · ' + br(a.preco) + '</span>' +
     '<button class="btn" type="button" style="padding:4px 10px" onclick="delAdd(' + a.id + ')">Remover</button></div>'
   ).join('') || '<p class="muted">Nenhum.</p>';
-  return '<div class="prod-row" id="prod-' + p.id + '">' +
+  return '<div class="prod-row" id="prod-' + p.id + '" data-prod-id="' + p.id + '" data-cat-id="' + (catId || p.categoriaId || '') + '" draggable="true">' +
+    '<span class="drag-handle" title="Arrastar produto" aria-hidden="true">⠿</span>' +
     fotoThumb(p.fotoUrl) +
     '<div style="flex:1;min-width:0">' +
+    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">' +
     '<strong>' + esc(p.nome) + '</strong> · <span class="price">' + br(p.preco) + '</span>' +
+    '<span class="ord-btns">' +
+    '<button class="btn" type="button" title="Subir"' + upDis + ' onclick="moverProduto(' + p.id + ',' + (catId || p.categoriaId || 0) + ',-1)">↑</button>' +
+    '<button class="btn" type="button" title="Descer"' + downDis + ' onclick="moverProduto(' + p.id + ',' + (catId || p.categoriaId || 0) + ',1)">↓</button>' +
+    '</span></div>' +
+
     '<div class="prod-meta" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">' + statusChip + stockChip + fotoChip + '<span class="chip">#' + p.id + '</span></div>' +
     (p.descricao ? '<p class="muted" style="margin:6px 0 0;font-size:.9rem">' + esc(p.descricao) + '</p>' : '') +
     '<p class="muted" style="margin:6px 0 0;font-size:.85rem"><b>Adicionais:</b> ' + adds + '</p>' +
@@ -342,3 +356,166 @@ async function onFotoFileEdit(id) {
   await otimizarFotoEdit(id);
 }
 
+
+/* —— Ordenação de categorias e produtos (#35) —— */
+
+async function putOrdem(url, body) {
+  const r = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Erro ao reordenar');
+  return data;
+}
+
+async function moverCategoria(catId, delta) {
+  const ids = (cardapioCache || []).map((c) => c.id);
+  const i = ids.indexOf(catId);
+  if (i < 0) return;
+  const j = i + delta;
+  if (j < 0 || j >= ids.length) return;
+  const next = ids.slice();
+  const tmp = next[i];
+  next[i] = next[j];
+  next[j] = tmp;
+  try {
+    await putOrdem('/api/admin/categorias/ordem', { ids: next });
+    toast('Ordem das categorias atualizada');
+    loadCardapio();
+  } catch (e) {
+    toast(e.message || 'Erro');
+  }
+}
+
+async function moverProduto(prodId, catId, delta) {
+  const cat = (cardapioCache || []).find((c) => c.id === catId);
+  if (!cat || !cat.produtos) return;
+  const ids = cat.produtos.map((p) => p.id);
+  const i = ids.indexOf(prodId);
+  if (i < 0) return;
+  const j = i + delta;
+  if (j < 0 || j >= ids.length) return;
+  const next = ids.slice();
+  const tmp = next[i];
+  next[i] = next[j];
+  next[j] = tmp;
+  try {
+    await putOrdem('/api/admin/produtos/ordem', { categoriaId: catId, ids: next });
+    toast('Ordem dos produtos atualizada');
+    loadCardapio();
+  } catch (e) {
+    toast(e.message || 'Erro');
+  }
+}
+
+async function editarNomeCategoria(catId) {
+  const cat = (cardapioCache || []).find((c) => c.id === catId);
+  if (!cat) return;
+  const novo = prompt('Nome da categoria:', cat.nome);
+  if (novo == null) return;
+  const nome = String(novo).trim();
+  if (!nome) return toast('Nome não pode ser vazio');
+  if (nome === cat.nome) return;
+  const r = await fetch('/api/admin/categorias/' + catId, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return toast(data.error || 'Erro');
+  toast('Categoria renomeada');
+  loadCardapio();
+}
+
+/** Drag-and-drop nativo (categorias no #cardapio; produtos dentro do body da categoria). */
+function bindCardapioDrag() {
+  const root = document.getElementById('cardapio');
+  if (!root) return;
+  root.dataset.dragBound = '1';
+
+  root.querySelectorAll('.cat-accordion').forEach((el) => {
+    el.addEventListener('dragstart', (e) => {
+      if (e.target.closest('.prod-row')) return;
+      e.dataTransfer.setData('text/plain', 'cat:' + el.dataset.catId);
+      e.dataTransfer.effectAllowed = 'move';
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => el.classList.remove('dragging'));
+    el.addEventListener('dragover', (e) => {
+      const t = e.dataTransfer.types;
+      if (t && (t.contains ? t.contains('text/plain') : Array.from(t).includes('text/plain'))) {
+        e.preventDefault();
+        el.classList.add('drag-over');
+      }
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      const raw = e.dataTransfer.getData('text/plain') || '';
+      if (!raw.startsWith('cat:')) return;
+      const fromId = Number(raw.slice(4));
+      const toId = Number(el.dataset.catId);
+      if (!fromId || !toId || fromId === toId) return;
+      const ids = (cardapioCache || []).map((c) => c.id);
+      const from = ids.indexOf(fromId);
+      const to = ids.indexOf(toId);
+      if (from < 0 || to < 0) return;
+      ids.splice(from, 1);
+      ids.splice(to, 0, fromId);
+      try {
+        await putOrdem('/api/admin/categorias/ordem', { ids });
+        toast('Ordem das categorias atualizada');
+        loadCardapio();
+      } catch (err) {
+        toast(err.message || 'Erro');
+      }
+    });
+  });
+
+  root.querySelectorAll('.prod-row').forEach((el) => {
+    el.addEventListener('dragstart', (e) => {
+      e.stopPropagation();
+      e.dataTransfer.setData('text/plain', 'prod:' + el.dataset.catId + ':' + el.dataset.prodId);
+      e.dataTransfer.effectAllowed = 'move';
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => el.classList.remove('dragging'));
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove('drag-over');
+      const raw = e.dataTransfer.getData('text/plain') || '';
+      if (!raw.startsWith('prod:')) return;
+      const parts = raw.split(':');
+      const fromCat = Number(parts[1]);
+      const fromId = Number(parts[2]);
+      const toCat = Number(el.dataset.catId);
+      const toId = Number(el.dataset.prodId);
+      if (!fromId || !toId || fromCat !== toCat || fromId === toId) return;
+      const cat = (cardapioCache || []).find((c) => c.id === fromCat);
+      if (!cat) return;
+      const ids = cat.produtos.map((p) => p.id);
+      const from = ids.indexOf(fromId);
+      const to = ids.indexOf(toId);
+      if (from < 0 || to < 0) return;
+      ids.splice(from, 1);
+      ids.splice(to, 0, fromId);
+      try {
+        await putOrdem('/api/admin/produtos/ordem', { categoriaId: fromCat, ids });
+        toast('Ordem dos produtos atualizada');
+        loadCardapio();
+      } catch (err) {
+        toast(err.message || 'Erro');
+      }
+    });
+  });
+}

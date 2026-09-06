@@ -12,6 +12,14 @@
   <style>
     .prod-row{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
     .prod-row:last-child{border-bottom:0}
+    .prod-row.dragging,.cat-accordion.dragging{opacity:.55}
+    .prod-row.drag-over,.cat-accordion.drag-over{outline:2px dashed var(--accent, #6c8cff);outline-offset:2px}
+    .ord-btns{display:inline-flex;gap:4px;flex-shrink:0;align-items:center}
+    .ord-btns .btn{padding:4px 8px;min-width:32px;line-height:1.2;font-size:.9rem}
+    .drag-handle{cursor:grab;opacity:.45;user-select:none;padding:2px 6px;font-size:1rem;line-height:1}
+    .drag-handle:active{cursor:grabbing}
+    .cat-acc-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .cat-acc-head{gap:8px}
     .prod-thumb{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line);flex-shrink:0;background:var(--surface-2)}
     .prod-thumb-lg{max-width:160px;max-height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
     .cat-acc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:0;background:transparent;cursor:pointer;text-align:left;color:var(--text);font:inherit}
@@ -229,16 +237,30 @@ async function loadCardapio(){
   document.getElementById('prodCat').innerHTML=cardapioCache.map(c=>'<option value="'+c.id+'">'+esc(c.nome)+'</option>').join('');
   const root=document.getElementById('cardapio');
   const openSet=new Set((root.dataset.openCats||'').split(',').filter(Boolean));
-  root.innerHTML=cardapioCache.map(cat=>{
+  const totalCats=cardapioCache.length;
+  root.innerHTML=cardapioCache.map((cat,idx)=>{
     const n=(cat.produtos&&cat.produtos.length)||0;
     const isOpen=openSet.has(String(cat.id));
-    const prods=n?cat.produtos.map(p=>renderProduto(p)).join(''):'<p class="muted">Nenhum produto.</p>';
-    return '<div class="panel cat-accordion'+(isOpen?' open':'')+'" data-cat-id="'+cat.id+'" style="margin-bottom:12px;padding:0;overflow:hidden">'+
-      '<button type="button" class="cat-acc-head" onclick="toggleAdminCat(this)">'+
-      '<span><b>'+esc(cat.nome)+'</b> <span class="muted" style="font-weight:600;font-size:.85rem">· '+n+' item(ns)</span></span>'+
-      '<span class="cat-acc-chev" aria-hidden="true">▼</span></button>'+
+    const prods=n?cat.produtos.map((p,pi)=>renderProduto(p,{catId:cat.id,index:pi,total:n})).join(''):'<p class="muted">Nenhum produto.</p>';
+    const upDis=idx===0?' disabled':'';
+    const downDis=idx===totalCats-1?' disabled':'';
+    return '<div class="panel cat-accordion'+(isOpen?' open':'')+'" data-cat-id="'+cat.id+'" draggable="true" style="margin-bottom:12px;padding:0;overflow:hidden">'+
+      '<div class="cat-acc-head">'+
+      '<span class="drag-handle" title="Arrastar categoria" aria-hidden="true">⠿</span>'+
+      '<button type="button" style="flex:1;border:0;background:transparent;cursor:pointer;text-align:left;color:inherit;font:inherit;padding:0" onclick="toggleAdminCat(this)">'+
+      '<span><b id="cat-nome-'+cat.id+'">'+esc(cat.nome)+'</b> <span class="muted" style="font-weight:600;font-size:.85rem">· '+n+' item(ns)</span></span>'+
+      '</button>'+
+      '<div class="cat-acc-actions" onclick="event.stopPropagation()">'+
+      '<span class="ord-btns">'+
+      '<button class="btn" type="button" title="Subir"'+upDis+' onclick="moverCategoria('+cat.id+',-1)">↑</button>'+
+      '<button class="btn" type="button" title="Descer"'+downDis+' onclick="moverCategoria('+cat.id+',1)">↓</button>'+
+      '</span>'+
+      '<button class="btn" type="button" title="Editar nome" onclick="editarNomeCategoria('+cat.id+')">✎</button>'+
+      '<span class="cat-acc-chev" aria-hidden="true" style="cursor:pointer" onclick="toggleAdminCat(this)">▼</span>'+
+      '</div></div>'+
       '<div class="cat-acc-body" style="'+(isOpen?'':'display:none')+'">'+prods+'</div></div>';
   }).join('')||'<p class="muted">Nenhuma categoria.</p>';
+  bindCardapioDrag();
 }
 function toggleAdminCat(btn){
   const panel=btn&&btn.closest('.cat-accordion');

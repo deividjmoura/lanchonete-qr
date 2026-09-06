@@ -63,6 +63,7 @@ function mapProdutoRow(p) {
     estoque: p.estoque != null ? Number(p.estoque) : null,
     estoqueMinimo: Number(p.estoque_minimo || 0),
     estoqueBaixo: Boolean(p.controla_estoque) && p.estoque != null && Number(p.estoque) <= Number(p.estoque_minimo || 0),
+    ordem: p.ordem != null ? Number(p.ordem) : 0,
   };
 }
 
@@ -72,8 +73,8 @@ async function getCardapioAdmin() {
   );
   const { rows: produtos } = await pool.query(
     `SELECT id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne,
-            controla_estoque, estoque, estoque_minimo
-     FROM produtos ORDER BY id`
+            controla_estoque, estoque, estoque_minimo, ordem
+     FROM produtos ORDER BY ordem, id`
   );
   const { rows: adicionais } = await pool.query(
     'SELECT id, produto_id, nome, preco FROM adicionais ORDER BY id'
@@ -100,12 +101,17 @@ async function getCardapioAdmin() {
   }));
 }
 
-async function criarCategoria({ nome, ordem = 0 }) {
+async function criarCategoria({ nome, ordem }) {
   const n = String(nome || '').trim();
   if (!n) throw new ErroAdmin(400, 'Nome da categoria é obrigatório');
+  let ord = ordem !== undefined && ordem !== null && ordem !== '' ? Number(ordem) : null;
+  if (ord == null || Number.isNaN(ord)) {
+    const { rows: maxR } = await pool.query('SELECT COALESCE(MAX(ordem), -1) + 1 AS next FROM categorias');
+    ord = Number(maxR[0].next);
+  }
   const { rows } = await pool.query(
     'INSERT INTO categorias (nome, ordem) VALUES ($1, $2) RETURNING id, nome, ordem',
-    [n, Number(ordem) || 0]
+    [n, ord]
   );
   return rows[0];
 }
@@ -142,10 +148,19 @@ async function criarProduto(body) {
   if (!categoriaId) throw new ErroAdmin(400, 'categoriaId é obrigatório');
   if (Number.isNaN(preco) || preco < 0) throw new ErroAdmin(400, 'Preço inválido');
 
+  let ord = body.ordem !== undefined && body.ordem !== null && body.ordem !== '' ? Number(body.ordem) : null;
+  if (ord == null || Number.isNaN(ord)) {
+    const { rows: maxR } = await pool.query(
+      'SELECT COALESCE(MAX(ordem), -1) + 1 AS next FROM produtos WHERE categoria_id = $1',
+      [categoriaId]
+    );
+    ord = Number(maxR[0].next);
+  }
+
   const { rows } = await pool.query(
-    `INSERT INTO produtos (categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     RETURNING id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo`,
+    `INSERT INTO produtos (categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo, ordem)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     RETURNING id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo, ordem`,
     [
       categoriaId,
       nome,
@@ -157,6 +172,7 @@ async function criarProduto(body) {
       Boolean(body.controlaEstoque || body.controla_estoque),
       body.estoque != null && body.estoque !== '' ? Number(body.estoque) : null,
       Number(body.estoqueMinimo ?? body.estoque_minimo ?? 0) || 0,
+      ord,
     ]
   );
   return { ...mapProdutoRow(rows[0]), adicionais: [], removiveis: [] };
@@ -211,12 +227,16 @@ async function atualizarProduto(id, body) {
     campos.push(`estoque_minimo = $${i++}`);
     vals.push(Number(body.estoqueMinimo ?? body.estoque_minimo ?? 0) || 0);
   }
+  if (body.ordem !== undefined) {
+    campos.push(`ordem = $${i++}`);
+    vals.push(Number(body.ordem) || 0);
+  }
   if (!campos.length) throw new ErroAdmin(400, 'Nada para atualizar');
 
   vals.push(id);
   const { rows } = await pool.query(
     `UPDATE produtos SET ${campos.join(', ')} WHERE id = $${i}
-     RETURNING id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo`,
+     RETURNING id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne, controla_estoque, estoque, estoque_minimo, ordem`,
     vals
   );
   if (!rows[0]) throw new ErroAdmin(404, 'Produto não encontrado');
@@ -314,16 +334,83 @@ async function removerProduto(id) {
   }
 }
 
+
+/** Reordena categorias: ids na ordem desejada → ordem 0..n-1 */
+async function reordenarCategorias(ids) {
+  if (!Array.isArray(ids) || !ids.length) throw new ErroAdmin(400, 'ids é obrigatório');
+  const lista = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0);
+  if (lista.length !== ids.length) throw new ErroAdmin(400, 'ids inválidos');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: existing } = await client.query('SELECT id FROM categorias');
+    const existingSet = new Set(existing.map((r) => r.id));
+    if (lista.length !== existingSet.size || lista.some((id) => !existingSet.has(id))) {
+      throw new ErroAdmin(400, 'Lista de categorias incompleta ou inválida');
+    }
+    for (let i = 0; i < lista.length; i++) {
+      await client.query('UPDATE categorias SET ordem = $1 WHERE id = $2', [i, lista[i]]);
+    }
+    await client.query('COMMIT');
+    return { ok: true, ids: lista };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+/** Reordena produtos de uma categoria: ids na ordem desejada → ordem 0..n-1 */
+async function reordenarProdutos(categoriaId, ids) {
+  const catId = Number(categoriaId);
+  if (!catId) throw new ErroAdmin(400, 'categoriaId é obrigatório');
+  if (!Array.isArray(ids) || !ids.length) throw new ErroAdmin(400, 'ids é obrigatório');
+  const lista = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0);
+  if (lista.length !== ids.length) throw new ErroAdmin(400, 'ids inválidos');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: existing } = await client.query(
+      'SELECT id FROM produtos WHERE categoria_id = $1',
+      [catId]
+    );
+    const existingSet = new Set(existing.map((r) => r.id));
+    if (lista.length !== existingSet.size || lista.some((id) => !existingSet.has(id))) {
+      throw new ErroAdmin(400, 'Lista de produtos incompleta ou inválida para esta categoria');
+    }
+    for (let i = 0; i < lista.length; i++) {
+      await client.query('UPDATE produtos SET ordem = $1 WHERE id = $2 AND categoria_id = $3', [
+        i,
+        lista[i],
+        catId,
+      ]);
+    }
+    await client.query('COMMIT');
+    return { ok: true, categoriaId: catId, ids: lista };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   ErroAdmin,
   listMesas,
   getCardapioAdmin,
   criarCategoria,
   atualizarCategoria,
+  reordenarCategorias,
   criarProduto,
   atualizarProduto,
+  reordenarProdutos,
   criarAdicional,
   removerAdicional,
   setRemoviveis,
   removerProduto,
 };
+
