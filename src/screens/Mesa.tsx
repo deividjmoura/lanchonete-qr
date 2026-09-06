@@ -1,17 +1,30 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BadgeCheck, Banknote, Check, ChevronRight, CircleCheck, ClipboardList, Copy,
-  Flame, HandPlatter, Minus, PartyPopper, Plus, QrCode, Receipt, Search,
-  Pencil, ShoppingBag, Sparkles, Timer, Trash2, UtensilsCrossed, X,
+  Check,
+  ChevronRight,
+  ClipboardList,
+  Flame,
+  HandPlatter,
+  Minus,
+  PartyPopper,
+  Plus,
+  Receipt,
+  Search,
+  Pencil,
+  ShoppingBag,
+  Sparkles,
+  Timer,
+  Trash2,
+  UtensilsCrossed,
+  X,
+  ,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Btn, Input, Logo, Modal, Qtd } from "../components/ui";
 import { ir } from "../router";
-import { PIX_CONFIG } from "../lib/data";
 import type { Opcao, Pedido, Produto } from "../lib/types";
 import { usePub, sessaoDaMesa, totalSessao } from "../store/usePub";
-import { BRL, montarPixEMV } from "../lib/utils";
+import { BRL } from "../lib/utils";
 import { cn } from "../utils/cn";
 
 /* ---------- item do carrinho ---------- */
@@ -42,7 +55,6 @@ export default function Mesa({ token }: { token: string }) {
   const criarPedido = usePub((s) => s.criarPedido);
   const cancelarPedido = usePub((s) => s.cancelarPedido);
   const editarPedido = usePub((s) => s.editarPedido);
-  const informarPix = usePub((s) => s.informarPix);
   const categoriasStore = usePub((s) => s.categorias);
 
   const mesa = mesas.find((m) => m.token === token);
@@ -54,8 +66,6 @@ export default function Mesa({ token }: { token: string }) {
   const [sheet, setSheet] = useState<"cart" | "conta" | null>(null);
   const [nome, setNome] = useState(() => sessionStorage.getItem(`pub-nome-${token}`) || "");
   const [enviado, setEnviado] = useState(false);
-  const [pixInfo, setPixInfo] = useState(false);
-  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     sessionStorage.setItem(`pub-nome-${token}`, nome);
@@ -85,15 +95,6 @@ export default function Mesa({ token }: { token: string }) {
     );
   }, [produtos, categoria, busca]);
 
-  const pixCodigo = useMemo(
-    () =>
-      montarPixEMV({
-        ...PIX_CONFIG,
-        valor: totalConta > 0 ? totalConta : null,
-        txid: mesa ? `MESA${mesa.numero}` : "PUB",
-      }),
-    [totalConta, mesa]
-  );
 
   if (!mesa) {
     return (
@@ -136,15 +137,6 @@ export default function Mesa({ token }: { token: string }) {
     }
   };
 
-  const copiarPix = async () => {
-    try {
-      await navigator.clipboard.writeText(pixCodigo);
-    } catch {
-      /* clipboard pode falhar fora de https */
-    }
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 1800);
-  };
 
   /* ==================== painéis reutilizáveis ==================== */
 
@@ -322,81 +314,13 @@ export default function Mesa({ token }: { token: string }) {
         </div>
       )}
 
-      {/* bloco PIX sempre visível */}
+      {/* total da visita — pagamento só no caixa / garçom (igual main) */}
       <div className="pt-4 mt-4 border-t border-white/[0.08]">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">total da visita</span>
           <span className="font-display text-4xl text-gradient">{BRL(totalConta)}</span>
         </div>
-
-        {totalConta > 0 ? (
-          <AnimatePresence mode="wait">
-            {!pixInfo ? (
-              <motion.div
-                key="cta"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-400/12 to-orange-500/[0.07] p-4"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="grid place-items-center size-11 rounded-xl bg-black/40 border border-amber-400/30">
-                    <QrCode className="size-5 text-amber-300" />
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-white">Pague no PIX, sem esperar</p>
-                    <p className="text-[11px] text-stone-400">QR com o valor da visita · opcional</p>
-                  </div>
-                  <Btn size="sm" onClick={() => setPixInfo(true)}>Ver QR</Btn>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="qr"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-400/12 to-orange-500/[0.07] p-4 space-y-3"
-              >
-                <div className="flex items-start gap-4">
-                  <motion.div
-                    initial={{ scale: 0.85, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 18 }}
-                    className="rounded-2xl bg-white p-3 shadow-[0_10px_36px_-10px_rgba(0,0,0,0.7)]"
-                  >
-                    <QRCodeSVG value={pixCodigo} size={118} fgColor="#131009" level="M" />
-                  </motion.div>
-                  <div className="flex-1 space-y-2">
-                    <p className="font-display text-3xl text-white leading-none">{BRL(totalConta)}</p>
-                    <p className="text-[11px] text-stone-400 leading-snug">Aponte a câmera do app do banco e confira o valor.</p>
-                    <Btn size="sm" variant="outline" full onClick={copiarPix}>
-                      {copiado ? <CircleCheck className="size-3.5" /> : <Copy className="size-3.5" />}
-                      {copiado ? "Código copiado!" : "Copiar código"}
-                    </Btn>
-                  </div>
-                </div>
-                <Btn
-                  full
-                  variant={sessao && sessao.pixAvisos > 0 ? "lime" : "brand"}
-                  onClick={() => {
-                    informarPix(mesa.id);
-                  }}
-                  disabled={!sessao}
-                >
-                  <BadgeCheck className="size-4.5" />
-                  {sessao && sessao.pixAvisos > 0 ? `PIX já avisado (${sessao.pixAvisos}×) — avisar de novo` : "Já paguei no PIX"}
-                </Btn>
-                <p className="text-[10px] text-center text-stone-500">O caixa confirma e fecha a conta — nada fecha sozinho.</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        ) : (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 flex items-center gap-3">
-            <Banknote className="size-5 text-stone-500" />
-            <p className="text-xs text-stone-400">O bloco de pagamento aparece aqui assim que houver itens na conta.</p>
-          </div>
-        )}
+        <p className="text-xs text-stone-500 text-center">Pagamento no caixa ou com o garçom.</p>
       </div>
     </div>
   );
