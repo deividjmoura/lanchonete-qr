@@ -1,18 +1,18 @@
 import { motion } from "framer-motion";
-import { ChefHat, ConciergeBell, House, LogOut, Volume2, VolumeX, Wallet, LayoutGrid } from "lucide-react";
+import { ChefHat, House, LogOut, Volume2, VolumeX, Wallet, LayoutGrid } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { usePub } from "../store/usePub";
 import { ir } from "../router";
 import { cn } from "../utils/cn";
 import { LivePill, Logo } from "./ui";
 import { audioMudo, beepAlerta, beepDuplo, falar, setMudo } from "../lib/sonus";
-import { FRASES_GARCOM, GARCOM_TOKEN } from "../lib/data";
+import { FRASES_GARCOM } from "../lib/data";
 
-const NAV = [
-  { id: "cozinha", label: "Cozinha", icon: ChefHat, to: "/cozinha" },
-  { id: "garcom", label: "Garçom", icon: ConciergeBell, to: `/garcom/${GARCOM_TOKEN}` },
-  { id: "caixa", label: "Caixa", icon: Wallet, to: "/caixa" },
-  { id: "admin", label: "Admin", icon: LayoutGrid, to: "/admin" },
+/** Nav por papel: admin vê tudo (exceto link fixo de garçom — usa Admin → Garçons). */
+const NAV_ALL = [
+  { id: "cozinha", label: "Cozinha", icon: ChefHat, to: "/cozinha", roles: ["admin", "cozinha"] as const },
+  { id: "caixa", label: "Caixa", icon: Wallet, to: "/caixa", roles: ["admin", "caixa"] as const },
+  { id: "admin", label: "Admin", icon: LayoutGrid, to: "/admin", roles: ["admin"] as const },
 ];
 
 /* Anúncios por papel — reproduz o comportamento dos alertas de voz do projeto:
@@ -61,6 +61,9 @@ export function OpsShell({
   const somLigado = usePub((s) => s.somLigado);
   const toggleSom = usePub((s) => s.toggleSom);
   const logout = usePub((s) => s.logout);
+  const auth = usePub((s) => s.auth);
+  const role = auth?.role || null;
+  const nav = NAV_ALL.filter((n) => !role || (n.roles as readonly string[]).includes(role));
 
   useEffect(() => {
     setMudo(!somLigado);
@@ -89,7 +92,7 @@ export function OpsShell({
           <div className="flex-1" />
 
           <nav className="flex items-center gap-1 rounded-full bg-white/[0.05] border border-white/[0.08] p-1">
-            {NAV.map((n) => (
+            {nav.map((n) => (
               <button
                 key={n.id}
                 onClick={() => ir(n.to)}

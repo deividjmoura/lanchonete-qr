@@ -23,6 +23,7 @@ export default function Caixa() {
   useAgora(1000);
 
   const sessoes = usePub((s) => s.sessoes);
+  const lastError = usePub((s) => s.lastError);
   const hydrateCaixa = usePub((s) => s.hydrateCaixa);
   useEffect(() => {
     void hydrateCaixa();
@@ -50,7 +51,10 @@ export default function Caixa() {
   );
 
   return (
-    <OpsShell ativo="caixa" kicker="operação · caixa" titulo={<>Fecha <span className="text-gradient">a conta</span></>} extra={extras}>
+    <OpsShell ativo="caixa" kicker="operação · caixa" titulo={<>
+      {lastError && (
+        <p className="mb-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{lastError}</p>
+      )}Fecha <span className="text-gradient">a conta</span></>} extra={extras}>
       <div className="grid gap-5 lg:grid-cols-12">
         {/* -------- lista de comandas -------- */}
         <section className="lg:col-span-5 xl:col-span-4">

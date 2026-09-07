@@ -7,7 +7,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { Badge, Btn, LivePill, Logo, Secao } from "../components/ui";
 import { ir } from "../router";
-import { GARCOM_TOKEN, HERO_IMG } from "../lib/data";
+import { HERO_IMG } from "../lib/data";
 import { usePub, totalSessao } from "../store/usePub";
 import { BRL } from "../lib/utils";
 
@@ -69,9 +69,6 @@ export default function Landing() {
         <Logo />
         <div className="flex items-center gap-2.5">
           <Badge tone="lime" pulse>salão aberto</Badge>
-          <Btn size="sm" variant="glass" onClick={() => ir("/login")}>
-            Acesso equipe <ArrowUpRight className="size-3.5" />
-          </Btn>
         </div>
       </header>
 
@@ -105,10 +102,7 @@ export default function Landing() {
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Btn size="lg" disabled={!mesaDemo} onClick={() => mesaDemo && ir(`/mesa/${mesaDemo.token}`)}>
-                  <QrCode className="size-5" /> Sou cliente — abrir mesa
-                </Btn>
-                <Btn size="lg" variant="glass" onClick={() => ir("/login")}>
-                  Sou da equipe <ArrowRight className="size-4.5" />
+                  <QrCode className="size-5" /> Abrir cardápio da mesa
                 </Btn>
               </div>
             </motion.div>
@@ -251,14 +245,8 @@ export default function Landing() {
             </p>
           </div>
           <div className="flex items-center gap-2.5">
-            <Btn size="sm" variant="ghost" onClick={() => ir(`/garcom/${GARCOM_TOKEN}`)}>
-              <ConciergeBell className="size-3.5" /> Garçom
-            </Btn>
-            <Btn size="sm" variant="ghost" onClick={() => ir("/cozinha")}>
-              <ChefHat className="size-3.5" /> Cozinha
-            </Btn>
-            <Btn size="sm" variant="ghost" onClick={() => ir("/caixa")}>
-              <Receipt className="size-3.5" /> Caixa
+            <Btn size="sm" variant="ghost" onClick={() => ir("/login")}>
+              Acesso admin / equipe
             </Btn>
           </div>
         </div>

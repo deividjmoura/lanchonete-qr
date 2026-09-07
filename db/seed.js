@@ -123,6 +123,20 @@ async function garantirMesas(client) {
   return estabId;
 }
 
+
+async function garantirGarcons(client) {
+  const has = await tableExists(client, 'garcons');
+  if (!has) return { created: false, skipped: true };
+  const { rows } = await client.query('SELECT COUNT(*)::int AS n FROM garcons');
+  if (rows[0].n > 0) return { created: false, count: rows[0].n };
+  const { rows: ins } = await client.query(
+    `INSERT INTO garcons (nome, ativo) VALUES ('Garçom 1', true)
+     RETURNING id, nome, token`
+  );
+  console.log('🧑 Garçom seed criado:', ins[0].nome, '· token', ins[0].token);
+  return { created: true, count: 1, token: ins[0].token };
+}
+
 async function run() {
   const raw = JSON.parse(fs.readFileSync(DB_JSON, 'utf8'));
   const client = await pool.connect();
@@ -130,6 +144,7 @@ async function run() {
 
   try {
     const estabId = await garantirMesas(client);
+    await garantirGarcons(client);
     const catHasEstab = await columnExists(client, 'categorias', 'estabelecimento_id');
 
     const { rows: existentes } = await client.query('SELECT COUNT(*)::int AS n FROM categorias');

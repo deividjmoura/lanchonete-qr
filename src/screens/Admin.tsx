@@ -652,7 +652,12 @@ function Garcons() {
         {loading ? (
           <p className="text-sm text-stone-500 py-8 text-center">Carregando…</p>
         ) : lista.length === 0 ? (
-          <p className="text-sm text-stone-500 py-8 text-center">Nenhum garçom ainda — cadastre o primeiro.</p>
+          <div className="py-8 text-center space-y-2">
+            <p className="text-sm text-stone-400">Nenhum garçom cadastrado.</p>
+            <p className="text-xs text-stone-500 max-w-sm mx-auto">
+              Cadastre um garçom e abra o link dele no celular. Só quem entrega pelo link move o pedido para o caixa (status entregue + valor na sessão).
+            </p>
+          </div>
         ) : (
           <ul className="space-y-2">
             {lista.map((g) => (
