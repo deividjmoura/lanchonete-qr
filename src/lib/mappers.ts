@@ -98,6 +98,8 @@ export function mapCardapio(apiCats: any[]): { categorias: Categoria[]; produtos
         descricao: String(p.descricao || ""),
         preco: Number(p.preco) || 0,
         categoria: String(c.nome),
+        categoriaOrdem: c.ordem != null ? Number(c.ordem) : 0,
+        ordem: p.ordem != null ? Number(p.ordem) : 0,
         foto: fotoSrc(p.fotoUrl || p.foto_url || "") || FOTO_PLACEHOLDER,
         tipo,
         adicionais,

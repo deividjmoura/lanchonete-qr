@@ -63,6 +63,7 @@ function mapProdutoRow(p) {
     estoque: p.estoque != null ? Number(p.estoque) : null,
     estoqueMinimo: Number(p.estoque_minimo || 0),
     estoqueBaixo: Boolean(p.controla_estoque) && p.estoque != null && Number(p.estoque) <= Number(p.estoque_minimo || 0),
+    ordem: p.ordem != null ? Number(p.ordem) : 0,
   };
 }
 
@@ -72,8 +73,8 @@ async function getCardapioAdmin() {
   );
   const { rows: produtos } = await pool.query(
     `SELECT id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne,
-            controla_estoque, estoque, estoque_minimo
-     FROM produtos ORDER BY id`
+            controla_estoque, estoque, estoque_minimo, ordem
+     FROM produtos ORDER BY ordem ASC NULLS LAST, id ASC`
   );
   const { rows: adicionais } = await pool.query(
     'SELECT id, produto_id, nome, preco FROM adicionais ORDER BY id'

@@ -205,9 +205,13 @@ export default function Landing() {
             </p>
           </div>
           <div className="flex items-center gap-2.5">
-            <Btn size="sm" variant="ghost" onClick={() => ir("/login")}>
-              Acesso admin / equipe
-            </Btn>
+            <button
+              type="button"
+              onClick={() => ir("/login")}
+              className="text-[11px] text-stone-600 hover:text-stone-400 transition-colors cursor-pointer"
+            >
+              equipe
+            </button>
           </div>
         </div>
       </footer>

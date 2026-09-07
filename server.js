@@ -554,7 +554,9 @@ const server = http.createServer(async (req, res) => {
     
     if ((m = p.match(/^\/api\/admin\/categorias\/(\d+)$/)) && req.method === 'DELETE') {
       try {
-        return json(res, 200, await removerCategoria(Number(m[1])));
+        const out = await removerCategoria(Number(m[1]));
+        invalidarCardapio();
+        return json(res, 200, out);
       } catch (e) {
         if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
         throw e;

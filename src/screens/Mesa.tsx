@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Btn, Input, Logo, Modal, Qtd } from "../components/ui";
-import { ir } from "../router";
 import type { Opcao, Pedido, Produto } from "../lib/types";
 import { usePub, sessaoDaMesa, totalSessao } from "../store/usePub";
 import { FOTO_PLACEHOLDER, fotoSrc } from "../lib/mappers";
@@ -80,7 +79,7 @@ export default function Mesa({ token }: { token: string }) {
 
   const mesa = mesas.find((m) => m.token === token);
 
-  const [categoria, setCategoria] = useState("Lanches");
+  const [categoria, setCategoria] = useState("Tudo");
   const [busca, setBusca] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [produtoModal, setProdutoModal] = useState<Produto | null>(null);
@@ -98,23 +97,35 @@ export default function Mesa({ token }: { token: string }) {
   const totalCart = cart.reduce((a, c) => a + totalItem(c), 0);
   const qtdCart = cart.reduce((a, c) => a + c.qtd, 0);
 
-    const categorias = useMemo(() => {
+  const categorias = useMemo(() => {
     const ordered = [...categoriasStore].sort((a, b) => a.ordem - b.ordem).map((c) => c.nome);
     const presentes = new Set(produtos.filter((p) => p.ativo).map((p) => p.categoria));
     const list = ordered.filter((n) => presentes.has(n));
-    // categorias órfãs (produto sem cat no store)
     for (const n of presentes) if (!list.includes(n)) list.push(n);
-    return list.length ? list : ["Lanches"];
+    return ["Tudo", ...(list.length ? list : [])];
   }, [produtos, categoriasStore]);
 
   const lista = useMemo(() => {
     const b = busca.trim().toLowerCase();
-    return produtos.filter(
-      (p) =>
-        p.ativo &&
-        (b ? p.nome.toLowerCase().includes(b) || p.descricao.toLowerCase().includes(b) : p.categoria === categoria)
+    const ordemCat = new Map(
+      [...categoriasStore].sort((a, b) => a.ordem - b.ordem).map((c, i) => [c.nome, c.ordem ?? i])
     );
-  }, [produtos, categoria, busca]);
+    const filtrados = produtos.filter((p) => {
+      if (!p.ativo) return false;
+      if (b) return p.nome.toLowerCase().includes(b) || p.descricao.toLowerCase().includes(b);
+      if (categoria === "Tudo") return true;
+      return p.categoria === categoria;
+    });
+    return filtrados.sort((a, b) => {
+      const ca = ordemCat.get(a.categoria) ?? a.categoriaOrdem ?? 999;
+      const cb = ordemCat.get(b.categoria) ?? b.categoriaOrdem ?? 999;
+      if (ca !== cb) return ca - cb;
+      const oa = a.ordem ?? a.id;
+      const ob = b.ordem ?? b.id;
+      if (oa !== ob) return oa - ob;
+      return a.id - b.id;
+    });
+  }, [produtos, categoria, busca, categoriasStore]);
 
 
     if (boot || (loading && !mesa)) {
@@ -142,15 +153,9 @@ export default function Mesa({ token }: { token: string }) {
             token: {token || "(vazio)"}
           </p>
           <p className="text-stone-500 mt-3 text-xs max-w-sm mx-auto">
-            Use o link/QR gerado no <b>Admin → Mesas</b> (UUID do banco), não o link demo da home.
+            Use o QR Code da mesa (link com o token cadastrado no sistema).
           </p>
-          <button
-            type="button"
-            onClick={() => ir("/")}
-            className="mt-8 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-coal-950 font-bold text-sm h-12 px-8 shadow-[0_0_40px_-8px_rgba(251,146,60,0.7)] cursor-pointer"
-          >
-            Voltar ao início
-          </button>
+          <p className="mt-8 text-xs text-stone-500">Peça o QR Code impresso na mesa ao estabelecimento.</p>
         </div>
       </div>
     );
@@ -479,12 +484,12 @@ export default function Mesa({ token }: { token: string }) {
             {/* título da seção */}
             <div className="mt-5 mb-4 flex items-center gap-2">
               <Flame className="size-4 text-amber-400" />
-              <h2 className="font-display text-3xl text-white">{busca ? `Resultados p/ “${busca}”` : categoria}</h2>
+              <h2 className="font-display text-3xl text-white">{busca ? `Resultados p/ “${busca}”` : categoria === "Tudo" ? "Cardápio" : categoria}</h2>
               <span className="text-xs font-mono text-stone-500 mt-1">{lista.length} itens</span>
             </div>
 
             {/* grid de produtos */}
-            <motion.div layout className="grid sm:grid-cols-2 gap-3.5">
+            <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pb-28 lg:pb-10">
               <AnimatePresence mode="popLayout">
                 {lista.map((p) => {
                   const esgotado = p.estoque !== null && p.estoque <= 0;

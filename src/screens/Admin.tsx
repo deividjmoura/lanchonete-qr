@@ -335,11 +335,11 @@ function Cardapio() {
           return (
             <li key={c.id} className="rounded-2xl border border-white/[0.08] bg-black/30 overflow-hidden">
               {/* cabeçalho da categoria — ordem + expandir */}
-              <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2.5">
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2.5">
                 <button
                   type="button"
                   onClick={() => toggleCat(c.id)}
-                  className="btn-press flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer rounded-xl hover:bg-white/[0.04] px-1.5 py-1 -ml-1"
+                  className="btn-press flex items-center gap-2 flex-1 min-w-[10rem] text-left cursor-pointer rounded-xl hover:bg-white/[0.04] px-1.5 py-1 -ml-1"
                   aria-expanded={open}
                 >
                   <span className="grid place-items-center size-7 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 shrink-0">
@@ -845,44 +845,80 @@ function Garcons() {
 }
 
 /* ================= MESAS ================= */
+function mesaClienteUrl(token: string) {
+  if (typeof window === "undefined") return `#/mesa/${token}`;
+  const base = `${window.location.origin}${window.location.pathname || "/"}`.replace(/\/$/, "");
+  return `${base}#/mesa/${token}`;
+}
+
 function Mesas() {
   const mesas = usePub((s) => s.mesas);
   const sessoes = usePub((s) => s.sessoes);
   const pedidos = usePub((s) => s.pedidos);
   const fecharSessao = usePub((s) => s.fecharSessao);
+  const [copiado, setCopiado] = useState<number | null>(null);
+
+  const copiarLink = async (token: string, id: number) => {
+    const url = mesaClienteUrl(token);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(id);
+      setTimeout(() => setCopiado((c) => (c === id ? null : c)), 2000);
+    } catch {
+      prompt("Copie o link da mesa:", url);
+    }
+  };
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {mesas.map((m) => {
-        const s = sessoes.find((x) => x.mesaId === m.id && x.status === "aberta");
-        const consumo = s ? totalSessao(pedidos, s.id) : 0;
-        return (
-          <div key={m.id} className={cn("relative glass rounded-3xl p-5 text-center overflow-hidden", s && "ring-brand")}>
-            <div className="flex items-center justify-between">
-              <Badge tone={s ? "amber" : "zinc"} pulse={!!s}>{s ? "ocupada" : "livre"}</Badge>
-              <span className="font-mono text-[10px] text-stone-600">#{String(m.id).padStart(2, "0")}</span>
-            </div>
-            <p className="font-display text-5xl text-white mt-3 leading-none">{m.numero}</p>
-            <p className="text-[10px] uppercase tracking-[0.24em] font-bold text-stone-500 mb-4">mesa</p>
-            <div className="mx-auto w-fit rounded-2xl bg-white p-2.5 shadow-xl">
-              <QRCodeSVG value={`#/mesa/${m.token}`} size={92} fgColor="#131009" level="M" />
-            </div>
-            {s ? (
-              <div className="mt-4 space-y-2">
-                <p className="font-mono text-sm text-amber-300">{BRL(consumo)} consumo</p>
-                <div className="flex gap-1.5">
-                  <Btn size="sm" variant="glass" full onClick={() => ir(`/mesa/${m.token}`)}>Abrir</Btn>
-                  <Btn size="sm" variant="danger" full onClick={() => fecharSessao(s.id, "dinheiro")}>Liberar</Btn>
-                </div>
+    <div>
+      <p className="text-sm text-stone-400 mb-4 max-w-xl">
+        Cada mesa tem um link/QR fixo. Imprima o QR e cole na mesa — o cliente escaneia e já entra no cardápio com o número certo. Sem menu de equipe no celular do cliente.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {mesas.map((m) => {
+          const s = sessoes.find((x) => x.mesaId === m.id && x.status === "aberta");
+          const consumo = s ? totalSessao(pedidos, s.id) : 0;
+          const url = mesaClienteUrl(m.token);
+          return (
+            <div
+              key={m.id}
+              className={cn(
+                "relative glass rounded-3xl p-4 sm:p-5 text-center overflow-hidden",
+                s && "ring-brand"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <Badge tone={s ? "amber" : "zinc"} pulse={!!s}>
+                  {s ? "ocupada" : "livre"}
+                </Badge>
+                <span className="font-mono text-[10px] text-stone-600">#{String(m.numero).padStart(2, "0")}</span>
               </div>
-            ) : (
-              <Btn size="sm" variant="ghost" full className="mt-4" onClick={() => ir(`/mesa/${m.token}`)}>
-                Simular cliente
-              </Btn>
-            )}
-          </div>
-        );
-      })}
+              <p className="font-display text-5xl text-white mt-3 leading-none">{m.numero}</p>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-stone-500 mt-1">{m.nome}</p>
+
+              <div className="mt-4 mx-auto w-fit rounded-2xl bg-white p-2.5">
+                <QRCodeSVG value={url} size={108} fgColor="#131009" level="M" includeMargin={false} />
+              </div>
+
+              <p className="mt-3 font-mono text-[10px] text-stone-500 break-all leading-snug px-1">{url}</p>
+
+              <div className="mt-3 flex flex-col gap-1.5">
+                <Btn size="sm" full onClick={() => void copiarLink(m.token, m.id)}>
+                  <Copy className="size-3.5" /> {copiado === m.id ? "Copiado!" : "Copiar link da mesa"}
+                </Btn>
+                {s ? (
+                  <>
+                    <p className="font-mono text-sm text-amber-300 py-1">{BRL(consumo)} consumo</p>
+                    <Btn size="sm" variant="danger" full onClick={() => fecharSessao(s.id, "dinheiro")}>
+                      Liberar mesa
+                    </Btn>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

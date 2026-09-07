@@ -9,14 +9,14 @@ let cacheAt = 0;
 
 async function carregarCardapio() {
   const { rows: categorias } = await pool.query(
-    'SELECT id, nome, ordem FROM categorias ORDER BY ordem'
+    'SELECT id, nome, ordem FROM categorias ORDER BY ordem ASC, id ASC'
   );
   const { rows: produtos } = await pool.query(
-    `SELECT id, categoria_id, nome, descricao, preco, foto_url, pede_ponto_carne
+    `SELECT id, categoria_id, nome, descricao, preco, foto_url, pede_ponto_carne, ordem
      FROM produtos
      WHERE disponivel = TRUE
        AND (controla_estoque = false OR estoque IS NULL OR estoque > 0)
-     ORDER BY id`
+     ORDER BY ordem ASC NULLS LAST, id ASC`
   );
   const { rows: adicionais } = await pool.query(
     'SELECT id, produto_id, nome, preco FROM adicionais ORDER BY id'
@@ -28,6 +28,7 @@ async function carregarCardapio() {
   return categorias.map((cat) => ({
     id: cat.id,
     nome: cat.nome,
+    ordem: cat.ordem != null ? Number(cat.ordem) : 0,
     produtos: produtos
       .filter((p) => p.categoria_id === cat.id)
       .map((p) => ({
@@ -37,6 +38,7 @@ async function carregarCardapio() {
         preco: Number(p.preco),
         fotoUrl: p.foto_url,
         pedePontoCarne: p.pede_ponto_carne,
+        ordem: p.ordem != null ? Number(p.ordem) : 0,
         adicionais: adicionais
           .filter((a) => a.produto_id === p.id)
           .map((a) => ({ id: a.id, nome: a.nome, preco: Number(a.preco) })),

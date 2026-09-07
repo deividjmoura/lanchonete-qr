@@ -28,6 +28,10 @@ export interface Produto {
   descricao: string;
   preco: number;
   categoria: string;
+  /** ordem da categoria no cardápio (admin) */
+  categoriaOrdem?: number;
+  /** ordem do item dentro da categoria */
+  ordem?: number;
   foto: string;
   tipo: TipoProduto;
   adicionais: Opcao[]; // multi-seleção
