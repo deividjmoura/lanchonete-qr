@@ -84,8 +84,15 @@ export interface Sessao {
   fechadaEm: number | null;
   pagamentos: Pagamento[];
   pixAvisos: number;
-  desconto: number; // R$
+  desconto: number; // R$ (ajuste local até fechar — backend aplica no close)
   taxa: number; // R$
+  /** totais vindos de GET /api/caixa/sessoes */
+  valorTotal?: number;
+  valorPago?: number;
+  valorRestante?: number;
+  pedidosPendentes?: number;
+  podeFechar?: boolean;
+  clienteNome?: string | null;
 }
 
 export interface Mesa {

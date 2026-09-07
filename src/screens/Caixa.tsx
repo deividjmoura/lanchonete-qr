@@ -10,7 +10,7 @@ import { Badge, Btn, LivePill } from "../components/ui";
 import { ir, useAgora } from "../router";
 import { PIX_CONFIG } from "../lib/data";
 import type { FormaPagamento, Sessao } from "../lib/types";
-import { FORMAS, pagoSessao, totalSessao, usePub } from "../store/usePub";
+import { FORMAS, consumoSessao, pagoSessao, usePub } from "../store/usePub";
 import { BRL, elapsed, montarPixEMV } from "../lib/utils";
 import { cn } from "../utils/cn";
 
@@ -36,10 +36,11 @@ export default function Caixa() {
   const abertas = sessoes.filter((s) => s.status === "aberta");
   const selecionada = abertas.find((s) => s.id === selId) || abertas[0] || null;
 
-  const totalSalao = abertas.reduce(
-    (a, s) => a + totalSessao(pedidos, s.id) - s.desconto + s.taxa - pagoSessao(s),
-    0
-  );
+  const totalSalao = abertas.reduce((a, s) => {
+    const bruto = consumoSessao(s, pedidos) - s.desconto + s.taxa;
+    const pago = s.valorPago != null ? s.valorPago : pagoSessao(s);
+    return a + Math.max(0, bruto - pago);
+  }, 0);
 
   const extras = (
     <div className="flex items-center gap-2">
@@ -70,8 +71,9 @@ export default function Caixa() {
                 </motion.div>
               )}
               {abertas.map((s) => {
-                const consumo = totalSessao(pedidos, s.id) - s.desconto + s.taxa;
-                const pago = pagoSessao(s);
+                const consumoBruto = consumoSessao(s, pedidos);
+                const consumo = consumoBruto - s.desconto + s.taxa;
+                const pago = s.valorPago != null ? s.valorPago : pagoSessao(s);
                 const pct = consumo > 0 ? Math.min(100, (pago / consumo) * 100) : 0;
                 const ativo = selecionada?.id === s.id;
                 return (
@@ -162,10 +164,11 @@ function DetalheCaixa({ sessao }: { sessao: Sessao }) {
   const setTaxa = usePub((s) => s.setTaxa);
   const fecharSessao = usePub((s) => s.fecharSessao);
 
-  const consumo = totalSessao(usePub((s) => s.pedidos), sessao.id);
-  const total = consumo - sessao.desconto + sessao.taxa;
-  const pago = pagoSessao(sessao);
-  const restante = Math.max(0, total - pago);
+  const allPedidos = usePub((s) => s.pedidos);
+  const consumo = consumoSessao(sessao, allPedidos);
+  const total = Math.max(0, consumo - sessao.desconto + sessao.taxa);
+  const pago = sessao.valorPago != null ? Number(sessao.valorPago) : pagoSessao(sessao);
+  const restante = Math.max(0, Math.round((total - pago) * 100) / 100);
 
   const [pessoas, setPessoas] = useState(2);
   const [valor, setValor] = useState("");
@@ -215,6 +218,9 @@ function DetalheCaixa({ sessao }: { sessao: Sessao }) {
           <div>
             <p className="text-[10px] uppercase tracking-[0.28em] font-bold text-amber-300">comanda #{sessao.id}</p>
             <h2 className="font-display text-5xl text-white leading-none mt-1">{sessao.mesaNome}</h2>
+            {sessao.clienteNome && (
+              <p className="text-xs text-amber-200/90 mt-1 font-semibold">{sessao.clienteNome}</p>
+            )}
           </div>
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-widest font-bold text-stone-500">em aberto</p>
@@ -383,8 +389,19 @@ function DetalheCaixa({ sessao }: { sessao: Sessao }) {
           </div>
 
           <div className="mt-4">
-            {!fechando ? (
-              <Btn full size="lg" variant="lime" onClick={() => setFechando(true)} disabled={total <= 0}>
+            {(sessao.pedidosPendentes != null && sessao.pedidosPendentes > 0) && (
+            <p className="mb-2 text-center text-[11px] text-amber-300/90">
+              {sessao.pedidosPendentes} pedido(s) ainda na cozinha/garçom — só fecha quando tudo estiver entregue.
+            </p>
+          )}
+          {!fechando ? (
+              <Btn
+                full
+                size="lg"
+                variant="lime"
+                onClick={() => setFechando(true)}
+                disabled={total <= 0 || sessao.podeFechar === false || (sessao.pedidosPendentes != null && sessao.pedidosPendentes > 0)}
+              >
                 Fechar conta {restante > 0.004 ? `· quita ${BRL(restante)}` : "· já quitada"}
               </Btn>
             ) : (

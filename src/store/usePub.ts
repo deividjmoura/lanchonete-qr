@@ -108,6 +108,9 @@ function tokenByPedido(get: () => PubState, pedidoId: number): string | null {
   return mesaToken(get, p.mesaId);
 }
 
+/** desconto/taxa só existem no body do fechar — preservamos entre hydrates */
+const ajustesCaixaLocais = new Map<number, { desconto: number; taxa: number }>();
+
 export const usePub = create<PubState>((set, get) => ({
   mesas: [],
   produtos: [],
@@ -216,7 +219,16 @@ export const usePub = create<PubState>((set, get) => ({
   hydrateCaixa: async () => {
     try {
       const rows = await api.caixaSessoes();
-      const { sessoes, pedidos } = mapCaixaSessoes(rows);
+      const { sessoes: raw, pedidos } = mapCaixaSessoes(rows);
+      const idsVivos = new Set(raw.map((s) => s.id));
+      for (const id of [...ajustesCaixaLocais.keys()]) {
+        if (!idsVivos.has(id)) ajustesCaixaLocais.delete(id);
+      }
+      const sessoes = raw.map((s) => {
+        const aj = ajustesCaixaLocais.get(s.id);
+        if (!aj) return s;
+        return { ...s, desconto: aj.desconto, taxa: aj.taxa };
+      });
       set({ sessoes, pedidos, lastError: null });
     } catch (e: any) {
       set({ lastError: e.message || "Falha ao carregar caixa" });
@@ -360,13 +372,19 @@ export const usePub = create<PubState>((set, get) => ({
   },
 
   setDesconto: (sessaoId, valor) => {
+    const v = Math.max(0, Number(valor) || 0);
+    const prev = ajustesCaixaLocais.get(sessaoId) || { desconto: 0, taxa: 0 };
+    ajustesCaixaLocais.set(sessaoId, { ...prev, desconto: v });
     set({
-      sessoes: get().sessoes.map((s) => (s.id === sessaoId ? { ...s, desconto: Math.max(0, valor) } : s)),
+      sessoes: get().sessoes.map((s) => (s.id === sessaoId ? { ...s, desconto: v } : s)),
     });
   },
   setTaxa: (sessaoId, valor) => {
+    const v = Math.max(0, Number(valor) || 0);
+    const prev = ajustesCaixaLocais.get(sessaoId) || { desconto: 0, taxa: 0 };
+    ajustesCaixaLocais.set(sessaoId, { ...prev, taxa: v });
     set({
-      sessoes: get().sessoes.map((s) => (s.id === sessaoId ? { ...s, taxa: Math.max(0, valor) } : s)),
+      sessoes: get().sessoes.map((s) => (s.id === sessaoId ? { ...s, taxa: v } : s)),
     });
   },
 
@@ -374,16 +392,18 @@ export const usePub = create<PubState>((set, get) => ({
     void (async () => {
       try {
         const s = get().sessoes.find((x) => x.id === sessaoId);
+        const aj = ajustesCaixaLocais.get(sessaoId);
         await api.fecharSessao(sessaoId, {
           formaPagamento: formaToApi(forma),
-          desconto: s?.desconto || 0,
-          taxaServico: s?.taxa || 0,
+          desconto: aj?.desconto ?? s?.desconto ?? 0,
+          taxaServico: aj?.taxa ?? s?.taxa ?? 0,
         });
-        emit(get, set, "sessao-fechada", `Sessão #${sessaoId} fechada`, s?.mesaNome);
+        ajustesCaixaLocais.delete(sessaoId);
+        emit(get, set, "sessao-fechada", `Sessão #${sessaoId} fechada`);
         await get().hydrateCaixa();
         await get().hydrateMesas().catch(() => null);
       } catch (e: any) {
-        alert(e.message || "Erro ao fechar conta");
+        alert(e.message || "Erro ao fechar sessão");
       }
     })();
   },
@@ -601,6 +621,12 @@ export const usePub = create<PubState>((set, get) => ({
 /* ---------- seletores ---------- */
 export const totalSessao = (pedidos: Pedido[], sessaoId: number) =>
   pedidos.filter((p) => p.sessaoId === sessaoId && p.status === "entregue").reduce((a, p) => a + p.total, 0);
+
+/** Prefere valorTotal da API do caixa quando disponível */
+export const consumoSessao = (sessao: Sessao, pedidos: Pedido[]) => {
+  if (sessao.valorTotal != null && sessao.valorTotal >= 0) return sessao.valorTotal;
+  return totalSessao(pedidos, sessao.id);
+};
 
 export const pagoSessao = (s: Sessao) => s.pagamentos.reduce((a, p) => a + p.valor, 0);
 

@@ -58,6 +58,15 @@ export function statusToApi(s: PedidoStatus): string {
   }
 }
 
+/** forma do backend → UI */
+export function formaFromApi(raw: string | undefined | null): FormaPagamento {
+  const f = String(raw || "pix").toLowerCase();
+  if (f === "cartao_credito" || f === "credito") return "credito";
+  if (f === "cartao_debito" || f === "debito") return "debito";
+  if (f === "dinheiro") return "dinheiro";
+  return "pix";
+}
+
 export function mapCardapio(apiCats: any[]): { categorias: Categoria[]; produtos: Produto[] } {
   const categorias: Categoria[] = (apiCats || []).map((c, i) => ({
     id: Number(c.id),
@@ -216,52 +225,80 @@ export function mapCaixaSessoes(rows: any[]): { sessoes: Sessao[]; pedidos: Pedi
   const sessoes: Sessao[] = [];
   const pedidos: Pedido[] = [];
   for (const s of rows || []) {
-    const mesaNome = s.mesa_numero != null ? `Mesa ${String(s.mesa_numero).padStart(2, "0")}` : String(s.mesaNome || "Mesa");
-    const mesaId = Number(s.mesa_id || s.mesaId || 0);
+    const numero = s.mesa != null ? s.mesa : s.mesa_numero != null ? s.mesa_numero : null;
+    const mesaNome =
+      numero != null
+        ? `Mesa ${String(numero).padStart(2, "0")}`
+        : String(s.mesaNome || s.mesa_nome || "Mesa");
+    const mesaId = Number(s.mesaId || s.mesa_id || numero || 0);
+
+    const pagamentos = (s.pagamentos || []).map((p: any) => ({
+      id: Number(p.id),
+      valor: Number(p.valor),
+      forma: formaFromApi(p.formaPagamento || p.forma_pagamento || p.forma),
+      criadoEm: p.criadoEm || p.criado_em ? new Date(p.criadoEm || p.criado_em).getTime() : Date.now(),
+    }));
+
+    const valorTotal = Number(s.valorTotal ?? s.valor_total ?? 0);
+    const valorPagoApi = Number(s.valorPago ?? s.valor_pago ?? pagamentos.reduce((a: number, p: any) => a + p.valor, 0));
+
     sessoes.push({
       id: Number(s.id),
       mesaId,
       mesaNome,
       status: "aberta",
-      abertaEm: s.aberta_em || s.abertaEm ? new Date(s.aberta_em || s.abertaEm).getTime() : Date.now(),
+      abertaEm: s.abertaEm || s.aberta_em ? new Date(s.abertaEm || s.aberta_em).getTime() : Date.now(),
       fechadaEm: null,
-      pagamentos: (s.pagamentos || []).map((p: any) => ({
-        id: Number(p.id),
-        valor: Number(p.valor),
-        forma: (p.forma_pagamento || p.forma || "pix") as FormaPagamento,
-        criadoEm: p.criado_em || p.criadoEm ? new Date(p.criado_em || p.criadoEm).getTime() : Date.now(),
-      })),
+      pagamentos,
       pixAvisos: Array.isArray(s.pixAvisos) ? s.pixAvisos.length : Number(s.pix_avisos || 0),
       desconto: Number(s.desconto || 0),
-      taxa: Number(s.taxa || 0),
+      taxa: Number(s.taxa ?? s.taxa_servico ?? 0),
+      valorTotal,
+      valorPago: valorPagoApi,
+      valorRestante: Number(
+        s.valorRestante ?? s.valor_restante ?? Math.max(0, valorTotal - valorPagoApi)
+      ),
+      pedidosPendentes: Number(s.pedidosPendentes ?? s.pedidos_pendentes ?? 0),
+      podeFechar: s.podeFechar != null ? Boolean(s.podeFechar) : Number(s.pedidosPendentes || 0) === 0,
+      clienteNome: s.clienteNome || s.cliente_nome || null,
     });
-    for (const p of s.pedidos || []) {
-      const itens: ItemPedido[] = (p.itens || []).map((it: any, idx: number) => ({
-        id: String(it.id || idx),
-        produtoId: Number(it.produto_id || 0),
-        nome: String(it.nome || "Item"),
-        qtd: Number(it.quantidade || 1),
-        precoBase: Number(it.preco_unitario || 0),
-        adicionais: (it.adicionais || []).map((a: any) => ({
-          id: String(a.id || 0),
+
+    /* API devolve pedidosEntregues (já só entregues) — fallback s.pedidos */
+    const listaPedidos = s.pedidosEntregues || s.pedidos || [];
+    for (const p of listaPedidos) {
+      const itens: ItemPedido[] = (p.itens || []).map((it: any, idx: number) => {
+        const adds = (it.adicionais || []).map((a: any, i: number) => ({
+          id: String(a.id || i),
           nome: String(a.nome || ""),
-          preco: Number(a.preco_unitario || a.preco || 0),
-        })),
-        removidos: [],
-        escolha: null,
-        obs: "",
-        totalUnit: Number(it.preco_unitario || 0),
-      }));
+          preco: Number(a.preco_unitario ?? a.preco ?? 0),
+        }));
+        const qtd = Number(it.quantidade || it.qtd || 1);
+        const precoBase = Number(it.preco_unitario ?? it.precoUnitario ?? it.preco ?? 0);
+        const sub = Number(it.subtotal ?? it.totalLinha ?? qtd * (precoBase + adds.reduce((x: number, a: any) => x + a.preco, 0)));
+        return {
+          id: String(it.id || idx),
+          produtoId: Number(it.produto_id || it.produtoId || 0),
+          nome: String(it.nome || "Item"),
+          qtd,
+          precoBase,
+          adicionais: adds,
+          removidos: it.remocoes || it.removidos || [],
+          escolha: null,
+          obs: String(it.observacao || it.obs || ""),
+          totalUnit: qtd > 0 ? sub / qtd : precoBase,
+        };
+      });
+      const total = Number(p.total ?? p.totalPedido ?? itens.reduce((a, i) => a + i.totalUnit * i.qtd, 0));
       pedidos.push({
         id: Number(p.id),
         sessaoId: Number(s.id),
         mesaId,
         mesaNome,
-        clienteNome: String(p.cliente_nome || p.clienteNome || ""),
+        clienteNome: String(p.clienteNome || p.cliente_nome || s.clienteNome || ""),
         itens,
-        status: statusToUi(String(p.status)),
-        criadoEm: p.criado_em ? new Date(p.criado_em).getTime() : Date.now(),
-        total: Number(p.totalPedido || p.total || 0),
+        status: "entregue",
+        criadoEm: p.criadoEm || p.criado_em ? new Date(p.criadoEm || p.criado_em).getTime() : Date.now(),
+        total,
       });
     }
   }
