@@ -18,7 +18,7 @@ import {
   UtensilsCrossed,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Btn, Input, Logo, Modal, Qtd } from "../components/ui";
 import type { Opcao, Pedido, Produto } from "../lib/types";
 import { usePub, sessaoDaMesa, totalSessao } from "../store/usePub";
@@ -81,6 +81,8 @@ export default function Mesa({ token }: { token: string }) {
 
   const [categoria, setCategoria] = useState("Tudo");
   const [busca, setBusca] = useState("");
+  const [catsHidden, setCatsHidden] = useState(false);
+  const listaTopRef = useRef<HTMLDivElement>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [produtoModal, setProdutoModal] = useState<Produto | null>(null);
   const [fotoExpandida, setFotoExpandida] = useState<{ src: string; nome: string } | null>(null);
@@ -91,6 +93,22 @@ export default function Mesa({ token }: { token: string }) {
   useEffect(() => {
     sessionStorage.setItem(`pub-nome-${token}`, nome);
   }, [nome, token]);
+
+  /* categorias somem no scroll — só o search fica sticky */
+  useEffect(() => {
+    const onScroll = () => {
+      setCatsHidden(window.scrollY > 56);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const irParaLista = () => {
+    requestAnimationFrame(() => {
+      listaTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   const sessao = mesa ? sessaoDaMesa(sessoes, mesa.id) : undefined;
   const pedidosMesa = sessao ? pedidos.filter((p) => p.sessaoId === sessao.id).sort((a, b) => b.criadoEm - a.criadoEm) : [];
@@ -127,6 +145,23 @@ export default function Mesa({ token }: { token: string }) {
       return a.id - b.id;
     });
   }, [produtos, categoria, busca, categoriasStore]);
+
+  /** Em "Tudo" (sem busca): produtos agrupados por categoria na ordem do admin */
+  const gruposCardapio = useMemo(() => {
+    if (busca.trim() || categoria !== "Tudo") return null;
+    const ordem = new Map(
+      [...categoriasStore].sort((a, b) => a.ordem - b.ordem).map((c, i) => [c.nome, c.ordem ?? i])
+    );
+    const map = new Map<string, typeof lista>();
+    for (const p of lista) {
+      const k = p.categoria || "Outros";
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(p);
+    }
+    return [...map.entries()]
+      .sort((a, b) => (ordem.get(a[0]) ?? 999) - (ordem.get(b[0]) ?? 999))
+      .map(([nome, itens]) => ({ nome, itens }));
+  }, [lista, categoria, busca, categoriasStore]);
 
 
     if (boot || (loading && !mesa)) {
@@ -442,29 +477,22 @@ export default function Mesa({ token }: { token: string }) {
               </div>
             </motion.div>
 
-            {/* busca + categorias */}
-            <div className="sticky top-14 sm:top-16 z-40 -mx-3 sm:-mx-6 px-3 sm:px-6 py-3 bg-coal-950/85 backdrop-blur-xl">
-              <div className="relative mb-3">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-stone-500" />
-                <input
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar no cardápio…"
-                  className="w-full h-11 rounded-full bg-white/[0.05] border border-white/10 pl-11 pr-10 text-sm text-white placeholder:text-stone-500 focus:outline-none focus:border-amber-400/50 transition"
-                />
-                {busca && (
-                  <button onClick={() => setBusca("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-white cursor-pointer">
-                    <X className="size-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+            {/* categorias — somem ao scroll */}
+            <div
+              className={cn(
+                "overflow-hidden transition-all duration-300 ease-out",
+                catsHidden ? "max-h-0 opacity-0 mb-0 pointer-events-none" : "max-h-24 opacity-100 mb-2"
+              )}
+            >
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
                 {categorias.map((c) => (
                   <button
                     key={c}
+                    type="button"
                     onClick={() => {
                       setCategoria(c);
                       setBusca("");
+                      irParaLista();
                     }}
                     className={cn(
                       "btn-press relative shrink-0 h-10 px-4.5 rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors border",
@@ -474,7 +502,11 @@ export default function Mesa({ token }: { token: string }) {
                     )}
                   >
                     {categoria === c && !busca && (
-                      <motion.span layoutId="cat-pill" className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-500" transition={{ type: "spring", stiffness: 420, damping: 32 }} />
+                      <motion.span
+                        layoutId="cat-pill"
+                        className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-500"
+                        transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                      />
                     )}
                     <span className="relative z-10">{c}</span>
                   </button>
@@ -482,17 +514,56 @@ export default function Mesa({ token }: { token: string }) {
               </div>
             </div>
 
-            {/* título da seção */}
-            <div className="mt-5 mb-4 flex items-center gap-2">
-              <Flame className="size-4 text-amber-400" />
-              <h2 className="font-display text-3xl text-white">{busca ? `Resultados p/ “${busca}”` : categoria === "Tudo" ? "Cardápio" : categoria}</h2>
-              <span className="text-xs font-mono text-stone-500 mt-1">{lista.length} itens</span>
+            {/* search sticky — limpo, sem fundo pesado */}
+            <div className="sticky top-14 sm:top-16 z-40 py-2">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-stone-500 pointer-events-none" />
+                <input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar no cardápio…"
+                  className="w-full h-11 rounded-full bg-transparent border border-white/15 pl-11 pr-10 text-sm text-white placeholder:text-stone-500 focus:outline-none focus:border-amber-400/55 transition"
+                />
+                {busca && (
+                  <button
+                    type="button"
+                    onClick={() => setBusca("")}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-white cursor-pointer"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* grid de produtos */}
-            <motion.div layout className="grid grid-cols-2 gap-2.5 sm:gap-3.5 pb-28 lg:pb-10 w-full min-w-0">
-              <AnimatePresence mode="popLayout">
-                {lista.map((p) => {
+            {/* âncora: itens começam logo abaixo do search (scroll-margin do sticky) */}
+            <div ref={listaTopRef} className="scroll-mt-[7.25rem] sm:scroll-mt-[7.75rem]" />
+
+            {/* título da seção */}
+            <div className="mt-3 mb-3 flex items-center gap-2 min-w-0">
+              <Flame className="size-4 text-amber-400 shrink-0" />
+              <h2 className="font-display text-2xl sm:text-3xl text-white truncate">
+                {busca
+                  ? `Resultados p/ “${busca}”`
+                  : categoria === "Tudo"
+                    ? "Cardápio"
+                    : categoria}
+              </h2>
+              <span className="text-xs font-mono text-stone-500 shrink-0">{lista.length} itens</span>
+            </div>
+
+            {gruposCardapio ? (
+              <div className="space-y-8 pb-28 lg:pb-10 w-full min-w-0">
+                {gruposCardapio.map((g) => (
+                  <section key={g.nome}>
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="h-px flex-1 bg-gradient-to-r from-amber-400/40 to-transparent" />
+                      <h3 className="font-display text-xl sm:text-2xl text-amber-200/95 tracking-wide">{g.nome}</h3>
+                      <span className="h-px flex-1 bg-gradient-to-l from-amber-400/40 to-transparent" />
+                    </div>
+                    <motion.div layout className="grid grid-cols-2 gap-2.5 sm:gap-3.5 w-full min-w-0">
+                      <AnimatePresence mode="popLayout">
+                        {g.itens.map((p) => {
                   const esgotado = p.estoque !== null && p.estoque <= 0;
                   return (
                     <motion.article
@@ -573,9 +644,100 @@ export default function Mesa({ token }: { token: string }) {
                       </div>
                     </motion.article>
                   );
-                })}
-              </AnimatePresence>
-            </motion.div>
+                        })}
+                      </AnimatePresence>
+                    </motion.div>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <motion.div layout className="grid grid-cols-2 gap-2.5 sm:gap-3.5 pb-28 lg:pb-10 w-full min-w-0">
+                <AnimatePresence mode="popLayout">
+                  {lista.map((p) => {
+                  const esgotado = p.estoque !== null && p.estoque <= 0;
+                  return (
+                    <motion.article
+                      key={p.id}
+                      layout
+                      initial={{ opacity: 0, y: 24 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                      className={cn(
+                        "card-img-zoom group relative glass rounded-3xl overflow-hidden",
+                        esgotado && "opacity-60 grayscale-[0.6]"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFotoExpandida({
+                            src: fotoSrc(p.foto) || FOTO_PLACEHOLDER,
+                            nome: p.nome,
+                          })
+                        }
+                        className="relative block w-full aspect-[4/3] sm:aspect-[5/4] overflow-hidden cursor-zoom-in text-left"
+                        aria-label={`Ver foto de ${p.nome}`}
+                      >
+                        <img
+                          src={fotoSrc(p.foto) || FOTO_PLACEHOLDER}
+                          alt={p.nome}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER;
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-coal-950/90 via-transparent to-transparent pointer-events-none" />
+                        <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[90%] pointer-events-none">
+                          {p.vendidos > 90 && (
+                            <Badge tone="amber">
+                              <Sparkles className="size-3" /> hit
+                            </Badge>
+                          )}
+                          {p.estoque !== null && p.estoque > 0 && p.estoque <= 8 && (
+                            <Badge tone="rose" pulse>
+                              {p.estoque} un
+                            </Badge>
+                          )}
+                          {esgotado && <Badge tone="zinc">esgotado</Badge>}
+                        </div>
+                        <p className="absolute bottom-2 left-2.5 right-2 font-mono text-sm sm:text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] pointer-events-none">
+                          {BRL(p.preco)}
+                        </p>
+                      </button>
+
+                      <div className="p-2.5 sm:p-4">
+                        <h3 className="font-semibold text-white leading-tight text-sm sm:text-base line-clamp-2">{p.nome}</h3>
+                        <p className="mt-1 text-[11px] sm:text-xs text-stone-400 leading-relaxed line-clamp-2 min-h-[2rem]">{p.descricao}</p>
+                        <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-1.5">
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-stone-500">
+                            {p.tipo === "escolher" ? "escolha 1 opção" : p.tipo === "personalizavel" ? `${p.adicionais.length} adicionais` : "do jeito da casa"}
+                          </span>
+                          {p.tipo === "simples" ? (
+                            <Btn
+                              size="sm"
+                              disabled={esgotado}
+                              onClick={() =>
+                                addCart({ uid: Math.random().toString(36).slice(2), produto: p, qtd: 1, adicionais: [], removidos: [], escolha: null, obs: "" })
+                              }
+                            >
+                              <Plus className="size-4" /> Adicionar
+                            </Btn>
+                          ) : (
+                            <Btn size="sm" variant="outline" disabled={esgotado} onClick={() => setProdutoModal(p)}>
+                              {p.tipo === "escolher" ? "Escolher" : "Personalizar"} <ChevronRight className="size-3.5" />
+                            </Btn>
+                          )}
+                        </div>
+                      </div>
+                    </motion.article>
+                  );
+                  })}
+                </AnimatePresence>
+              </motion.div>
+            )}
           </section>
 
           {/* -------- coluna lateral (desktop) -------- */}
