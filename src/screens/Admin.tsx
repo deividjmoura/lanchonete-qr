@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowDown, ArrowUp, Boxes, Camera, ChartNoAxesColumn, CircleAlert, Copy, Download, Eye, EyeOff,
+  ArrowDown, ArrowUp, Boxes, ChevronDown, ChevronRight, Camera, ChartNoAxesColumn, CircleAlert, Copy, Download, Eye, EyeOff,
   FileText, LayoutGrid, Link2, Pencil, Plus, QrCode, Receipt, Trash2,
   TrendingUp, Trophy, UserPlus, Users, UtensilsCrossed, Wallet,
 } from "lucide-react";
@@ -212,18 +212,94 @@ function Cardapio() {
   const [editando, setEditando] = useState<Produto | null>(null);
   const [novoAberto, setNovoAberto] = useState(false);
   const [novaCat, setNovaCat] = useState("");
+  /** ids de categorias expandidas — várias podem ficar abertas */
+  const [abertas, setAbertas] = useState<Set<number>>(() => new Set());
+  const [orfaosAberto, setOrfaosAberto] = useState(true);
 
   const catsOrdenadas = [...categorias].sort((a, b) => a.ordem - b.ordem);
+  const nomesCat = new Set(catsOrdenadas.map((c) => c.nome));
+  const orfaos = produtos.filter((p) => !nomesCat.has(p.categoria));
+
+  const toggleCat = (id: number) => {
+    setAbertas((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const cardProduto = (p: Produto) => (
+    <motion.article
+      key={p.id}
+      layout
+      className={cn(
+        "rounded-2xl bg-black/35 border border-white/[0.07] overflow-hidden transition-opacity",
+        !p.ativo && "opacity-55"
+      )}
+    >
+      <div className="flex gap-3.5 p-3.5">
+        <img src={p.foto} alt="" className="size-16 sm:size-20 rounded-2xl object-cover shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-semibold text-white text-sm leading-tight truncate">{p.nome}</p>
+            <span className="font-mono text-xs font-bold text-amber-300 shrink-0">{BRL(p.preco)}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <Badge tone={p.tipo === "escolher" ? "sky" : p.tipo === "personalizavel" ? "violet" : "zinc"}>
+              {p.tipo === "escolher" ? "escolher" : p.tipo === "personalizavel" ? "personalizável" : "simples"}
+            </Badge>
+            {p.estoque !== null && (
+              <Badge tone={p.estoque <= 8 ? "rose" : "zinc"}>est. {p.estoque}</Badge>
+            )}
+          </div>
+          <div className="mt-2.5 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => toggle(p.id)}
+              title={p.ativo ? "Desativar" : "Ativar"}
+              className={cn(
+                "btn-press grid place-items-center size-8 rounded-lg border cursor-pointer transition-colors",
+                p.ativo
+                  ? "bg-lime-400/10 border-lime-400/30 text-lime-300"
+                  : "bg-white/[0.05] border-white/10 text-stone-500"
+              )}
+            >
+              {p.ativo ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditando(p)}
+              title="Editar"
+              className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => remover(p.id)}
+              title="Excluir"
+              className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.article>
+  );
 
   return (
-    <div className="space-y-8">
-      {/* —— Categorias (ordem = como aparece no cardápio da mesa) —— */}
-      <section className="glass rounded-3xl p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div>
-            <h3 className="font-display text-2xl text-white leading-none">Categorias</h3>
-            <p className="mt-1 text-[11px] text-stone-500">Ordem em que aparecem no cardápio do cliente · ↑↓ para reordenar</p>
-          </div>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-display text-2xl text-white leading-none">Cardápio</h3>
+          <p className="mt-1 text-[11px] text-stone-500">
+            Toque na categoria para expandir · ↑↓ reordena · {produtos.length} produtos ·{" "}
+            {produtos.filter((p) => p.ativo).length} ativos
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <form
             className="flex gap-2"
             onSubmit={(e) => {
@@ -233,27 +309,53 @@ function Cardapio() {
               setNovaCat("");
             }}
           >
-            <Input value={novaCat} onChange={setNovaCat} placeholder="Nova categoria" className="w-40 sm:w-52" />
-            <Btn size="sm" onClick={() => { if (novaCat.trim()) { addCategoria(novaCat); setNovaCat(""); } }}>
-              <Plus className="size-4" /> Criar
+            <Input value={novaCat} onChange={setNovaCat} placeholder="Nova categoria" className="w-36 sm:w-48" />
+            <Btn
+              size="sm"
+              onClick={() => {
+                if (novaCat.trim()) {
+                  addCategoria(novaCat);
+                  setNovaCat("");
+                }
+              }}
+            >
+              <Plus className="size-4" /> Categoria
             </Btn>
           </form>
+          <Btn size="sm" onClick={() => setNovoAberto(true)}>
+            <Plus className="size-4" /> Produto
+          </Btn>
         </div>
+      </div>
 
-        <ul className="space-y-2">
-          {catsOrdenadas.map((c, i) => {
-            const nProd = produtos.filter((p) => p.categoria === c.nome).length;
-            return (
-              <li key={c.id} className="flex items-center gap-2 rounded-2xl bg-black/30 border border-white/[0.07] px-3 py-2.5">
-                <span className="font-mono text-[10px] text-stone-600 w-5 tabular">{i + 1}</span>
-                <span className="flex-1 font-semibold text-sm text-white truncate">{c.nome}</span>
-                <Badge tone="zinc">{nProd} prod.</Badge>
+      <ul className="space-y-2.5">
+        {catsOrdenadas.map((c, i) => {
+          const lista = produtos.filter((p) => p.categoria === c.nome);
+          const open = abertas.has(c.id);
+          return (
+            <li key={c.id} className="rounded-2xl border border-white/[0.08] bg-black/30 overflow-hidden">
+              {/* cabeçalho da categoria — ordem + expandir */}
+              <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2.5">
+                <button
+                  type="button"
+                  onClick={() => toggleCat(c.id)}
+                  className="btn-press flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer rounded-xl hover:bg-white/[0.04] px-1.5 py-1 -ml-1"
+                  aria-expanded={open}
+                >
+                  <span className="grid place-items-center size-7 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 shrink-0">
+                    {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                  </span>
+                  <span className="font-mono text-[10px] text-stone-600 w-4 tabular shrink-0">{i + 1}</span>
+                  <span className="font-semibold text-sm sm:text-base text-white truncate">{c.nome}</span>
+                  <Badge tone="zinc">{lista.length}</Badge>
+                </button>
+
                 <button
                   type="button"
                   title="Subir"
                   disabled={i === 0}
                   onClick={() => moverCategoria(c.id, -1)}
-                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 disabled:opacity-30 cursor-pointer"
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 disabled:opacity-30 cursor-pointer shrink-0"
                 >
                   <ArrowUp className="size-3.5" />
                 </button>
@@ -262,7 +364,7 @@ function Cardapio() {
                   title="Descer"
                   disabled={i === catsOrdenadas.length - 1}
                   onClick={() => moverCategoria(c.id, 1)}
-                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 disabled:opacity-30 cursor-pointer"
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 disabled:opacity-30 cursor-pointer shrink-0"
                 >
                   <ArrowDown className="size-3.5" />
                 </button>
@@ -273,131 +375,83 @@ function Cardapio() {
                     const n = prompt("Nome da categoria:", c.nome);
                     if (n && n.trim()) renameCategoria(c.id, n);
                   }}
-                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer"
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer shrink-0"
                 >
                   <Pencil className="size-3.5" />
                 </button>
-                                <button
+                <button
                   type="button"
-                  title={nProd > 0 ? `Excluir categoria e ${nProd} produto(s)` : "Excluir categoria"}
+                  title={lista.length > 0 ? `Excluir categoria e ${lista.length} produto(s)` : "Excluir categoria"}
                   onClick={() => removeCategoria(c.id)}
-                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer"
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer shrink-0"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+              </div>
 
-      {/* —— Produtos agrupados por categoria —— */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-stone-400">{produtos.length} produtos · {produtos.filter((p) => p.ativo).length} ativos</p>
-          <Btn size="sm" onClick={() => setNovoAberto(true)}>
-            <Plus className="size-4" /> Novo produto
-          </Btn>
-        </div>
-
-        <div className="space-y-6">
-          {catsOrdenadas.map((c) => {
-            const lista = produtos.filter((p) => p.categoria === c.nome);
-            return (
-              <section key={c.id} className="glass rounded-3xl p-4 sm:p-5">
-                <header className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <h3 className="font-display text-2xl text-white leading-none truncate">{c.nome}</h3>
-                    <Badge tone="zinc">{lista.length} item{lista.length === 1 ? "" : "s"}</Badge>
-                  </div>
-                  <Btn
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setNovoAberto(true);
-                    }}
+              <AnimatePresence initial={false}>
+                {open && (
+                  <motion.div
+                    key="body"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden"
                   >
-                    <Plus className="size-3.5" /> Nesta categoria
-                  </Btn>
-                </header>
-                {lista.length === 0 ? (
-                  <p className="text-xs text-stone-500 py-4 text-center border border-dashed border-white/10 rounded-2xl">
-                    Nenhum produto nesta categoria
-                  </p>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {lista.map((p) => (
-                      <motion.article
-                        key={p.id}
-                        layout
-                        className={cn("rounded-2xl bg-black/30 border border-white/[0.07] overflow-hidden transition-opacity", !p.ativo && "opacity-55")}
-                      >
-                        <div className="flex gap-3.5 p-3.5">
-                          <img src={p.foto} alt="" className="size-20 rounded-2xl object-cover shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="font-semibold text-white text-sm leading-tight truncate">{p.nome}</p>
-                              <span className="font-mono text-xs font-bold text-amber-300 shrink-0">{BRL(p.preco)}</span>
-                            </div>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              <Badge tone={p.tipo === "escolher" ? "sky" : p.tipo === "personalizavel" ? "violet" : "zinc"}>
-                                {p.tipo === "escolher" ? "escolher" : p.tipo === "personalizavel" ? "personalizável" : "simples"}
-                              </Badge>
-                              {p.estoque !== null && <Badge tone={p.estoque <= 8 ? "rose" : "zinc"}>est. {p.estoque}</Badge>}
-                            </div>
-                            <div className="mt-2.5 flex items-center gap-1.5">
-                              <button onClick={() => toggle(p.id)} title={p.ativo ? "Desativar" : "Ativar"} className={cn("btn-press grid place-items-center size-8 rounded-lg border cursor-pointer transition-colors", p.ativo ? "bg-lime-400/10 border-lime-400/30 text-lime-300" : "bg-white/[0.05] border-white/10 text-stone-500")}>
-                                {p.ativo ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
-                              </button>
-                              <button onClick={() => setEditando(p)} title="Editar" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer">
-                                <Pencil className="size-3.5" />
-                              </button>
-                              <button onClick={() => remover(p.id)} title="Excluir" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer">
-                                <Trash2 className="size-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.article>
-                    ))}
-                  </div>
-                )}
-              </section>
-            );
-          })}
-          {/* produtos órfãos (categoria sumiu / nome divergente) */}
-          {(() => {
-            const nomes = new Set(catsOrdenadas.map((c) => c.nome));
-            const orfaos = produtos.filter((p) => !nomes.has(p.categoria));
-            if (!orfaos.length) return null;
-            return (
-              <section className="glass rounded-3xl p-4 sm:p-5 border border-rose-400/20">
-                <header className="flex items-center gap-2 mb-3">
-                  <h3 className="font-display text-2xl text-rose-200 leading-none">Sem categoria</h3>
-                  <Badge tone="rose">{orfaos.length}</Badge>
-                </header>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {orfaos.map((p) => (
-                    <motion.article key={p.id} layout className={cn("rounded-2xl bg-black/30 border border-white/[0.07] overflow-hidden", !p.ativo && "opacity-55")}>
-                      <div className="flex gap-3.5 p-3.5">
-                        <img src={p.foto} alt="" className="size-20 rounded-2xl object-cover shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-white text-sm truncate">{p.nome}</p>
-                          <p className="text-[11px] text-stone-500 mt-0.5">categoria: {p.categoria || "—"}</p>
-                          <div className="mt-2.5 flex items-center gap-1.5">
-                            <button onClick={() => setEditando(p)} className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 cursor-pointer"><Pencil className="size-3.5" /></button>
-                            <button onClick={() => remover(p.id)} className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer"><Trash2 className="size-3.5" /></button>
-                          </div>
-                        </div>
+                    <div className="px-3 pb-3 pt-0.5 border-t border-white/[0.06]">
+                      <div className="flex justify-end mb-2.5 pt-2">
+                        <Btn size="sm" variant="ghost" onClick={() => setNovoAberto(true)}>
+                          <Plus className="size-3.5" /> Produto nesta categoria
+                        </Btn>
                       </div>
-                    </motion.article>
-                  ))}
-                </div>
-              </section>
-            );
-          })()}
-        </div>
-      </div>
+                      {lista.length === 0 ? (
+                        <p className="text-xs text-stone-500 py-5 text-center border border-dashed border-white/10 rounded-2xl">
+                          Nenhum produto — adicione o primeiro
+                        </p>
+                      ) : (
+                        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                          {lista.map((p) => cardProduto(p))}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </li>
+          );
+        })}
+
+        {orfaos.length > 0 && (
+          <li className="rounded-2xl border border-rose-400/25 bg-rose-500/[0.06] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setOrfaosAberto((v) => !v)}
+              className="btn-press flex w-full items-center gap-2 px-3 py-2.5 text-left cursor-pointer"
+            >
+              <span className="grid place-items-center size-7 rounded-lg bg-white/[0.05] border border-white/10 text-rose-300">
+                {orfaosAberto ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+              </span>
+              <span className="font-semibold text-sm text-rose-200">Sem categoria</span>
+              <Badge tone="rose">{orfaos.length}</Badge>
+            </button>
+            <AnimatePresence initial={false}>
+              {orfaosAberto && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-3 pb-3 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                    {orfaos.map((p) => cardProduto(p))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </li>
+        )}
+      </ul>
 
       <ProdutoForm produto={editando} onClose={() => setEditando(null)} />
       <ProdutoForm novo={novoAberto} onClose={() => setNovoAberto(false)} />
