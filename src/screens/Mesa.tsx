@@ -23,6 +23,7 @@ import { Badge, Btn, Input, Logo, Modal, Qtd } from "../components/ui";
 import type { Opcao, Pedido, Produto } from "../lib/types";
 import { usePub, sessaoDaMesa, totalSessao } from "../store/usePub";
 import { FOTO_PLACEHOLDER, fotoSrc } from "../lib/mappers";
+import { connectEvents } from "../lib/api";
 import { BRL } from "../lib/utils";
 import { cn } from "../utils/cn";
 
@@ -70,10 +71,15 @@ export default function Mesa({ token }: { token: string }) {
     void hydrateMesaToken(token).finally(() => {
       if (alive) setBoot(false);
     });
-    const t = setInterval(() => void hydrateMesaToken(token), 12000);
+    /* poll + SSE: status da conta acompanha cozinha/garçom sem atraso longo */
+    const t = setInterval(() => void hydrateMesaToken(token), 8000);
+    const off = connectEvents(() => {
+      void hydrateMesaToken(token);
+    });
     return () => {
       alive = false;
       clearInterval(t);
+      off();
     };
   }, [token, hydrateMesaToken]);
 

@@ -1004,7 +1004,11 @@ function Mesas() {
           );
         })}
       </div>
-    </div>/* ================= ESTOQUE (por categoria) ================= */
+    </div>
+  );
+}
+
+/* ================= ESTOQUE (por categoria) ================= */
 function Estoque() {
   const produtos = usePub((s) => s.produtos);
   const categorias = usePub((s) => s.categorias);

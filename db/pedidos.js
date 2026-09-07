@@ -615,7 +615,8 @@ async function listarPedidosPorStatus(statuses) {
 }
 
 async function getFilaCozinha() {
-  return listarPedidosPorStatus(['recebido', 'em_producao']);
+  /* inclui concluido para a coluna 'Prontos' da cozinha sincronizar com o backend */
+  return listarPedidosPorStatus(['recebido', 'em_producao', 'concluido']);
 }
 
 async function getFilaGarcom() {
