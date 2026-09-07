@@ -56,7 +56,7 @@ interface PubState {
   concluirPedido: (pedidoId: number) => void;
 
   /* garçom */
-  entregarPedido: (pedidoId: number) => void;
+  entregarPedido: (pedidoId: number, garcomToken?: string) => void;
 
   /* caixa */
   registrarPagamento: (sessaoId: number, valor: number, forma: FormaPagamento) => void;
@@ -330,12 +330,17 @@ export const usePub = create<PubState>((set, get) => ({
     })();
   },
 
-  entregarPedido: (pedidoId) => {
+  entregarPedido: (pedidoId, garcomToken) => {
     void (async () => {
       try {
-        await api.statusPedido(pedidoId, statusToApi("entregue"));
+        if (garcomToken) {
+          await api.garcomEntregar(garcomToken, pedidoId);
+          await get().hydrateGarcom(garcomToken);
+        } else {
+          await api.statusPedido(pedidoId, statusToApi("entregue"));
+          await get().hydrateCozinha();
+        }
         emit(get, set, "pedido-entregue", `Pedido #${pedidoId} entregue`);
-        await get().hydrateCozinha();
         await get().hydrateCaixa().catch(() => null);
       } catch (e: any) {
         alert(e.message || "Erro ao entregar");

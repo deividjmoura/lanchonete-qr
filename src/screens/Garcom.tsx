@@ -4,7 +4,7 @@ import { BellRing, CheckCheck, ConciergeBell, Footprints, Sparkles, Timer } from
 import { OpsShell, useAnuncios } from "../components/OpsShell";
 import { Badge, Btn } from "../components/ui";
 import { ir, useAgora } from "../router";
-import { GARCOM_NOME } from "../lib/data";
+
 import type { Pedido } from "../lib/types";
 import { usePub } from "../store/usePub";
 import { elapsed } from "../lib/utils";
@@ -23,6 +23,7 @@ export default function Garcom({ token }: { token: string }) {
   }, [token, hydrateGarcom]);
 
   const entregar = usePub((s) => s.entregarPedido);
+  const lastError = usePub((s) => s.lastError);
 
   const prontos = pedidos.filter((p) => p.status === "pronto").sort((a, b) => a.criadoEm - b.criadoEm);
   const entregues = pedidos
@@ -35,9 +36,11 @@ export default function Garcom({ token }: { token: string }) {
     return null;
   }
 
+  const tokenCurto = token.length > 8 ? token.slice(0, 8) + "…" : token;
+
   const extras = (
     <div className="flex items-center gap-2">
-      <Badge tone="zinc">token ok · {GARCOM_NOME}</Badge>
+      <Badge tone="zinc">link · {tokenCurto}</Badge>
       <Badge tone={prontos.length ? "amber" : "zinc"} pulse={prontos.length > 0}>
         {prontos.length} pra entregar
       </Badge>
@@ -45,7 +48,12 @@ export default function Garcom({ token }: { token: string }) {
   );
 
   return (
-    <OpsShell ativo="garcom" kicker="operação · garçom" titulo={<>Corre, <span className="text-gradient">{GARCOM_NOME}!</span></>} extra={extras}>
+    <OpsShell ativo="garcom" kicker="operação · garçom" titulo={<>Fila do <span className="text-gradient">garçom</span></>} extra={extras}>
+      {lastError && (
+        <p className="mb-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          {lastError}
+        </p>
+      )}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* prontos */}
         <section className="lg:col-span-2">
@@ -71,7 +79,7 @@ export default function Garcom({ token }: { token: string }) {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 {prontos.map((p) => (
-                  <CardPronto key={p.id} pedido={p} onEntregar={() => entregar(p.id)} />
+                  <CardPronto key={p.id} pedido={p} onEntregar={() => entregar(p.id, token)} />
                 ))}
               </div>
             )}

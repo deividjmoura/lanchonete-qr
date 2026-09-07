@@ -96,6 +96,16 @@ export const api = {
   removerAdicional: (id: number) => apiSend(`/api/admin/adicionais/${id}`, "DELETE"),
   setRemoviveis: (produtoId: number, ingredientes: string[]) =>
     apiSend(`/api/admin/produtos/${produtoId}/removiveis`, "PUT", { ingredientes }),
+
+  listGarcons: () =>
+    apiGet<{ id: number; nome: string; token: string; ativo: boolean; criado_em?: string; entregas?: number }[]>(
+      "/api/admin/garcons"
+    ),
+  criarGarcom: (nome: string) =>
+    apiSend<{ id: number; nome: string; token: string; ativo: boolean }>("/api/admin/garcons", "POST", { nome }),
+  setGarcomAtivo: (id: number, ativo: boolean) =>
+    apiSend(`/api/admin/garcons/${id}`, "PATCH", { ativo }),
+  removerGarcom: (id: number) => apiSend(`/api/admin/garcons/${id}`, "DELETE"),
 };
 
 /** SSE — invalida/recarrega quando o servidor emite update. */

@@ -1,14 +1,15 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowDown, ArrowUp, Boxes, Camera, ChartNoAxesColumn, CircleAlert, Download, Eye, EyeOff,
+  ArrowDown, ArrowUp, Boxes, Camera, ChartNoAxesColumn, CircleAlert, Copy, Download, Eye, EyeOff,
   FileText, LayoutGrid, Link2, Pencil, Plus, QrCode, Receipt, Trash2,
-  TrendingUp, Trophy, Users, UtensilsCrossed, Wallet,
+  TrendingUp, Trophy, UserPlus, Users, UtensilsCrossed, Wallet,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useRef, useState } from "react";
 import { OpsShell } from "../components/OpsShell";
 import { Badge, Btn, Input, Modal } from "../components/ui";
 import { ir } from "../router";
+import { api } from "../lib/api";
 import { CATEGORIAS } from "../lib/data";
 import type { FormaPagamento, Produto, TipoProduto } from "../lib/types";
 import { FORMAS, faturamentoSemana, pagoSessao, totalSessao, usePub } from "../store/usePub";
@@ -19,6 +20,7 @@ const ABAS = [
   { id: "painel", label: "Dashboard", icon: ChartNoAxesColumn },
   { id: "cardapio", label: "Cardápio", icon: UtensilsCrossed },
   { id: "mesas", label: "Mesas", icon: QrCode },
+  { id: "garcons", label: "Garçons", icon: Users },
   { id: "estoque", label: "Estoque", icon: Boxes },
   { id: "relatorio", label: "Relatório", icon: FileText },
 ] as const;
@@ -74,6 +76,7 @@ export default function Admin() {
           {aba === "painel" && <Painel />}
           {aba === "cardapio" && <Cardapio />}
           {aba === "mesas" && <Mesas />}
+          {aba === "garcons" && <Garcons />}
           {aba === "estoque" && <Estoque />}
           {aba === "relatorio" && <Relatorio />}
         </motion.div>
@@ -514,6 +517,212 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
         </div>
       </div>
     </Modal>
+  );
+}
+
+
+/* ================= GARÇONS ================= */
+type GarcomRow = {
+  id: number;
+  nome: string;
+  token: string;
+  ativo: boolean;
+  criado_em?: string;
+  entregas?: number;
+};
+
+function Garcons() {
+  const [lista, setLista] = useState<GarcomRow[]>([]);
+  const [nome, setNome] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [copiado, setCopiado] = useState<number | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const carregar = async () => {
+    try {
+      setErro(null);
+      const rows = await api.listGarcons();
+      setLista(
+        (rows || []).map((g) => ({
+          id: Number(g.id),
+          nome: String(g.nome),
+          token: String(g.token),
+          ativo: g.ativo !== false,
+          criado_em: g.criado_em,
+          entregas: Number(g.entregas || 0),
+        }))
+      );
+    } catch (e: any) {
+      setErro(e.message || "Falha ao listar garçons");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void carregar();
+  }, []);
+
+  const linkGarcom = (token: string) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/#/garcom/${token}`;
+  };
+
+  const criar = async () => {
+    const n = nome.trim();
+    if (!n || busy) return;
+    setBusy(true);
+    try {
+      await api.criarGarcom(n);
+      setNome("");
+      await carregar();
+    } catch (e: any) {
+      alert(e.message || "Erro ao criar garçom");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggle = async (g: GarcomRow) => {
+    setBusy(true);
+    try {
+      await api.setGarcomAtivo(g.id, !g.ativo);
+      await carregar();
+    } catch (e: any) {
+      alert(e.message || "Erro ao atualizar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remover = async (g: GarcomRow) => {
+    if (!confirm(`Remover o garçom "${g.nome}"? O link dele deixa de funcionar.`)) return;
+    setBusy(true);
+    try {
+      await api.removerGarcom(g.id);
+      await carregar();
+    } catch (e: any) {
+      alert(e.message || "Erro ao remover");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copiar = async (g: GarcomRow) => {
+    try {
+      await navigator.clipboard.writeText(linkGarcom(g.token));
+      setCopiado(g.id);
+      setTimeout(() => setCopiado(null), 2000);
+    } catch {
+      prompt("Copie o link do garçom:", linkGarcom(g.token));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="glass rounded-3xl p-4 sm:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+          <div>
+            <h3 className="font-display text-2xl text-white leading-none">Garçons</h3>
+            <p className="mt-1 text-[11px] text-stone-500">
+              Cada um recebe um link único (UUID). Abre a fila de pedidos prontos no celular.
+            </p>
+          </div>
+          <form
+            className="flex flex-wrap gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void criar();
+            }}
+          >
+            <Input value={nome} onChange={setNome} placeholder="Nome do garçom" className="w-44 sm:w-56" />
+            <Btn size="sm" disabled={busy || !nome.trim()} onClick={() => void criar()}>
+              <UserPlus className="size-4" /> Cadastrar
+            </Btn>
+          </form>
+        </div>
+
+        {erro && (
+          <p className="mb-3 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+            {erro}
+          </p>
+        )}
+
+        {loading ? (
+          <p className="text-sm text-stone-500 py-8 text-center">Carregando…</p>
+        ) : lista.length === 0 ? (
+          <p className="text-sm text-stone-500 py-8 text-center">Nenhum garçom ainda — cadastre o primeiro.</p>
+        ) : (
+          <ul className="space-y-2">
+            {lista.map((g) => (
+              <li
+                key={g.id}
+                className={cn(
+                  "flex flex-wrap items-center gap-2 rounded-2xl border px-3 py-3 bg-black/30",
+                  g.ativo ? "border-white/[0.08]" : "border-white/[0.05] opacity-70"
+                )}
+              >
+                <div className="flex-1 min-w-[10rem]">
+                  <p className="font-semibold text-white text-sm">{g.nome}</p>
+                  <p className="font-mono text-[10px] text-stone-500 truncate max-w-[16rem] sm:max-w-md">
+                    {g.token}
+                  </p>
+                  <p className="text-[10px] text-stone-600 mt-0.5">
+                    {g.entregas ?? 0} entrega{(g.entregas ?? 0) === 1 ? "" : "s"}
+                    {!g.ativo && " · desativado"}
+                  </p>
+                </div>
+                <Badge tone={g.ativo ? "lime" : "zinc"}>{g.ativo ? "ativo" : "off"}</Badge>
+                <button
+                  type="button"
+                  title="Copiar link"
+                  onClick={() => void copiar(g)}
+                  className="btn-press grid place-items-center size-9 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer"
+                >
+                  {copiado === g.id ? <span className="text-[10px] font-bold text-lime-300">OK</span> : <Copy className="size-3.5" />}
+                </button>
+                <button
+                  type="button"
+                  title="Abrir fila"
+                  onClick={() => ir(`/garcom/${g.token}`)}
+                  className="btn-press grid place-items-center size-9 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer"
+                >
+                  <Link2 className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title={g.ativo ? "Desativar" : "Ativar"}
+                  disabled={busy}
+                  onClick={() => void toggle(g)}
+                  className={cn(
+                    "btn-press grid place-items-center size-9 rounded-lg border cursor-pointer",
+                    g.ativo
+                      ? "bg-lime-400/10 border-lime-400/30 text-lime-300"
+                      : "bg-white/[0.05] border-white/10 text-stone-500"
+                  )}
+                >
+                  {g.ativo ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+                </button>
+                <button
+                  type="button"
+                  title="Remover"
+                  disabled={busy}
+                  onClick={() => void remover(g)}
+                  className="btn-press grid place-items-center size-9 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <p className="text-[11px] text-stone-500 text-center">
+        O link do garçom é público no token — quem tiver a URL acessa a fila de prontos. Desative ou apague se o celular for perdido.
+      </p>
+    </div>
   );
 }
 
