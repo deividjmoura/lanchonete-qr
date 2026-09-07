@@ -257,6 +257,31 @@ async function run() {
       }
     }
 
+    
+    try {
+      const { rowCount } = await client.query(`
+        UPDATE produtos p
+           SET controla_estoque = TRUE,
+               estoque = COALESCE(NULLIF(p.estoque, 0), 36),
+               estoque_minimo = GREATEST(COALESCE(p.estoque_minimo, 0), 6)
+          FROM categorias c
+         WHERE p.categoria_id = c.id
+           AND (
+             c.nome ILIKE '%bebida%'
+             OR c.nome ILIKE '%long neck%'
+             OR c.nome ILIKE '%cerveja%'
+             OR c.nome ILIKE '%dose%'
+             OR c.nome ILIKE '%caipi%'
+             OR c.nome ILIKE '%drink%'
+             OR c.nome ILIKE '%refriger%'
+           )
+           AND (p.controla_estoque IS NOT TRUE OR p.estoque IS NULL)
+      `);
+      console.log(`📦 Estoque habilitado em ${rowCount} produto(s) de bebida.`);
+    } catch (e) {
+      console.warn('Aviso ao definir estoque de bebidas:', e.message || e);
+    }
+
     await client.query('COMMIT');
     console.log(
       `✅ ${totalProdutos} produtos, ${totalAdicionais} adicionais e ${totalRemoviveis} ingredientes removíveis inseridos.`

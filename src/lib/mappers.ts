@@ -92,6 +92,12 @@ export function mapCardapio(apiCats: any[]): { categorias: Categoria[]; produtos
           : adicionais.length || removiveis.length
             ? ("personalizavel" as const)
             : ("simples" as const);
+      const controla = Boolean(p.controlaEstoque ?? p.controla_estoque);
+      const estoqueRaw = p.estoque;
+      const estoque =
+        controla || (estoqueRaw !== undefined && estoqueRaw !== null)
+          ? Number(estoqueRaw ?? 0)
+          : null;
       produtos.push({
         id: Number(p.id),
         nome: String(p.nome),
@@ -104,8 +110,8 @@ export function mapCardapio(apiCats: any[]): { categorias: Categoria[]; produtos
         tipo,
         adicionais,
         removiveis,
-        ativo: p.disponivel !== false,
-        estoque: p.controlaEstoque || p.controla_estoque ? Number(p.estoque ?? 0) : null,
+        ativo: p.disponivel === undefined ? true : Boolean(p.disponivel),
+        estoque: controla ? (estoque ?? 0) : estoque,
         vendidos: 0,
       });
     }

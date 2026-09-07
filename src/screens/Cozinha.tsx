@@ -3,13 +3,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BellRing, CheckCircle2, CircleAlert, Flame, Timer } from "lucide-react";
 import { OpsShell, useAnuncios } from "../components/OpsShell";
 import { Badge, Btn, LivePill } from "../components/ui";
-import { useAgora } from "../router";
 import type { Pedido } from "../lib/types";
 import { usePub } from "../store/usePub";
 import { connectEvents } from "../lib/api";
 import { elapsed } from "../lib/utils";
 import { cn } from "../utils/cn";
-import { ir } from "../router";
+import { ir, useAgora } from "../router";
 
 const COLUNAS = [
   { id: "na_fila", titulo: "Na fila", desc: "chegou agora", acento: "text-amber-300", borda: "border-amber-400/30", bg: "from-amber-400/15" },
@@ -18,6 +17,17 @@ const COLUNAS = [
 ] as const;
 
 export default function Cozinha() {
+  const auth = usePub((s) => s.auth);
+  useEffect(() => {
+    if (!auth) {
+      ir("/login");
+      return;
+    }
+    if (auth.role !== "admin" && auth.role !== "cozinha") {
+      ir(auth.role === "caixa" ? "/caixa" : "/login");
+    }
+  }, [auth]);
+
   const auth = usePub((s) => s.auth);
   useEffect(() => {
     if (!auth) ir("/login");

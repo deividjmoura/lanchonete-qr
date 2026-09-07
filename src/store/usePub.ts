@@ -131,11 +131,19 @@ export const usePub = create<PubState>((set, get) => ({
 
   hydrateCardapio: async () => {
     try {
-      const raw = await api.cardapio();
+      const isAdmin = get().auth?.role === "admin";
+      const raw = isAdmin ? await api.adminCardapio() : await api.cardapio();
       const { categorias, produtos } = mapCardapio(raw);
       set({ categorias, produtos, apiReady: true, lastError: null });
     } catch (e: any) {
-      set({ lastError: e.message || "Falha ao carregar cardápio" });
+      /* admin sem permissão → tenta público */
+      try {
+        const raw = await api.cardapio();
+        const { categorias, produtos } = mapCardapio(raw);
+        set({ categorias, produtos, apiReady: true, lastError: null });
+      } catch (e2: any) {
+        set({ lastError: e2.message || e.message || "Falha ao carregar cardápio" });
+      }
     }
   },
 
@@ -493,6 +501,7 @@ export const usePub = create<PubState>((set, get) => ({
           disponivel: p.ativo !== false,
           controlaEstoque: p.estoque != null,
           estoque: p.estoque,
+          estoqueMinimo: p.estoque != null ? 5 : 0,
         };
         const exists = st.produtos.some((x) => x.id === p.id);
         let produtoId = p.id;

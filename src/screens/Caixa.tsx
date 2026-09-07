@@ -17,6 +17,17 @@ import { cn } from "../utils/cn";
 export default function Caixa() {
   const auth = usePub((s) => s.auth);
   useEffect(() => {
+    if (!auth) {
+      ir("/login");
+      return;
+    }
+    if (auth.role !== "admin" && auth.role !== "caixa") {
+      ir(auth.role === "cozinha" ? "/cozinha" : "/login");
+    }
+  }, [auth]);
+
+  const auth = usePub((s) => s.auth);
+  useEffect(() => {
     if (!auth) ir("/login");
   }, [auth]);
   useAnuncios("caixa");

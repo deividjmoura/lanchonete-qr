@@ -37,7 +37,13 @@ export default function Admin() {
   }, [hydrateCardapio, hydrateMesas]);
 
   useEffect(() => {
-    if (!auth) ir("/login");
+    if (!auth) {
+      ir("/login");
+      return;
+    }
+    if (auth.role !== "admin") {
+      ir(auth.role === "cozinha" ? "/cozinha" : auth.role === "caixa" ? "/caixa" : "/login");
+    }
   }, [auth]);
 
   const [aba, setAba] = useState<AbaId>("painel");
@@ -476,6 +482,9 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
   const [foto, setFoto] = useState("");
   const [adicionais, setAdicionais] = useState("");
   const [removiveis, setRemoviveis] = useState("");
+  const [controlaEstoque, setControlaEstoque] = useState(false);
+  const [estoqueQtd, setEstoqueQtd] = useState("0");
+  const [estoqueMin, setEstoqueMin] = useState("5");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -488,9 +497,14 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
       setFoto(produto.foto);
       setAdicionais(produto.adicionais.map((a) => `${a.nome}:${a.preco}`).join(", "));
       setRemoviveis(produto.removiveis.map((r) => r.nome).join(", "));
+      const tem = produto.estoque !== null && produto.estoque !== undefined;
+      setControlaEstoque(tem);
+      setEstoqueQtd(tem ? String(produto.estoque) : "0");
+      setEstoqueMin("5");
     } else if (novo) {
       setNome(""); setDescricao(""); setPreco(""); setCategoria(catPadrao);
       setTipo("simples"); setFoto(""); setAdicionais(""); setRemoviveis("");
+      setControlaEstoque(false); setEstoqueQtd("0"); setEstoqueMin("5");
     }
   }, [produto, novo]);
 
@@ -539,7 +553,7 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
       adicionais: tipo === "simples" ? ads : ads,
       removiveis: tipo === "personalizavel" ? rems : [],
       ativo: produto ? produto.ativo : true,
-      estoque: produto ? produto.estoque : null,
+      estoque: controlaEstoque ? Math.max(0, Number(estoqueQtd) || 0) : null,
       vendidos: produto ? produto.vendidos : 0,
     });
     onClose();
@@ -596,6 +610,31 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
                   {(nomesCat.length ? nomesCat : CATEGORIAS).map((c) => <option key={c} value={c} className="bg-coal-900">{c}</option>)}
                 </select>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={controlaEstoque}
+                  onChange={(e) => setControlaEstoque(e.target.checked)}
+                  className="size-4 rounded border-white/20 accent-amber-400"
+                />
+                <span className="text-sm text-white font-semibold">Controlar estoque</span>
+                <span className="text-[11px] text-stone-500 hidden sm:inline">baixa automática a cada pedido</span>
+              </label>
+              {controlaEstoque && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-stone-500 mb-1 font-bold">Quantidade</p>
+                    <Input value={estoqueQtd} onChange={setEstoqueQtd} placeholder="0" type="number" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-stone-500 mb-1 font-bold">Alerta mínimo</p>
+                    <Input value={estoqueMin} onChange={setEstoqueMin} placeholder="5" type="number" />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">

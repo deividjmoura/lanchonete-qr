@@ -73,7 +73,10 @@ export function OpsShell({
   const logout = usePub((s) => s.logout);
   const auth = usePub((s) => s.auth);
   const role = auth?.role || null;
-  const nav = NAV_ALL.filter((n) => !role || (n.roles as readonly string[]).includes(role));
+  /* sem role (ex.: garçom por token) → sem menu de áreas; cada papel só vê o que pode */
+  const nav = role
+    ? NAV_ALL.filter((n) => (n.roles as readonly string[]).includes(role))
+    : [];
 
   useEffect(() => {
     setMudo(!somLigado);
@@ -91,7 +94,15 @@ export function OpsShell({
       {/* header */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-coal-950/78 backdrop-blur-xl">
         <div className="mx-auto max-w-400 px-4 sm:px-6 h-16 flex items-center gap-3">
-          <button onClick={() => ir("/")} className="cursor-pointer shrink-0">
+          <button
+            onClick={() => {
+              if (role === "admin") ir("/admin");
+              else if (role === "cozinha") ir("/cozinha");
+              else if (role === "caixa") ir("/caixa");
+              else ir("/");
+            }}
+            className="cursor-pointer shrink-0"
+          >
             <Logo size="sm" />
           </button>
           <span className="hidden sm:block h-6 w-px bg-white/10" />
