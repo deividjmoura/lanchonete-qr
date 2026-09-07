@@ -932,7 +932,7 @@ function Mesas() {
                 </Badge>
                 <span className="font-mono text-[10px] text-stone-600">#{String(m.numero).padStart(2, "0")}</span>
               </div>
-              <p className="font-display text-5xl text-white mt-3 leading-none">{m.numero}</p>
+              <p className="font-display text-4xl sm:text-5xl text-white mt-3 leading-none">{m.numero}</p>
               <p className="text-[10px] uppercase tracking-[0.24em] text-stone-500 mt-1">{m.nome}</p>
 
               <div className="mt-4 mx-auto w-fit rounded-2xl bg-white p-2.5">

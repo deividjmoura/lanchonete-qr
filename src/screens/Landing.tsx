@@ -54,7 +54,7 @@ export default function Landing() {
     .reduce((a, s) => a + totalSessao(pedidos, s.id) - s.desconto + s.taxa, 0);
 
   return (
-    <div className="relative min-h-dvh overflow-x-clip">
+    <div className="relative min-h-dvh overflow-x-clip w-full max-w-[100vw]">
       {/* fundo */}
       <div className="fixed inset-0 -z-10">
         <div className="glow-orb absolute -top-32 left-[8%] size-[30rem] bg-amber-500/16" />
@@ -63,7 +63,7 @@ export default function Landing() {
       </div>
 
       {/* nav */}
-      <header className="relative z-10 mx-auto max-w-400 px-5 sm:px-8 pt-6 flex items-center justify-between">
+      <header className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8 pt-6 flex items-center justify-between">
         <Logo />
         <div className="flex items-center gap-2.5">
           <Badge tone="lime" pulse>salão aberto</Badge>
@@ -71,7 +71,7 @@ export default function Landing() {
       </header>
 
       {/* HERO */}
-      <section className="relative mx-auto max-w-400 px-5 sm:px-8 pt-8 sm:pt-12">
+      <section className="relative mx-auto max-w-7xl px-5 sm:px-8 pt-8 sm:pt-12">
         <div className="relative overflow-hidden rounded-[2rem] sm:rounded-[3rem] border border-white/10">
           <img
             src={HERO_IMG}
@@ -113,7 +113,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25, duration: 0.8 }}
-              className="mt-10 grid grid-cols-3 gap-2.5 sm:gap-4 max-w-lg"
+              className="mt-10 grid grid-cols-3 gap-1.5 sm:gap-4 max-w-lg w-full"
             >
               {[
                 { v: String(comandas), l: "comandas abertas" },
@@ -146,7 +146,7 @@ export default function Landing() {
       </div>
 
       {/* FLUXO */}
-      <section className="mx-auto max-w-400 px-5 sm:px-8 py-16 sm:py-24">
+      <section className="mx-auto max-w-7xl px-5 sm:px-8 py-16 sm:py-24">
         <motion.div {...fadeUp}>
           <Secao kicker="o fluxo" titulo={<>Quatro telas, <span className="text-gradient">zero atrito</span></>} right={<LivePill />} />
         </motion.div>
@@ -171,7 +171,7 @@ export default function Landing() {
       </section>
 
       {/* RECURSOS */}
-      <section className="mx-auto max-w-400 px-5 sm:px-8 pb-16 sm:pb-24">
+      <section className="mx-auto max-w-7xl px-5 sm:px-8 pb-16 sm:pb-24">
         <motion.div {...fadeUp}>
           <Secao kicker="tudo incluso" titulo={<>O sistema inteiro, <span className="text-gradient">num bolso só</span></>} />
         </motion.div>
@@ -196,7 +196,7 @@ export default function Landing() {
 
       {/* footer */}
       <footer className="border-t border-white/[0.07]">
-        <div className="mx-auto max-w-400 px-5 sm:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-5">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-5">
           <div>
             <Logo size="sm" />
             <p className="mt-2 text-xs text-stone-500 max-w-sm">

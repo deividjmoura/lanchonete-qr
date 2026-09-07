@@ -331,7 +331,7 @@ function DetalheCaixa({ sessao }: { sessao: Sessao }) {
             </div>
 
             {/* formas */}
-            <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+            <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {FORMAS.map((f) => (
                 <button
                   key={f.id}

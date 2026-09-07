@@ -93,7 +93,7 @@ export function OpsShell({
 
       {/* header */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-coal-950/78 backdrop-blur-xl">
-        <div className="mx-auto max-w-400 px-4 sm:px-6 h-16 flex items-center gap-3">
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 h-14 sm:h-16 flex items-center gap-1.5 sm:gap-3 min-w-0">
           <button
             onClick={() => {
               if (role === "admin") ir("/admin");
@@ -105,14 +105,14 @@ export function OpsShell({
           >
             <Logo size="sm" />
           </button>
-          <span className="hidden sm:block h-6 w-px bg-white/10" />
-          <p className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">
+          <span className="hidden md:block h-6 w-px bg-white/10" />
+          <p className="hidden md:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400">
             {kicker} <LivePill />
           </p>
 
-          <div className="flex-1" />
+          <div className="flex-1 min-w-0" />
 
-          <nav className="flex items-center gap-1 rounded-full bg-white/[0.05] border border-white/[0.08] p-1">
+          <nav className="flex items-center gap-0.5 sm:gap-1 rounded-full bg-white/[0.05] border border-white/[0.08] p-0.5 sm:p-1 overflow-x-auto no-scrollbar max-w-[55vw] sm:max-w-none shrink">
             {nav.map((n) => (
               <button
                 key={n.id}
@@ -169,11 +169,11 @@ export function OpsShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-400 px-4 sm:px-6 py-6 sm:py-10 pb-24">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10 pb-24">
         <div className="flex flex-wrap items-end justify-between gap-4 mb-6 sm:mb-8">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-amber-400/90">{kicker}</p>
-            <h1 className="font-display text-5xl sm:text-7xl leading-[0.95] text-white mt-1">{titulo}</h1>
+            <h1 className="font-display text-4xl sm:text-6xl lg:text-7xl leading-[0.95] text-white mt-1 break-words">{titulo}</h1>
           </div>
           {extra}
         </div>

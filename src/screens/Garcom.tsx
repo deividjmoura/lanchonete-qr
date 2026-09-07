@@ -156,7 +156,7 @@ function CardPronto({ pedido, onEntregar }: { pedido: Pedido; onEntregar: () => 
         initial={{ scale: 0.6 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 12 }}
-        className="font-display leading-[0.9] text-[7rem] sm:text-[8.5rem] text-gradient drop-shadow-[0_0_40px_rgba(255,150,20,0.25)]"
+        className="font-display leading-[0.9] text-[clamp(3.5rem,22vw,8.5rem)] text-gradient drop-shadow-[0_0_40px_rgba(255,150,20,0.25)]"
       >
         {pedido.mesaNome.replace("Mesa ", "")}
       </motion.p>

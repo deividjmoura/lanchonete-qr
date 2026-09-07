@@ -379,7 +379,7 @@ export default function Mesa({ token }: { token: string }) {
 
   /* ==================== render ==================== */
   return (
-    <div className="relative min-h-dvh pb-32 lg:pb-12">
+    <div className="relative min-h-dvh pb-[calc(8rem+env(safe-area-inset-bottom,0px))] lg:pb-12 overflow-x-clip">
       {/* fundo */}
       <div className="fixed inset-0 -z-10">
         <div className="glow-orb absolute -top-40 right-[10%] size-[28rem] bg-amber-500/12" />
@@ -389,7 +389,7 @@ export default function Mesa({ token }: { token: string }) {
 
       {/* header */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-coal-950/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-400 px-4 sm:px-6 h-16 flex items-center gap-3">
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-3 min-w-0">
           <Logo size="sm" />
           <Badge tone="amber" className="ml-1">{mesa.nome}</Badge>
           {sessao && sessao.pixAvisos > 0 && <Badge tone="lime">pix {sessao.pixAvisos}×</Badge>}
@@ -422,7 +422,7 @@ export default function Mesa({ token }: { token: string }) {
         </div>
       </header>
 
-      <div className="mx-auto max-w-400 px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="lg:grid lg:grid-cols-12 lg:gap-8">
           {/* -------- coluna cardápio -------- */}
           <section className="lg:col-span-8 xl:col-span-8">
@@ -431,7 +431,7 @@ export default function Mesa({ token }: { token: string }) {
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.3em] text-amber-400/90">
                 <HandPlatter className="size-4" /> bem-vindo(a) à {mesa.nome}
               </p>
-              <h1 className="font-display text-6xl sm:text-8xl leading-[0.9] text-white mt-2">
+              <h1 className="font-display text-[clamp(2.5rem,11vw,5.5rem)] sm:text-7xl lg:text-8xl leading-[0.9] text-white mt-2">
                 Bateu a fome?<br /><span className="text-gradient">Pede sem esperar.</span>
               </h1>
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -442,7 +442,7 @@ export default function Mesa({ token }: { token: string }) {
             </motion.div>
 
             {/* busca + categorias */}
-            <div className="sticky top-16 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-coal-950/85 backdrop-blur-xl">
+            <div className="sticky top-14 sm:top-16 z-40 -mx-3 sm:-mx-6 px-3 sm:px-6 py-3 bg-coal-950/85 backdrop-blur-xl">
               <div className="relative mb-3">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-stone-500" />
                 <input
@@ -489,7 +489,7 @@ export default function Mesa({ token }: { token: string }) {
             </div>
 
             {/* grid de produtos */}
-            <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pb-28 lg:pb-10">
+            <motion.div layout className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-3.5 pb-28 lg:pb-10 w-full min-w-0">
               <AnimatePresence mode="popLayout">
                 {lista.map((p) => {
                   const esgotado = p.estoque !== null && p.estoque <= 0;
@@ -572,7 +572,7 @@ export default function Mesa({ token }: { token: string }) {
             animate={{ y: 0 }}
             exit={{ y: 90 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
-            className="lg:hidden fixed bottom-0 inset-x-0 z-50 p-4 pt-8 bg-gradient-to-t from-coal-950 via-coal-950/95 to-transparent"
+            className="lg:hidden fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4 pt-8 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-coal-950 via-coal-950/95 to-transparent"
           >
             <div className="flex gap-2.5 max-w-md mx-auto">
               <button
@@ -735,7 +735,7 @@ function ProdutoModal({
           <div className="absolute inset-0 bg-gradient-to-t from-coal-900 via-transparent to-transparent" />
           <div className="absolute bottom-4 left-5 right-14">
             <Badge tone="amber">{produto.categoria}</Badge>
-            <h3 className="font-display text-4xl text-white leading-none mt-2 drop-shadow-lg">{produto.nome}</h3>
+            <h3 className="font-display text-3xl sm:text-4xl text-white leading-none mt-2 drop-shadow-lg break-words">{produto.nome}</h3>
           </div>
         </div>
 
