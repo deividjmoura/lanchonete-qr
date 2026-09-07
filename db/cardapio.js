@@ -6,18 +6,43 @@ const CARDAPIO_TTL_MS = Number(process.env.CARDAPIO_CACHE_TTL_MS || 30_000);
 
 let cache = null;
 let cacheAt = 0;
+let produtosTemOrdem = null;
+
+async function colunaProdutosOrdem() {
+  if (produtosTemOrdem != null) return produtosTemOrdem;
+  try {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'produtos' AND column_name = 'ordem'
+        LIMIT 1`
+    );
+    produtosTemOrdem = rows.length > 0;
+  } catch {
+    produtosTemOrdem = false;
+  }
+  return produtosTemOrdem;
+}
 
 async function carregarCardapio() {
   const { rows: categorias } = await pool.query(
     'SELECT id, nome, ordem FROM categorias ORDER BY ordem ASC, id ASC'
   );
+
+  const temOrdem = await colunaProdutosOrdem();
   const { rows: produtos } = await pool.query(
-    `SELECT id, categoria_id, nome, descricao, preco, foto_url, pede_ponto_carne, ordem
-     FROM produtos
-     WHERE disponivel = TRUE
-       AND (controla_estoque = false OR estoque IS NULL OR estoque > 0)
-     ORDER BY ordem ASC NULLS LAST, id ASC`
+    temOrdem
+      ? `SELECT id, categoria_id, nome, descricao, preco, foto_url, pede_ponto_carne, ordem
+         FROM produtos
+         WHERE disponivel = TRUE
+           AND (controla_estoque = false OR estoque IS NULL OR estoque > 0)
+         ORDER BY ordem ASC NULLS LAST, id ASC`
+      : `SELECT id, categoria_id, nome, descricao, preco, foto_url, pede_ponto_carne
+         FROM produtos
+         WHERE disponivel = TRUE
+           AND (controla_estoque = false OR estoque IS NULL OR estoque > 0)
+         ORDER BY id ASC`
   );
+
   const { rows: adicionais } = await pool.query(
     'SELECT id, produto_id, nome, preco FROM adicionais ORDER BY id'
   );
@@ -61,6 +86,7 @@ async function getCardapio() {
 function invalidarCardapio() {
   cache = null;
   cacheAt = 0;
+  produtosTemOrdem = null;
 }
 
 module.exports = { getCardapio, invalidarCardapio };

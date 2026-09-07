@@ -164,19 +164,42 @@ export const usePub = create<PubState>((set, get) => ({
   hydrateMesaToken: async (token: string) => {
     try {
       set({ loading: true });
-      const [card, sess] = await Promise.all([api.cardapio(), api.mesaSessao(token)]);
-      const { categorias, produtos } = mapCardapio(card);
+      /* sessão da mesa é obrigatória; cardápio tenta em separado para não marcar QR inválido se o menu falhar */
+      let sess: any;
+      try {
+        sess = await api.mesaSessao(token);
+      } catch (e: any) {
+        set({
+          loading: false,
+          lastError: e.message || "Falha ao carregar mesa",
+        });
+        return;
+      }
+
+      let categorias = get().categorias;
+      let produtos = get().produtos;
+      try {
+        const card = await api.cardapio();
+        const mapped = mapCardapio(card);
+        categorias = mapped.categorias;
+        produtos = mapped.produtos;
+      } catch (e: any) {
+        console.warn("[hydrateMesaToken] cardápio:", e?.message || e);
+        /* mantém cardápio anterior se houver; senão UI avisa */
+        if (!produtos.length) {
+          set({ lastError: e.message || "Cardápio indisponível no momento" });
+        }
+      }
 
       let mesas = get().mesas;
       let mesa = mesas.find((m) => m.token === token);
       if (!mesa) {
-        /* monta mesa mínima a partir da sessão */
-        const numero = Number(sess.mesa) || 0;
+        const numero = Number(sess.mesa) || Number(sess.mesaNumero) || 0;
         mesa = {
-          id: numero || Date.now(),
+          id: Number(sess.mesaId) || numero || Date.now(),
           numero,
           token,
-          nome: `Mesa ${String(numero).padStart(2, "0")}`,
+          nome: sess.mesaNome || `Mesa ${String(numero).padStart(2, "0")}`,
         };
         mesas = [...mesas.filter((m) => m.token !== token), mesa];
       }
@@ -193,7 +216,7 @@ export const usePub = create<PubState>((set, get) => ({
         pedidos: [...otherPedidos, ...pedidos],
         loading: false,
         apiReady: true,
-        lastError: null,
+        lastError: produtos.length ? null : get().lastError,
       });
     } catch (e: any) {
       set({ loading: false, lastError: e.message || "Falha ao carregar mesa" });

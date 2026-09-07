@@ -71,11 +71,21 @@ async function getCardapioAdmin() {
   const { rows: categorias } = await pool.query(
     'SELECT id, nome, ordem FROM categorias ORDER BY ordem, id'
   );
-  const { rows: produtos } = await pool.query(
-    `SELECT id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne,
-            controla_estoque, estoque, estoque_minimo, ordem
-     FROM produtos ORDER BY ordem ASC NULLS LAST, id ASC`
-  );
+  let produtos;
+  try {
+    ({ rows: produtos } = await pool.query(
+      `SELECT id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne,
+              controla_estoque, estoque, estoque_minimo, ordem
+       FROM produtos ORDER BY ordem ASC NULLS LAST, id ASC`
+    ));
+  } catch (e) {
+    /* migration 0012 ainda não aplicada */
+    ({ rows: produtos } = await pool.query(
+      `SELECT id, categoria_id, nome, descricao, preco, foto_url, disponivel, pede_ponto_carne,
+              controla_estoque, estoque, estoque_minimo
+       FROM produtos ORDER BY id ASC`
+    ));
+  }
   const { rows: adicionais } = await pool.query(
     'SELECT id, produto_id, nome, preco FROM adicionais ORDER BY id'
   );
