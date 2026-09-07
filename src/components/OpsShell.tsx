@@ -25,22 +25,32 @@ export function useAnuncios(papel: "cozinha" | "garcom" | "caixa") {
   useEffect(() => {
     const novos = eventos.filter((e) => e.seq > visto.current);
     if (!novos.length) return;
-    visto.current = novos[novos.length - 1].seq;
+    visto.current = Math.max(...novos.map((e) => e.seq));
     if (audioMudo()) return;
-    const ultimo = novos[novos.length - 1];
-    const mesaNum = (ultimo.mesaNome || "").replace(/\D/g, "");
-    if (papel === "cozinha" && ultimo.tipo === "pedido-novo") {
-      beepAlerta();
-      falar(`Pedido novo! ${ultimo.texto.replace("Pedido novo · ", "")}`);
-    }
-    if (papel === "garcom" && ultimo.tipo === "pedido-pronto" && mesaNum) {
-      beepDuplo();
-      const frase = FRASES_GARCOM[Math.floor(Math.random() * FRASES_GARCOM.length)];
-      falar(frase(mesaNum), { rate: 1.06, pitch: 1.05 });
-    }
-    if (papel === "caixa" && ultimo.tipo === "pix-avisado" && mesaNum) {
-      beepDuplo();
-      falar(`Aviso de PIX! Mesa ${mesaNum} disse que pagou.`);
+    for (const ev of novos) {
+      const mesaNum = (ev.mesaNome || "").replace(/\D/g, "") || (ev.mesaNome || "").trim();
+      const cliente = (ev.texto || "").replace(/^Pronto · /i, "").replace(/^Novo pedido · /i, "").trim();
+      if (papel === "cozinha" && ev.tipo === "pedido-novo") {
+        beepAlerta();
+        const quem = cliente && cliente !== "Cliente" ? cliente : "";
+        const mesa = mesaNum ? `mesa ${mesaNum}` : ev.mesaNome || "nova mesa";
+        falar(quem ? `Pedido novo! ${mesa}, ${quem}` : `Pedido novo! ${mesa}`);
+      }
+      if (papel === "garcom" && ev.tipo === "pedido-pronto") {
+        beepDuplo();
+        const mesa = mesaNum || ev.mesaNome || "";
+        if (mesa) {
+          const frase = FRASES_GARCOM[Math.floor(Math.random() * FRASES_GARCOM.length)];
+          falar(frase(String(mesaNum || mesa).replace(/\D/g, "") || String(mesa)), { rate: 1.06, pitch: 1.05 });
+        } else {
+          falar("Pedido pronto na bancada!");
+        }
+      }
+      if (papel === "caixa" && ev.tipo === "pix-avisado") {
+        beepDuplo();
+        const mesa = mesaNum ? `Mesa ${mesaNum}` : "Uma mesa";
+        falar(`Aviso de PIX! ${mesa} disse que pagou.`);
+      }
     }
   }, [eventos, papel]);
 }

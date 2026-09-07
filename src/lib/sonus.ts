@@ -8,9 +8,18 @@ export function desbloquearAudio() {
   if (desbloqueado) return;
   desbloqueado = true;
   try {
-    const u = new SpeechSynthesisUtterance(" ");
-    u.volume = 0;
-    speechSynthesis.speak(u);
+    if ("speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      speechSynthesis.speak(u);
+      speechSynthesis.getVoices();
+    }
+  } catch {
+    /* sem suporte */
+  }
+  try {
+    ctx = ctx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (ctx.state === "suspended") void ctx.resume();
   } catch {
     /* sem suporte */
   }
@@ -65,6 +74,7 @@ export function beep(freq = 880, dur = 0.12, quando = 0) {
   if (mudo) return;
   try {
     ctx = ctx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (ctx.state === "suspended") void ctx.resume();
     const t0 = ctx.currentTime + quando;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();

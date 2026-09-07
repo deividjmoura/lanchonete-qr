@@ -111,6 +111,10 @@ function tokenByPedido(get: () => PubState, pedidoId: number): string | null {
 /** desconto/taxa só existem no body do fechar — preservamos entre hydrates */
 const ajustesCaixaLocais = new Map<number, { desconto: number; taxa: number }>();
 
+/* primeiro hydrate não anuncia fila já existente */
+let anuncioCozinhaPronto = false;
+let anuncioGarcomPronto = false;
+
 export const usePub = create<PubState>((set, get) => ({
   mesas: [],
   produtos: [],
@@ -192,7 +196,24 @@ export const usePub = create<PubState>((set, get) => ({
     try {
       const rows = await api.cozinhaPedidos();
       const cozinha = mapCozinhaPedidos(rows);
-      /* fila da cozinha substitui estados ativos; preserva entregues locais */
+      const prev = get().pedidos;
+      const prevIds = new Set(prev.map((p) => p.id));
+      const prevById = new Map(prev.map((p) => [p.id, p]));
+      if (anuncioCozinhaPronto) {
+        for (const p of cozinha) {
+          if (p.status === "na_fila" && !prevIds.has(p.id)) {
+            emit(get, set, "pedido-novo", p.clienteNome || "Cliente", p.mesaNome);
+          }
+          const before = prevById.get(p.id);
+          if (p.status === "pronto" && before && before.status !== "pronto") {
+            emit(get, set, "pedido-pronto", `Pronto · ${p.clienteNome || "cliente"}`, p.mesaNome);
+          }
+          if (p.status === "pronto" && !prevIds.has(p.id)) {
+            emit(get, set, "pedido-pronto", `Pronto · ${p.clienteNome || "cliente"}`, p.mesaNome);
+          }
+        }
+      }
+      anuncioCozinhaPronto = true;
       const ativosIds = new Set(cozinha.map((p) => p.id));
       const rest = get().pedidos.filter(
         (p) => !ativosIds.has(p.id) && (p.status === "entregue" || p.status === "pronto")
@@ -209,6 +230,17 @@ export const usePub = create<PubState>((set, get) => ({
     try {
       const rows = await api.garcomPedidos(token);
       const prontos = mapCozinhaPedidos(rows).map((p) => ({ ...p, status: "pronto" as const }));
+      const prevProntos = new Set(
+        get().pedidos.filter((p) => p.status === "pronto").map((p) => p.id)
+      );
+      if (anuncioGarcomPronto) {
+        for (const p of prontos) {
+          if (!prevProntos.has(p.id)) {
+            emit(get, set, "pedido-pronto", `Pronto · ${p.clienteNome || "cliente"}`, p.mesaNome);
+          }
+        }
+      }
+      anuncioGarcomPronto = true;
       const others = get().pedidos.filter((p) => p.status !== "pronto");
       set({ pedidos: [...prontos, ...others], lastError: null });
     } catch (e: any) {
@@ -219,7 +251,7 @@ export const usePub = create<PubState>((set, get) => ({
   hydrateCaixa: async () => {
     try {
       const rows = await api.caixaSessoes();
-      const { sessoes: raw, pedidos } = mapCaixaSessoes(rows);
+      const { sessoes: raw, pedidos: entregues } = mapCaixaSessoes(rows);
       const idsVivos = new Set(raw.map((s) => s.id));
       for (const id of [...ajustesCaixaLocais.keys()]) {
         if (!idsVivos.has(id)) ajustesCaixaLocais.delete(id);
@@ -229,7 +261,13 @@ export const usePub = create<PubState>((set, get) => ({
         if (!aj) return s;
         return { ...s, desconto: aj.desconto, taxa: aj.taxa };
       });
-      set({ sessoes, pedidos, lastError: null });
+      /* NÃO apagar fila da cozinha/garçom: só mescla entregues do caixa */
+      const ativos = get().pedidos.filter((p) =>
+        p.status === "na_fila" || p.status === "em_producao" || p.status === "pronto"
+      );
+      const entregueIds = new Set(entregues.map((p) => p.id));
+      const ativosSemEntregue = ativos.filter((p) => !entregueIds.has(p.id));
+      set({ sessoes, pedidos: [...ativosSemEntregue, ...entregues], lastError: null });
     } catch (e: any) {
       set({ lastError: e.message || "Falha ao carregar caixa" });
     }
@@ -265,7 +303,8 @@ export const usePub = create<PubState>((set, get) => ({
           items: itensToApiBody(itens),
           note: "",
         });
-        emit(get, set, "pedido-novo", `Novo pedido · ${clienteNome || "cliente"}`, get().mesas.find((m) => m.id === mesaId)?.nome);
+        const mesaNome = get().mesas.find((m) => m.id === mesaId)?.nome;
+        emit(get, set, "pedido-novo", `${clienteNome || "Cliente"}`, mesaNome);
         await get().hydrateMesaToken(token);
       } catch (e: any) {
         set({ lastError: e.message || "Erro ao enviar pedido" });
@@ -321,8 +360,9 @@ export const usePub = create<PubState>((set, get) => ({
   aceitarPedido: (pedidoId) => {
     void (async () => {
       try {
+        const p = get().pedidos.find((x) => x.id === pedidoId);
         await api.statusPedido(pedidoId, statusToApi("em_producao"));
-        emit(get, set, "pedido-aceito", `Pedido #${pedidoId} em produção`);
+        emit(get, set, "pedido-aceito", `Pedido #${pedidoId} em produção`, p?.mesaNome);
         await get().hydrateCozinha();
       } catch (e: any) {
         alert(e.message || "Erro ao aceitar");
@@ -333,8 +373,15 @@ export const usePub = create<PubState>((set, get) => ({
   concluirPedido: (pedidoId) => {
     void (async () => {
       try {
+        const p = get().pedidos.find((x) => x.id === pedidoId);
         await api.statusPedido(pedidoId, statusToApi("pronto"));
-        emit(get, set, "pedido-pronto", `Pedido #${pedidoId} pronto`);
+        emit(
+          get,
+          set,
+          "pedido-pronto",
+          `Pronto · ${p?.clienteNome || "cliente"}`,
+          p?.mesaNome
+        );
         await get().hydrateCozinha();
       } catch (e: any) {
         alert(e.message || "Erro ao concluir");
@@ -343,6 +390,13 @@ export const usePub = create<PubState>((set, get) => ({
   },
 
   entregarPedido: (pedidoId, garcomToken) => {
+    /* otimista: tira da fila "pronto" na hora — evita sumiço dos outros cards */
+    const antes = get().pedidos.find((p) => p.id === pedidoId);
+    set({
+      pedidos: get().pedidos.map((p) =>
+        p.id === pedidoId ? { ...p, status: "entregue" as const } : p
+      ),
+    });
     void (async () => {
       try {
         if (garcomToken) {
@@ -352,9 +406,21 @@ export const usePub = create<PubState>((set, get) => ({
           await api.statusPedido(pedidoId, statusToApi("entregue"));
           await get().hydrateCozinha();
         }
-        emit(get, set, "pedido-entregue", `Pedido #${pedidoId} entregue`);
+        emit(
+          get,
+          set,
+          "pedido-entregue",
+          `Pedido #${pedidoId} entregue`,
+          antes?.mesaNome
+        );
         await get().hydrateCaixa().catch(() => null);
       } catch (e: any) {
+        /* reverte se falhou */
+        if (antes) {
+          set({
+            pedidos: get().pedidos.map((p) => (p.id === pedidoId ? antes : p)),
+          });
+        }
         alert(e.message || "Erro ao entregar");
       }
     })();

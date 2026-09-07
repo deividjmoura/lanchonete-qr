@@ -7,6 +7,7 @@ import { ir, useAgora } from "../router";
 
 import type { Pedido } from "../lib/types";
 import { usePub } from "../store/usePub";
+import { connectEvents } from "../lib/api";
 import { elapsed } from "../lib/utils";
 
 export default function Garcom({ token }: { token: string }) {
@@ -18,8 +19,12 @@ export default function Garcom({ token }: { token: string }) {
   useEffect(() => {
     if (!token) return;
     void hydrateGarcom(token);
-    const t = setInterval(() => void hydrateGarcom(token), 8000);
-    return () => clearInterval(t);
+    const t = setInterval(() => void hydrateGarcom(token), 5000);
+    const off = connectEvents(() => void hydrateGarcom(token));
+    return () => {
+      clearInterval(t);
+      off();
+    };
   }, [token, hydrateGarcom]);
 
   const entregar = usePub((s) => s.entregarPedido);

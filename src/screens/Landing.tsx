@@ -1,10 +1,9 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowRight, ArrowUpRight, ChefHat, ConciergeBell, QrCode, Receipt, Smartphone,
+  ArrowRight, ChefHat, ConciergeBell, QrCode, Receipt, Smartphone,
   Split, Wallet, Boxes, ChartNoAxesColumn, UtensilsCrossed, Zap, Beer,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { Badge, Btn, LivePill, Logo, Secao } from "../components/ui";
 import { ir } from "../router";
 import { HERO_IMG } from "../lib/data";
@@ -48,7 +47,6 @@ export default function Landing() {
   const sessoes = usePub((s) => s.sessoes);
   const pedidos = usePub((s) => s.pedidos);
 
-  const mesaDemo = mesas[0];
   const naFila = pedidos.filter((p) => p.status === "na_fila" || p.status === "em_producao").length;
   const comandas = sessoes.filter((s) => s.status === "aberta").length;
   const consumoAberto = sessoes
@@ -101,9 +99,12 @@ export default function Landing() {
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Btn size="lg" disabled={!mesaDemo} onClick={() => mesaDemo && ir(`/mesa/${mesaDemo.token}`)}>
-                  <QrCode className="size-5" /> Abrir cardápio da mesa
-                </Btn>
+                <div className="inline-flex items-center gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-4 py-3">
+                  <QrCode className="size-6 text-amber-300 shrink-0" />
+                  <p className="text-sm text-stone-200 leading-snug max-w-xs">
+                    <b className="text-white">Cliente:</b> escaneie o QR Code da sua mesa — o número já vem no link.
+                  </p>
+                </div>
               </div>
             </motion.div>
 
@@ -192,47 +193,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* MESAS / QR */}
-      <section className="mx-auto max-w-400 px-5 sm:px-8 pb-20 sm:pb-28">
-        <motion.div {...fadeUp}>
-          <Secao
-            kicker="cada mesa, um QR"
-            titulo={<>Escolha uma mesa <span className="text-gradient">e peça agora</span></>}
-            right={<Badge tone="zinc">{mesas.length ? `${mesas.length} mesas` : "carregue o admin / API"}</Badge>}
-          />
-        </motion.div>
-        {!mesas.length && (
-          <p className="mt-8 text-sm text-stone-400 max-w-md">
-            Nenhuma mesa carregada da API. Faça login no <button type="button" className="text-amber-300 underline cursor-pointer" onClick={() => ir("/login")}>Admin</button> ou confira se a API está no ar (porta 3000). Os links demo antigos não funcionam com o banco real.
-          </p>
-        )}
-        <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {mesas.map((m, i) => {
-            const aberta = sessoes.some((s) => s.mesaId === m.id && s.status === "aberta");
-            return (
-              <motion.button
-                key={m.id}
-                {...fadeUp}
-                transition={{ ...fadeUp.transition, delay: i * 0.04 }}
-                onClick={() => ir(`/mesa/${m.token}`)}
-                className="group relative glass rounded-3xl p-5 text-left cursor-pointer hover:border-amber-400/35 hover:bg-white/[0.05] transition-all"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="rounded-xl bg-white p-2.5 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.6)]">
-                    <QRCodeSVG value={`#/mesa/${m.token}`} size={56} fgColor="#131009" />
-                  </div>
-                  <Badge tone={aberta ? "amber" : "zinc"}>{aberta ? "ocupada" : "livre"}</Badge>
-                </div>
-                <p className="mt-4 font-display text-3xl text-white group-hover:text-gradient">{m.nome}</p>
-                <p className="text-[11px] text-stone-500 font-mono mt-0.5 truncate">/mesa/{m.token}</p>
-                <span className="absolute bottom-4 right-5 grid place-items-center size-8 rounded-full border border-white/10 text-stone-500 group-hover:text-amber-300 group-hover:border-amber-400/40 group-hover:rotate-45 transition-all">
-                  <ArrowUpRight className="size-4" />
-                </span>
-              </motion.button>
-            );
-          })}
-        </div>
-      </section>
 
       {/* footer */}
       <footer className="border-t border-white/[0.07]">
