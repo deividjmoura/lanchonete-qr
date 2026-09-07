@@ -10,6 +10,8 @@ import { OpsShell } from "../components/OpsShell";
 import { Badge, Btn, Input, Modal } from "../components/ui";
 import { ir } from "../router";
 import { api } from "../lib/api";
+import { descricaoPadrao } from "../lib/descricao";
+import { imprimirRelatorioPdf } from "../lib/print";
 import { CATEGORIAS } from "../lib/data";
 import type { FormaPagamento, Produto, TipoProduto } from "../lib/types";
 import { FORMAS, faturamentoSemana, pagoSessao, totalSessao, usePub } from "../store/usePub";
@@ -579,7 +581,7 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
       await upsert({
         id: produto ? produto.id : Math.max(0, ...produtos.map((p) => p.id)) + 1,
         nome: nome.trim(),
-        descricao: descricao.trim() || "Feito na hora, com a cara da casa.",
+        descricao: descricao.trim() || descricaoPadrao(nome.trim(), categoria),
         preco: precoN,
         categoria,
         foto:
@@ -1266,6 +1268,22 @@ function Relatorio() {
         </Btn>
         <Btn size="sm" variant="outline" onClick={baixarCSV} disabled={!contas.length}>
           <Download className="size-3.5" /> CSV
+        </Btn>
+        <Btn
+          size="sm"
+          variant="lime"
+          disabled={!data}
+          onClick={() =>
+            imprimirRelatorioPdf({
+              from,
+              to,
+              resumo,
+              contas,
+              porDia,
+            })
+          }
+        >
+          <FileText className="size-3.5" /> PDF / Imprimir
         </Btn>
       </div>
 

@@ -23,6 +23,7 @@ import { Badge, Btn, Input, Logo, Modal, Qtd } from "../components/ui";
 import type { Opcao, Pedido, Produto } from "../lib/types";
 import { usePub, sessaoDaMesa, totalSessao } from "../store/usePub";
 import { FOTO_PLACEHOLDER, fotoSrc } from "../lib/mappers";
+import { descricaoExibida, isDoseProduto } from "../lib/descricao";
 import { connectEvents } from "../lib/api";
 import { BRL } from "../lib/utils";
 import { cn } from "../utils/cn";
@@ -91,7 +92,6 @@ export default function Mesa({ token }: { token: string }) {
   const listaTopRef = useRef<HTMLDivElement>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [produtoModal, setProdutoModal] = useState<Produto | null>(null);
-  const [fotoExpandida, setFotoExpandida] = useState<{ src: string; nome: string } | null>(null);
   const [sheet, setSheet] = useState<"cart" | "conta" | null>(null);
   const [nome, setNome] = useState(() => sessionStorage.getItem(`pub-nome-${token}`) || "");
   const [enviado, setEnviado] = useState(false);
@@ -586,14 +586,9 @@ export default function Mesa({ token }: { token: string }) {
                     >
                       <button
                         type="button"
-                        onClick={() =>
-                          setFotoExpandida({
-                            src: fotoSrc(p.foto) || FOTO_PLACEHOLDER,
-                            nome: p.nome,
-                          })
-                        }
-                        className="relative block w-full aspect-[4/3] sm:aspect-[5/4] overflow-hidden cursor-zoom-in text-left"
-                        aria-label={`Ver foto de ${p.nome}`}
+                        onClick={() => setProdutoModal(p)}
+                        className="relative block w-full aspect-[4/3] sm:aspect-[5/4] overflow-hidden cursor-pointer text-left"
+                        aria-label={`Ver ${p.nome}`}
                       >
                         <img
                           src={fotoSrc(p.foto) || FOTO_PLACEHOLDER}
@@ -626,7 +621,7 @@ export default function Mesa({ token }: { token: string }) {
 
                       <div className="p-2.5 sm:p-4">
                         <h3 className="font-semibold text-white leading-tight text-sm sm:text-base line-clamp-2">{p.nome}</h3>
-                        <p className="mt-1 text-[11px] sm:text-xs text-stone-400 leading-relaxed line-clamp-2 min-h-[2rem]">{p.descricao}</p>
+                        <p className="mt-1 text-[11px] sm:text-xs text-stone-400 leading-relaxed line-clamp-2 min-h-[2rem]">{descricaoExibida(p.descricao, p.nome, p.categoria)}</p>
                         <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-1.5">
                           <span className="text-[10px] uppercase tracking-wider font-bold text-stone-500">
                             {p.tipo === "escolher" ? "escolha 1 opção" : p.tipo === "personalizavel" ? `${p.adicionais.length} adicionais` : "do jeito da casa"}
@@ -676,14 +671,9 @@ export default function Mesa({ token }: { token: string }) {
                     >
                       <button
                         type="button"
-                        onClick={() =>
-                          setFotoExpandida({
-                            src: fotoSrc(p.foto) || FOTO_PLACEHOLDER,
-                            nome: p.nome,
-                          })
-                        }
-                        className="relative block w-full aspect-[4/3] sm:aspect-[5/4] overflow-hidden cursor-zoom-in text-left"
-                        aria-label={`Ver foto de ${p.nome}`}
+                        onClick={() => setProdutoModal(p)}
+                        className="relative block w-full aspect-[4/3] sm:aspect-[5/4] overflow-hidden cursor-pointer text-left"
+                        aria-label={`Ver ${p.nome}`}
                       >
                         <img
                           src={fotoSrc(p.foto) || FOTO_PLACEHOLDER}
@@ -716,7 +706,7 @@ export default function Mesa({ token }: { token: string }) {
 
                       <div className="p-2.5 sm:p-4">
                         <h3 className="font-semibold text-white leading-tight text-sm sm:text-base line-clamp-2">{p.nome}</h3>
-                        <p className="mt-1 text-[11px] sm:text-xs text-stone-400 leading-relaxed line-clamp-2 min-h-[2rem]">{p.descricao}</p>
+                        <p className="mt-1 text-[11px] sm:text-xs text-stone-400 leading-relaxed line-clamp-2 min-h-[2rem]">{descricaoExibida(p.descricao, p.nome, p.categoria)}</p>
                         <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-1.5">
                           <span className="text-[10px] uppercase tracking-wider font-bold text-stone-500">
                             {p.tipo === "escolher" ? "escolha 1 opção" : p.tipo === "personalizavel" ? `${p.adicionais.length} adicionais` : "do jeito da casa"}
@@ -798,47 +788,6 @@ export default function Mesa({ token }: { token: string }) {
       <Modal open={sheet === "conta"} onClose={() => setSheet(null)}>
         <div className="p-5 sm:p-6 min-h-[55dvh]">{painelConta}</div>
       </Modal>
-
-      {/* foto expandida */}
-      <AnimatePresence>
-        {fotoExpandida && (
-          <motion.div
-            key="foto-full"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
-            onClick={() => setFotoExpandida(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 28 }}
-              className="relative max-h-[min(88dvh,900px)] max-w-[min(96vw,720px)] w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src={fotoExpandida.src}
-                alt={fotoExpandida.nome}
-                className="max-h-[min(82dvh,860px)] w-full object-contain rounded-2xl shadow-2xl bg-coal-900"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER;
-                }}
-              />
-              <p className="mt-3 text-center text-sm font-semibold text-white">{fotoExpandida.nome}</p>
-              <button
-                type="button"
-                onClick={() => setFotoExpandida(null)}
-                className="btn-press absolute -top-1 -right-1 sm:top-2 sm:right-2 grid place-items-center size-10 rounded-full bg-black/70 border border-white/20 text-white cursor-pointer"
-                aria-label="Fechar"
-              >
-                <X className="size-5" />
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* -------- modal produto -------- */}
       <ProdutoModal
@@ -940,6 +889,7 @@ function ProdutoModal({
   const [ads, setAds] = useState<Opcao[]>([]);
   const [rems, setRems] = useState<string[]>([]);
   const [escolha, setEscolha] = useState<Opcao | null>(null);
+  const [gelo, setGelo] = useState<"com" | "sem">("com");
   const [obs, setObs] = useState("");
 
   useEffect(() => {
@@ -949,37 +899,92 @@ function ProdutoModal({
       setRems([]);
       setObs("");
       setEscolha(produto.tipo === "escolher" ? null : null);
+      setGelo("com");
     }
   }, [produto]);
 
   if (!produto) return null;
+
+  const dose = isDoseProduto(produto.nome, produto.categoria);
   const precisaEscolha = produto.tipo === "escolher";
   const unit =
     produto.preco + ads.reduce((a, b) => a + b.preco, 0) + (escolha?.preco ?? 0);
   const pode = !precisaEscolha || !!escolha;
+  const desc = descricaoExibida(produto.descricao, produto.nome, produto.categoria);
 
   const confirmar = () => {
     if (!pode) return;
-    onAdd({ uid: Math.random().toString(36).slice(2), produto, qtd, adicionais: ads, removidos: rems, escolha, obs });
+    const obsParts = [obs.trim()];
+    if (dose) obsParts.unshift(gelo === "sem" ? "Sem gelo" : "Com gelo");
+    onAdd({
+      uid: Math.random().toString(36).slice(2),
+      produto,
+      qtd,
+      adicionais: ads,
+      removidos: rems,
+      escolha,
+      obs: obsParts.filter(Boolean).join(" · "),
+    });
     onClose();
   };
 
   return (
-    <Modal open onClose={onClose}>
-      <div>
-        <div className="relative h-52">
-          <img src={fotoSrc(produto.foto) || FOTO_PLACEHOLDER} alt={produto.nome} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER; }} />
-          <div className="absolute inset-0 bg-gradient-to-t from-coal-900 via-transparent to-transparent" />
-          <div className="absolute bottom-4 left-5 right-14">
+    <Modal open onClose={onClose} wide closeOnBackdrop={false}>
+      <div className="overflow-hidden">
+        {/* imagem + título colados — sem gap */}
+        <div className="relative w-full aspect-[16/11] sm:aspect-[16/10] bg-coal-900">
+          <img
+            src={fotoSrc(produto.foto) || FOTO_PLACEHOLDER}
+            alt={produto.nome}
+            className="absolute inset-0 h-full w-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER;
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-coal-950 via-coal-950/20 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 pointer-events-none">
             <Badge tone="amber">{produto.categoria}</Badge>
-            <h3 className="font-display text-3xl sm:text-4xl text-white leading-none mt-2 drop-shadow-lg break-words">{produto.nome}</h3>
+            <h3 className="font-display text-3xl sm:text-4xl text-white leading-none mt-2 drop-shadow-lg break-words">
+              {produto.nome}
+            </h3>
+            <p className="mt-1.5 font-mono text-lg font-bold text-amber-300 drop-shadow">{BRL(produto.preco)}</p>
           </div>
         </div>
 
-        <div className="p-5 space-y-5">
-          <p className="text-sm text-stone-400 leading-relaxed">{produto.descricao}</p>
+        <div className="p-4 sm:p-5 space-y-4">
+          <p className="text-sm text-stone-400 leading-relaxed">{desc}</p>
 
-          {/* escolha única (rádio) */}
+          {/* doses: com / sem gelo */}
+          {dose && (
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-300 mb-2.5">gelo</p>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { id: "com" as const, label: "Com gelo" },
+                    { id: "sem" as const, label: "Sem gelo" },
+                  ] as const
+                ).map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setGelo(g.id)}
+                    className={cn(
+                      "btn-press inline-flex items-center gap-1.5 rounded-full border px-3.5 h-10 text-xs font-semibold cursor-pointer transition-all",
+                      gelo === g.id
+                        ? "border-sky-400/60 bg-sky-400/15 text-sky-200"
+                        : "border-white/12 bg-white/[0.03] text-stone-300 hover:border-white/30"
+                    )}
+                  >
+                    {gelo === g.id ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
+                    {g.label}
+                    <span className="font-mono opacity-70">+{BRL(0)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {precisaEscolha && (
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-300 mb-2.5">escolha uma opção</p>
@@ -987,24 +992,33 @@ function ProdutoModal({
                 {produto.adicionais.map((a) => (
                   <button
                     key={a.id}
+                    type="button"
                     onClick={() => setEscolha(a)}
                     className={cn(
                       "btn-press w-full flex items-center gap-3 rounded-2xl border p-3.5 text-left cursor-pointer transition-all",
-                      escolha?.id === a.id ? "border-sky-400/60 bg-sky-400/10" : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                      escolha?.id === a.id
+                        ? "border-amber-400/60 bg-amber-400/15"
+                        : "border-white/12 bg-white/[0.03] hover:border-white/30"
                     )}
                   >
-                    <span className={cn("grid place-items-center size-5 rounded-full border-2 transition-colors", escolha?.id === a.id ? "border-sky-300" : "border-stone-600")}>
-                      {escolha?.id === a.id && <span className="size-2.5 rounded-full bg-sky-300" />}
+                    <span
+                      className={cn(
+                        "grid place-items-center size-5 rounded-full border-2 shrink-0",
+                        escolha?.id === a.id ? "border-amber-300" : "border-stone-600"
+                      )}
+                    >
+                      {escolha?.id === a.id && <span className="size-2.5 rounded-full bg-amber-300" />}
                     </span>
                     <span className="flex-1 text-sm font-semibold text-white">{a.nome}</span>
-                    <span className="font-mono text-xs text-stone-400">{a.preco > 0 ? `+ ${BRL(a.preco)}` : "incluso"}</span>
+                    <span className="font-mono text-xs text-stone-400">
+                      {a.preco > 0 ? `+ ${BRL(a.preco)}` : "incluso"}
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* adicionais (multi) */}
           {!precisaEscolha && produto.adicionais.length > 0 && (
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-300 mb-2.5">adições</p>
@@ -1014,10 +1028,13 @@ function ProdutoModal({
                   return (
                     <button
                       key={a.id}
+                      type="button"
                       onClick={() => setAds((x) => (on ? x.filter((y) => y.id !== a.id) : [...x, a]))}
                       className={cn(
                         "btn-press inline-flex items-center gap-1.5 rounded-full border px-3.5 h-10 text-xs font-semibold cursor-pointer transition-all",
-                        on ? "border-amber-400/60 bg-amber-400/15 text-amber-200" : "border-white/12 bg-white/[0.03] text-stone-300 hover:border-white/30"
+                        on
+                          ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
+                          : "border-white/12 bg-white/[0.03] text-stone-300 hover:border-white/30"
                       )}
                     >
                       {on ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
@@ -1030,7 +1047,6 @@ function ProdutoModal({
             </div>
           )}
 
-          {/* removíveis */}
           {produto.removiveis.length > 0 && (
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-rose-300 mb-2.5">tirar do jeito que vem</p>
@@ -1040,10 +1056,13 @@ function ProdutoModal({
                   return (
                     <button
                       key={r.id}
+                      type="button"
                       onClick={() => setRems((x) => (on ? x.filter((y) => y !== r.nome) : [...x, r.nome]))}
                       className={cn(
                         "btn-press inline-flex items-center gap-1.5 rounded-full border px-3.5 h-9 text-xs font-semibold cursor-pointer transition-all",
-                        on ? "border-rose-400/60 bg-rose-400/15 text-rose-200" : "border-white/12 bg-white/[0.03] text-stone-400 hover:border-white/30"
+                        on
+                          ? "border-rose-400/60 bg-rose-400/15 text-rose-200"
+                          : "border-white/12 bg-white/[0.03] text-stone-400 hover:border-white/30"
                       )}
                     >
                       <Minus className="size-3" /> sem {r.nome.toLowerCase()}
@@ -1054,7 +1073,7 @@ function ProdutoModal({
             </div>
           )}
 
-          <Input value={obs} onChange={setObs} placeholder="Observação p/ cozinha (ponto da carne, gelo à parte…)" />
+          <Input value={obs} onChange={setObs} placeholder="Observação p/ cozinha (opcional)" />
 
           <div className="flex items-center justify-between gap-4 pt-1">
             <Qtd valor={qtd} onChange={setQtd} />

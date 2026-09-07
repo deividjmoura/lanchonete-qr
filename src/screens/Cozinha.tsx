@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BellRing, CheckCircle2, CircleAlert, Flame, Timer } from "lucide-react";
+import { BellRing, CheckCircle2, CircleAlert, Flame, Printer, Timer } from "lucide-react";
 import { OpsShell, useAnuncios } from "../components/OpsShell";
 import { Badge, Btn, LivePill } from "../components/ui";
 import type { Pedido } from "../lib/types";
 import { usePub } from "../store/usePub";
 import { connectEvents } from "../lib/api";
 import { elapsed } from "../lib/utils";
+import { imprimirComanda } from "../lib/print";
 import { cn } from "../utils/cn";
 import { ir, useAgora } from "../router";
 
@@ -165,7 +166,7 @@ function CardPedido({ pedido, borda }: { pedido: Pedido; borda: string }) {
         ))}
       </ul>
 
-      <div className="mt-3.5">
+      <div className="mt-3.5 space-y-2">
         {pedido.status === "na_fila" && (
           <Btn full size="sm" onClick={() => aceitar(pedido.id)}>
             <Flame className="size-4" /> Aceitar pedido
@@ -181,6 +182,9 @@ function CardPedido({ pedido, borda }: { pedido: Pedido; borda: string }) {
             <BellRing className="size-3.5 animate-pulse-soft" /> aguardando retirada
           </p>
         )}
+        <Btn full size="sm" variant="outline" onClick={() => imprimirComanda(pedido)}>
+          <Printer className="size-4" /> Imprimir comanda
+        </Btn>
       </div>
     </motion.article>
   );
