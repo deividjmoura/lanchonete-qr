@@ -383,53 +383,150 @@ export const usePub = create<PubState>((set, get) => ({
     })();
   },
 
-  /* admin local até plugar CRUD completo */
+  /* admin → API real (persiste no Postgres) */
   upsertProduto: (p) => {
-    const st = get();
-    const i = st.produtos.findIndex((x) => x.id === p.id);
-    if (i >= 0) {
-      const produtos = st.produtos.slice();
-      produtos[i] = p;
-      set({ produtos });
-    } else set({ produtos: [...st.produtos, p] });
+    void (async () => {
+      try {
+        const st = get();
+        const cat = st.categorias.find((c) => c.nome === p.categoria);
+        if (!cat) {
+          alert("Selecione uma categoria válida");
+          return;
+        }
+        const body = {
+          nome: p.nome,
+          descricao: p.descricao || "",
+          preco: p.preco,
+          categoriaId: cat.id,
+          fotoUrl: p.foto && !p.foto.startsWith("data:image/svg") ? p.foto : null,
+          disponivel: p.ativo !== false,
+          controlaEstoque: p.estoque != null,
+          estoque: p.estoque,
+        };
+        const exists = st.produtos.some((x) => x.id === p.id);
+        let produtoId = p.id;
+        if (exists) {
+          await api.atualizarProduto(p.id, body);
+          produtoId = p.id;
+          /* sincroniza removíveis */
+          await api.setRemoviveis(
+            produtoId,
+            (p.removiveis || []).map((r) => r.nome).filter(Boolean)
+          );
+          /* adicionais: cria os que não têm id numérico de API */
+          const atuais = p.adicionais || [];
+          for (const a of atuais) {
+            const nId = Number(a.id);
+            if (!Number.isFinite(nId) || nId <= 0 || String(a.id) !== String(nId)) {
+              await api.criarAdicional(produtoId, { nome: a.nome, preco: a.preco });
+            }
+          }
+        } else {
+          const created = await api.criarProduto(body);
+          produtoId = Number(created.id);
+          for (const a of p.adicionais || []) {
+            if (a.nome) await api.criarAdicional(produtoId, { nome: a.nome, preco: a.preco || 0 });
+          }
+          const rems = (p.removiveis || []).map((r) => r.nome).filter(Boolean);
+          if (rems.length) await api.setRemoviveis(produtoId, rems);
+        }
+        await get().hydrateCardapio();
+        set({ lastError: null });
+      } catch (e: any) {
+        set({ lastError: e.message || "Erro ao salvar produto" });
+        alert(e.message || "Erro ao salvar produto");
+        void get().hydrateCardapio();
+      }
+    })();
   },
-  removerProduto: (id) => set({ produtos: get().produtos.filter((p) => p.id !== id) }),
-  toggleProduto: (id) =>
+  removerProduto: (id) => {
+    void (async () => {
+      try {
+        await api.removerProdutoApi(id);
+        await get().hydrateCardapio();
+      } catch (e: any) {
+        set({ lastError: e.message || "Erro ao remover produto" });
+        alert(e.message || "Erro ao remover produto");
+        void get().hydrateCardapio();
+      }
+    })();
+  },
+  toggleProduto: (id) => {
+    const p = get().produtos.find((x) => x.id === id);
+    if (!p) return;
+    const next = !p.ativo;
     set({
-      produtos: get().produtos.map((p) => (p.id === id ? { ...p, ativo: !p.ativo } : p)),
-    }),
-  ajustarEstoque: (id, delta) =>
+      produtos: get().produtos.map((x) => (x.id === id ? { ...x, ativo: next } : x)),
+    });
+    void (async () => {
+      try {
+        await api.atualizarProduto(id, { disponivel: next });
+        await get().hydrateCardapio();
+      } catch (e: any) {
+        set({ lastError: e.message || "Erro ao alterar disponibilidade" });
+        alert(e.message || "Erro ao alterar disponibilidade");
+        void get().hydrateCardapio();
+      }
+    })();
+  },
+  ajustarEstoque: (id, delta) => {
+    const p = get().produtos.find((x) => x.id === id);
+    if (!p || p.estoque == null) return;
+    const next = Math.max(0, p.estoque + delta);
     set({
-      produtos: get().produtos.map((p) =>
-        p.id === id && p.estoque != null ? { ...p, estoque: Math.max(0, p.estoque + delta) } : p
-      ),
-    }),
+      produtos: get().produtos.map((x) => (x.id === id ? { ...x, estoque: next } : x)),
+    });
+    void (async () => {
+      try {
+        await api.atualizarProduto(id, { controlaEstoque: true, estoque: next });
+        await get().hydrateCardapio();
+      } catch (e: any) {
+        set({ lastError: e.message || "Erro ao ajustar estoque" });
+        alert(e.message || "Erro ao ajustar estoque");
+        void get().hydrateCardapio();
+      }
+    })();
+  },
   addCategoria: (nome) => {
     const n = nome.trim();
     if (!n) return;
-    const st = get();
-    if (st.categorias.some((c) => c.nome.toLowerCase() === n.toLowerCase())) return;
-    const id = Math.max(0, ...st.categorias.map((c) => c.id)) + 1;
-    set({ categorias: [...st.categorias, { id, nome: n, ordem: st.categorias.length }] });
+    void (async () => {
+      try {
+        const ordem = get().categorias.length;
+        await api.criarCategoria({ nome: n, ordem });
+        await get().hydrateCardapio();
+      } catch (e: any) {
+        set({ lastError: e.message || "Erro ao criar categoria" });
+        alert(e.message || "Erro ao criar categoria");
+      }
+    })();
   },
   renameCategoria: (id, nome) => {
     const n = nome.trim();
     if (!n) return;
-    const st = get();
-    const old = st.categorias.find((c) => c.id === id);
-    if (!old) return;
-    set({
-      categorias: st.categorias.map((c) => (c.id === id ? { ...c, nome: n } : c)),
-      produtos: st.produtos.map((p) => (p.categoria === old.nome ? { ...p, categoria: n } : p)),
-    });
+    void (async () => {
+      try {
+        await api.atualizarCategoria(id, { nome: n });
+        await get().hydrateCardapio();
+      } catch (e: any) {
+        set({ lastError: e.message || "Erro ao renomear categoria" });
+        alert(e.message || "Erro ao renomear categoria");
+        void get().hydrateCardapio();
+      }
+    })();
   },
   removeCategoria: (id) => {
     const st = get();
     const cat = st.categorias.find((c) => c.id === id);
     if (!cat) return;
-    if (st.produtos.some((p) => p.categoria === cat.nome)) return;
-    set({ categorias: st.categorias.filter((c) => c.id !== id) });
+    if (st.produtos.some((p) => p.categoria === cat.nome)) {
+      alert("Remova ou mova os produtos desta categoria antes.");
+      return;
+    }
+    /* backend ainda não expõe DELETE de categoria — evita falso positivo local */
+    alert("Excluir categoria vazia ainda não está disponível na API. Renomeie ou reordene.");
   },
+
   moverCategoria: (id, delta) => {
     const st = get();
     const sorted = [...st.categorias].sort((a, b) => a.ordem - b.ordem);

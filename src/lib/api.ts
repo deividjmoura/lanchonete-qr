@@ -80,6 +80,22 @@ export const api = {
     apiSend("/api/admin/categorias/ordem", "PUT", { ids }),
   reorderProdutos: (categoriaId: number, ids: number[]) =>
     apiSend("/api/admin/produtos/ordem", "PUT", { categoriaId, ids }),
+
+  criarCategoria: (body: { nome: string; ordem?: number }) =>
+    apiSend<{ id: number; nome: string; ordem: number }>("/api/admin/categorias", "POST", body),
+  atualizarCategoria: (id: number, body: { nome?: string; ordem?: number }) =>
+    apiSend(`/api/admin/categorias/${id}`, "PATCH", body),
+
+  criarProduto: (body: unknown) => apiSend<any>("/api/admin/produtos", "POST", body),
+  atualizarProduto: (id: number, body: unknown) =>
+    apiSend<any>(`/api/admin/produtos/${id}`, "PATCH", body),
+  removerProdutoApi: (id: number) => apiSend(`/api/admin/produtos/${id}`, "DELETE"),
+
+  criarAdicional: (produtoId: number, body: { nome: string; preco: number }) =>
+    apiSend(`/api/admin/produtos/${produtoId}/adicionais`, "POST", body),
+  removerAdicional: (id: number) => apiSend(`/api/admin/adicionais/${id}`, "DELETE"),
+  setRemoviveis: (produtoId: number, ingredientes: string[]) =>
+    apiSend(`/api/admin/produtos/${produtoId}/removiveis`, "PUT", { ingredientes }),
 };
 
 /** SSE — invalida/recarrega quando o servidor emite update. */
