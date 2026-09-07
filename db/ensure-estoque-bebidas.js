@@ -1,4 +1,5 @@
 /** Liga estoque em produtos de categorias de bebida (DB já populado). */
+require('dotenv').config();
 const pool = require('./pool');
 
 async function main() {

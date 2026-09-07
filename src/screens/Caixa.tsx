@@ -26,12 +26,7 @@ export default function Caixa() {
     }
   }, [auth]);
 
-  const auth = usePub((s) => s.auth);
-  useEffect(() => {
-    if (!auth) ir("/login");
-  }, [auth]);
-  useAnuncios("caixa");
-  useAgora(1000);
+  useAnuncios("caixa");  useAgora(1000);
 
   const sessoes = usePub((s) => s.sessoes);
   const lastError = usePub((s) => s.lastError);

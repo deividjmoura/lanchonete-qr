@@ -28,11 +28,7 @@ export default function Cozinha() {
     }
   }, [auth]);
 
-  const auth = usePub((s) => s.auth);
-  useEffect(() => {
-    if (!auth) ir("/login");
-  }, [auth]);
-  useAnuncios("cozinha");
+    useAnuncios("cozinha");
   // lastError exibido abaixo
   useAgora(1000);
 
