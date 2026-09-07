@@ -113,11 +113,14 @@ export function Modal({
   onClose,
   children,
   wide,
+  closeOnBackdrop = true,
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  /** false = só fecha no X (formulários longos) */
+  closeOnBackdrop?: boolean;
 }) {
   return (
     <AnimatePresence>
@@ -127,7 +130,9 @@ export function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-90 flex items-end sm:items-center justify-center sm:p-6"
-          onClick={onClose}
+          onClick={() => {
+            if (closeOnBackdrop) onClose();
+          }}
         >
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <motion.div
@@ -136,12 +141,14 @@ export function Modal({
             exit={{ y: 50, opacity: 0, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             className={cn(
               "relative glass-deep noise rounded-t-4xl sm:rounded-4xl w-full max-h-[92dvh] overflow-y-auto no-scrollbar",
               wide ? "sm:max-w-2xl" : "sm:max-w-md"
             )}
           >
             <button
+              type="button"
               onClick={onClose}
               className="btn-press absolute top-4 right-4 z-10 grid place-items-center size-10 rounded-full bg-black/45 border border-white/10 text-stone-300 hover:text-white cursor-pointer"
             >

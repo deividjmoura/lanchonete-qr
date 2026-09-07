@@ -65,7 +65,7 @@ interface PubState {
   fecharSessao: (sessaoId: number, forma: FormaPagamento) => void;
 
   /* admin (local + best-effort API depois) */
-  upsertProduto: (p: Produto) => void;
+  upsertProduto: (p: Produto) => Promise<void>;
   removerProduto: (id: number) => void;
   toggleProduto: (id: number) => void;
   ajustarEstoque: (id: number, delta: number) => void;
@@ -508,61 +508,82 @@ export const usePub = create<PubState>((set, get) => ({
   },
 
   /* admin → API real (persiste no Postgres) */
-  upsertProduto: (p) => {
-    void (async () => {
-      try {
-        const st = get();
-        const cat = st.categorias.find((c) => c.nome === p.categoria);
-        if (!cat) {
-          alert("Selecione uma categoria válida");
-          return;
-        }
-        const body = {
-          nome: p.nome,
-          descricao: p.descricao || "",
-          preco: p.preco,
-          categoriaId: cat.id,
-          fotoUrl: p.foto && !p.foto.startsWith("data:image/svg") ? p.foto : null,
-          disponivel: p.ativo !== false,
-          controlaEstoque: p.estoque != null,
-          estoque: p.estoque,
-          estoqueMinimo: p.estoque != null ? 5 : 0,
-        };
-        const exists = st.produtos.some((x) => x.id === p.id);
-        let produtoId = p.id;
-        if (exists) {
-          await api.atualizarProduto(p.id, body);
-          produtoId = p.id;
-          /* sincroniza removíveis */
-          await api.setRemoviveis(
-            produtoId,
-            (p.removiveis || []).map((r) => r.nome).filter(Boolean)
-          );
-          /* adicionais: cria os que não têm id numérico de API */
-          const atuais = p.adicionais || [];
-          for (const a of atuais) {
-            const nId = Number(a.id);
-            if (!Number.isFinite(nId) || nId <= 0 || String(a.id) !== String(nId)) {
-              await api.criarAdicional(produtoId, { nome: a.nome, preco: a.preco });
+  upsertProduto: async (p) => {
+    const st = get();
+    const cat = st.categorias.find((c) => c.nome === p.categoria);
+    if (!cat) {
+      alert("Selecione uma categoria válida");
+      throw new Error("Categoria inválida");
+    }
+    const body = {
+      nome: p.nome,
+      descricao: p.descricao || "",
+      preco: p.preco,
+      categoriaId: cat.id,
+      fotoUrl: p.foto && !p.foto.startsWith("data:image/svg") ? p.foto : null,
+      disponivel: p.ativo !== false,
+      controlaEstoque: p.estoque != null,
+      estoque: p.estoque,
+      estoqueMinimo: p.estoque != null ? 5 : 0,
+    };
+    const exists = st.produtos.some((x) => x.id === p.id);
+    const antes = exists ? st.produtos.find((x) => x.id === p.id) : null;
+    let produtoId = p.id;
+    try {
+      if (exists) {
+        await api.atualizarProduto(p.id, body);
+        produtoId = p.id;
+        await api.setRemoviveis(
+          produtoId,
+          (p.removiveis || []).map((r) => r.nome).filter(Boolean)
+        );
+        /* sync adicionais por nome (case-insensitive): remove sumidos, cria novos */
+        const desejados = (p.adicionais || [])
+          .map((a) => ({
+            nome: String(a.nome || "").trim(),
+            preco: Number(a.preco) || 0,
+          }))
+          .filter((a) => a.nome);
+        const existentes = (antes?.adicionais || []).filter((a) => a.nome);
+        const norm = (s: string) => s.trim().toLowerCase();
+        const desejadosSet = new Set(desejados.map((a) => norm(a.nome)));
+        for (const old of existentes) {
+          if (!desejadosSet.has(norm(old.nome))) {
+            const idNum = Number(old.id);
+            if (Number.isFinite(idNum) && idNum > 0) {
+              try {
+                await api.removerAdicional(idNum);
+              } catch (e: any) {
+                /* 409 se já usado em pedido — avisa mas segue */
+                console.warn("[adicional]", e?.message || e);
+              }
             }
           }
-        } else {
-          const created = await api.criarProduto(body);
-          produtoId = Number(created.id);
-          for (const a of p.adicionais || []) {
-            if (a.nome) await api.criarAdicional(produtoId, { nome: a.nome, preco: a.preco || 0 });
-          }
-          const rems = (p.removiveis || []).map((r) => r.nome).filter(Boolean);
-          if (rems.length) await api.setRemoviveis(produtoId, rems);
         }
-        await get().hydrateCardapio();
-        set({ lastError: null });
-      } catch (e: any) {
-        set({ lastError: e.message || "Erro ao salvar produto" });
-        alert(e.message || "Erro ao salvar produto");
-        void get().hydrateCardapio();
+        const existentesSet = new Set(
+          existentes.filter((a) => desejadosSet.has(norm(a.nome))).map((a) => norm(a.nome))
+        );
+        for (const a of desejados) {
+          if (!existentesSet.has(norm(a.nome))) {
+            await api.criarAdicional(produtoId, { nome: a.nome, preco: a.preco });
+          }
+        }
+      } else {
+        const created = await api.criarProduto(body);
+        produtoId = Number(created.id);
+        for (const a of p.adicionais || []) {
+          if (a.nome) await api.criarAdicional(produtoId, { nome: a.nome, preco: a.preco || 0 });
+        }
+        const rems = (p.removiveis || []).map((r) => r.nome).filter(Boolean);
+        if (rems.length) await api.setRemoviveis(produtoId, rems);
       }
-    })();
+      await get().hydrateCardapio();
+      set({ lastError: null });
+    } catch (e: any) {
+      set({ lastError: e.message || "Erro ao salvar produto" });
+      void get().hydrateCardapio();
+      throw e;
+    }
   },
   removerProduto: (id) => {
     void (async () => {

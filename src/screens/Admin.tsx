@@ -487,8 +487,10 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
   const [controlaEstoque, setControlaEstoque] = useState(false);
   const [estoqueQtd, setEstoqueQtd] = useState("0");
   const [estoqueMin, setEstoqueMin] = useState("5");
+  const [salvando, setSalvando] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const produtoId = produto?.id ?? null;
   useEffect(() => {
     if (produto) {
       setNome(produto.nome);
@@ -497,18 +499,32 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
       setCategoria(produto.categoria);
       setTipo(produto.tipo);
       setFoto(produto.foto);
-      setAdicionais(produto.adicionais.map((a) => `${a.nome}:${a.preco}`).join(", "));
-      setRemoviveis(produto.removiveis.map((r) => r.nome).join(", "));
+      setAdicionais(
+        (produto.adicionais || []).map((a) => `${a.nome}:${a.preco}`).join(", ")
+      );
+      setRemoviveis((produto.removiveis || []).map((r) => r.nome).join(", "));
       const tem = produto.estoque !== null && produto.estoque !== undefined;
       setControlaEstoque(tem);
       setEstoqueQtd(tem ? String(produto.estoque) : "0");
       setEstoqueMin("5");
+      setSalvando(false);
     } else if (novo) {
-      setNome(""); setDescricao(""); setPreco(""); setCategoria(catPadrao);
-      setTipo("simples"); setFoto(""); setAdicionais(""); setRemoviveis("");
-      setControlaEstoque(false); setEstoqueQtd("0"); setEstoqueMin("5");
+      setNome("");
+      setDescricao("");
+      setPreco("");
+      setCategoria(catPadrao);
+      setTipo("simples");
+      setFoto("");
+      setAdicionais("");
+      setRemoviveis("");
+      setControlaEstoque(false);
+      setEstoqueQtd("0");
+      setEstoqueMin("5");
+      setSalvando(false);
     }
-  }, [produto, novo]);
+    // só re-hidrata ao abrir outro produto (id) — evita fechar/reset no meio da edição
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [produtoId, novo]);
 
   /* upload local → dataURL otimizado (espelha POST /api/admin/upload-foto com sharp) */
   const arquivo = (f: File) => {
@@ -527,16 +543,25 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
     img.src = url;
   };
 
-  const salvar = () => {
+  const salvar = async () => {
     const precoN = Number(preco.replace(",", "."));
-    if (!nome.trim() || !(precoN > 0)) return;
+    if (!nome.trim() || !(precoN > 0) || salvando) return;
+    const existentesAds = produto?.adicionais || [];
+    const norm = (s: string) => s.trim().toLowerCase();
     const ads = adicionais
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)
       .map((s) => {
-        const [n, pr] = s.split(":");
-        return { id: Math.random().toString(36).slice(2, 8), nome: n.trim(), preco: Number(pr || 0) || 0 };
+        const colon = s.lastIndexOf(":");
+        const n = (colon >= 0 ? s.slice(0, colon) : s).trim();
+        const pr = colon >= 0 ? s.slice(colon + 1) : "0";
+        const prev = existentesAds.find((a) => norm(a.nome) === norm(n));
+        return {
+          id: prev?.id ?? `new-${Math.random().toString(36).slice(2, 8)}`,
+          nome: n,
+          preco: Number(String(pr).replace(",", ".")) || 0,
+        };
       });
     const rems = removiveis
       .split(",")
@@ -544,21 +569,30 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
       .filter(Boolean)
       .map((n) => ({ id: Math.random().toString(36).slice(2, 8), nome: n }));
 
-    upsert({
-      id: produto ? produto.id : Math.max(0, ...produtos.map((p) => p.id)) + 1,
-      nome: nome.trim(),
-      descricao: descricao.trim() || "Feito na hora, com a cara da casa.",
-      preco: precoN,
-      categoria,
-      foto: foto || "https://images.pexels.com/photos/18987002/pexels-photo-18987002.jpeg?auto=compress&cs=tinysrgb&w=900",
-      tipo,
-      adicionais: tipo === "simples" ? ads : ads,
-      removiveis: tipo === "personalizavel" ? rems : [],
-      ativo: produto ? produto.ativo : true,
-      estoque: controlaEstoque ? Math.max(0, Number(estoqueQtd) || 0) : null,
-      vendidos: produto ? produto.vendidos : 0,
-    });
-    onClose();
+    setSalvando(true);
+    try {
+      await upsert({
+        id: produto ? produto.id : Math.max(0, ...produtos.map((p) => p.id)) + 1,
+        nome: nome.trim(),
+        descricao: descricao.trim() || "Feito na hora, com a cara da casa.",
+        preco: precoN,
+        categoria,
+        foto:
+          foto ||
+          "https://images.pexels.com/photos/18987002/pexels-photo-18987002.jpeg?auto=compress&cs=tinysrgb&w=900",
+        tipo,
+        adicionais: ads,
+        removiveis: tipo === "personalizavel" ? rems : [],
+        ativo: produto ? produto.ativo : true,
+        estoque: controlaEstoque ? Math.max(0, Number(estoqueQtd) || 0) : null,
+        vendidos: produto ? produto.vendidos : 0,
+      });
+      onClose();
+    } catch (e: any) {
+      alert(e?.message || "Erro ao salvar produto");
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const TIPOS: { id: TipoProduto; label: string; dica: string }[] = [
@@ -568,7 +602,7 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
   ];
 
   return (
-    <Modal open={open} onClose={onClose} wide>
+    <Modal open={open} onClose={onClose} wide closeOnBackdrop={false}>
       <div className="p-5 sm:p-7">
         <h3 className="font-display text-4xl text-white mb-5">{editando ? "Editar produto" : "Novo produto"}</h3>
 
@@ -664,8 +698,13 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
             {tipo === "personalizavel" && (
               <Input value={removiveis} onChange={setRemoviveis} placeholder="Removíveis: Cebola, Maionese…" />
             )}
-            <Btn full size="lg" onClick={salvar} disabled={!nome.trim() || !(Number(preco.replace(",", ".")) > 0)}>
-              {editando ? "Salvar alterações" : "Cadastrar produto"}
+            <Btn
+              full
+              size="lg"
+              onClick={() => void salvar()}
+              disabled={salvando || !nome.trim() || !(Number(preco.replace(",", ".")) > 0)}
+            >
+              {salvando ? "Salvando…" : editando ? "Salvar alterações" : "Cadastrar produto"}
             </Btn>
           </div>
         </div>
