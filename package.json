@@ -18,7 +18,9 @@
     "test:full": "node scripts/smoke-full.js",
     "dev:api": "node server.js",
     "dev:ui": "vite",
-    "start:api": "node server.js"
+    "start:api": "node server.js",
+    "start:prod": "npm run build && node server.js",
+    "postbuild": "node -e \"console.log('SPA em dist/ \u2014 npm start serve o design React se dist/ existir')\""
   },
   "dependencies": {
     "clsx": "2.1.1",

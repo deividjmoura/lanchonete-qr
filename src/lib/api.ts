@@ -76,6 +76,10 @@ export const api = {
   adminMesas: () => apiGet<any[]>("/api/admin/mesas"),
   adminCardapio: () => apiGet<any[]>("/api/admin/cardapio"),
   adminDashboard: () => apiGet<any>("/api/admin/dashboard"),
+  reorderCategorias: (ids: number[]) =>
+    apiSend("/api/admin/categorias/ordem", "PUT", { ids }),
+  reorderProdutos: (categoriaId: number, ids: number[]) =>
+    apiSend("/api/admin/produtos/ordem", "PUT", { categoriaId, ids }),
 };
 
 /** SSE — invalida/recarrega quando o servidor emite update. */

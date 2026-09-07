@@ -440,7 +440,15 @@ export const usePub = create<PubState>((set, get) => ({
     const tmp = ids[idx];
     ids[idx] = ids[j];
     ids[j] = tmp;
-    set({ categorias: st.categorias.map((c) => ({ ...c, ordem: ids.indexOf(c.id) })) });
+    const categorias = st.categorias.map((c) => ({ ...c, ordem: ids.indexOf(c.id) }));
+    set({ categorias });
+    void api
+      .reorderCategorias(ids)
+      .then(() => get().hydrateCardapio())
+      .catch((e: any) => {
+        set({ lastError: e.message || "Falha ao reordenar categorias" });
+        void get().hydrateCardapio();
+      });
   },
   setCategoriasOrdem: (ids) => {
     const st = get();
@@ -450,6 +458,13 @@ export const usePub = create<PubState>((set, get) => ({
         return { ...c, ordem: i >= 0 ? i : c.ordem };
       }),
     });
+    void api
+      .reorderCategorias(ids)
+      .then(() => get().hydrateCardapio())
+      .catch((e: any) => {
+        set({ lastError: e.message || "Falha ao reordenar categorias" });
+        void get().hydrateCardapio();
+      });
   },
 
   login: (usuario, senha) => {

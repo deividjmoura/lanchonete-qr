@@ -314,14 +314,81 @@ async function removerProduto(id) {
   }
 }
 
+
+
+/** Reordena categorias: ids na ordem desejada → ordem 0..n-1 */
+async function reordenarCategorias(ids) {
+  if (!Array.isArray(ids) || !ids.length) throw new ErroAdmin(400, 'ids é obrigatório');
+  const lista = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0);
+  if (lista.length !== ids.length) throw new ErroAdmin(400, 'ids inválidos');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: existing } = await client.query('SELECT id FROM categorias');
+    const existingSet = new Set(existing.map((r) => r.id));
+    if (lista.length !== existingSet.size || lista.some((id) => !existingSet.has(id))) {
+      throw new ErroAdmin(400, 'Lista de categorias incompleta ou inválida');
+    }
+    for (let i = 0; i < lista.length; i++) {
+      await client.query('UPDATE categorias SET ordem = $1 WHERE id = $2', [i, lista[i]]);
+    }
+    await client.query('COMMIT');
+    return { ok: true, ids: lista };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+/** Reordena produtos de uma categoria: ids na ordem desejada → ordem 0..n-1 */
+async function reordenarProdutos(categoriaId, ids) {
+  const catId = Number(categoriaId);
+  if (!catId) throw new ErroAdmin(400, 'categoriaId é obrigatório');
+  if (!Array.isArray(ids) || !ids.length) throw new ErroAdmin(400, 'ids é obrigatório');
+  const lista = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0);
+  if (lista.length !== ids.length) throw new ErroAdmin(400, 'ids inválidos');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: existing } = await client.query(
+      'SELECT id FROM produtos WHERE categoria_id = $1',
+      [catId]
+    );
+    const existingSet = new Set(existing.map((r) => r.id));
+    if (lista.length !== existingSet.size || lista.some((id) => !existingSet.has(id))) {
+      throw new ErroAdmin(400, 'Lista de produtos incompleta ou inválida para esta categoria');
+    }
+    for (let i = 0; i < lista.length; i++) {
+      await client.query('UPDATE produtos SET ordem = $1 WHERE id = $2 AND categoria_id = $3', [
+        i,
+        lista[i],
+        catId,
+      ]);
+    }
+    await client.query('COMMIT');
+    return { ok: true, categoriaId: catId, ids: lista };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   ErroAdmin,
   listMesas,
   getCardapioAdmin,
   criarCategoria,
   atualizarCategoria,
+  reordenarCategorias,
   criarProduto,
   atualizarProduto,
+  reordenarProdutos,
   criarAdicional,
   removerAdicional,
   setRemoviveis,

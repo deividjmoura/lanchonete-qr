@@ -22,8 +22,10 @@ const {
   getCardapioAdmin,
   criarCategoria,
   atualizarCategoria,
+  reordenarCategorias,
   criarProduto,
   atualizarProduto,
+  reordenarProdutos,
   criarAdicional,
   removerAdicional,
   setRemoviveis,
@@ -548,6 +550,28 @@ const server = http.createServer(async (req, res) => {
         throw e;
       }
     }
+    if (p === '/api/admin/categorias/ordem' && req.method === 'PUT') {
+      try {
+        const b = await body(req);
+        const out = await reordenarCategorias(b.ids || b.ordem || []);
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+    if (p === '/api/admin/produtos/ordem' && req.method === 'PUT') {
+      try {
+        const b = await body(req);
+        const out = await reordenarProdutos(b.categoriaId, b.ids || b.ordem || []);
+        invalidarCardapio();
+        return json(res, 200, out);
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
     if (p === '/api/admin/produtos' && req.method === 'POST') {
       try {
         const out = await criarProduto(await body(req, { maxBytes: Number(process.env.FOTO_MAX_BODY_BYTES || 8 * 1024 * 1024) }));
@@ -614,7 +638,58 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    if (p === '/admin' || p === '/caixa' || p === '/cozinha') {
+    /* ---- UI: SPA React (dist/) se existir; senão HTML legado em public/ ---- */
+    const spaIndexPath = path.join(ROOT, 'dist', 'index.html');
+    const hasSpa = fs.existsSync(spaIndexPath);
+
+    const hashHome = (papel) => {
+      if (papel === 'cozinha') return '/#/cozinha';
+      if (papel === 'caixa') return '/#/caixa';
+      return '/#/admin';
+    };
+
+    /* caminhos legados sem hash → redireciona para o router hash do React */
+    if (hasSpa) {
+      if (p === '/login') {
+        res.writeHead(302, { Location: '/#/login' });
+        return res.end();
+      }
+      if (p === '/cozinha') {
+        res.writeHead(302, { Location: '/#/cozinha' });
+        return res.end();
+      }
+      if (p === '/caixa') {
+        res.writeHead(302, { Location: '/#/caixa' });
+        return res.end();
+      }
+      if (p === '/admin') {
+        res.writeHead(302, { Location: '/#/admin' });
+        return res.end();
+      }
+      if (p.startsWith('/mesa/')) {
+        const token = p.slice('/mesa/'.length).split('/')[0];
+        res.writeHead(302, { Location: '/#/mesa/' + encodeURIComponent(token) });
+        return res.end();
+      }
+      if (p === '/garcom' || /^\/garcom\/[0-9a-f-]{36}$/i.test(p)) {
+        const token = p.startsWith('/garcom/') ? p.slice('/garcom/'.length) : '';
+        res.writeHead(302, { Location: token ? '/#/garcom/' + encodeURIComponent(token) : '/#/' });
+        return res.end();
+      }
+      /* GET / sempre serve o index — o hash (#/admin) NÃO vai ao servidor.
+         Redirecionar / → /#/admin causaria loop infinito. */
+      if (p === '/') {
+        try {
+          const data = await fs.promises.readFile(spaIndexPath);
+          return send(res, 200, 'text/html; charset=utf-8', data);
+        } catch {
+          /* fall through to legacy */
+        }
+      }
+    }
+
+    /* auth de páginas legadas (só quando NÃO há SPA) */
+    if (!hasSpa && (p === '/admin' || p === '/caixa' || p === '/cozinha')) {
       const recurso = p.slice(1);
       try {
         await exigirAcesso(req, recurso);
@@ -632,19 +707,42 @@ const server = http.createServer(async (req, res) => {
         throw e;
       }
     }
-    if (p === '/') {
+    if (!hasSpa && p === '/') {
       const staff = await getStaffDaRequisicao(req);
       res.writeHead(302, { Location: staff ? homeDoPapel(staff.papel) : '/login' });
       return res.end();
     }
+
+    /* assets da SPA (se build multi-file no futuro) */
+    if (hasSpa && (p.startsWith('/assets/') || p === '/index.html')) {
+      const distRoot = path.resolve(ROOT, 'dist');
+      const fp = path.resolve(distRoot, '.' + (p === '/index.html' ? '/index.html' : p));
+      if (fp.startsWith(distRoot + path.sep) || fp === path.join(distRoot, 'index.html')) {
+        try {
+          const data = await fs.promises.readFile(fp);
+          return send(res, 200, mime[path.extname(fp)] || 'application/octet-stream', data);
+        } catch (_) {}
+      }
+    }
+
+    /* GET / com SPA já tratado; qualquer path sem extensão → index SPA (deep link) */
+    if (hasSpa && !path.extname(p) && !p.startsWith('/api')) {
+      try {
+        const data = await fs.promises.readFile(spaIndexPath);
+        return send(res, 200, 'text/html; charset=utf-8', data);
+      } catch (_) {}
+    }
+
     let file = p;
-    if (file.startsWith('/mesa/')) file = '/mesa.html';
-    if (file.startsWith('/pedido/')) file = '/pedido.html';
-    if (file === '/cozinha') file = '/cozinha.html';
-    if (file === '/garcom' || /^\/garcom\/[0-9a-f-]{36}$/i.test(file)) file = '/garcom.html';
-    if (file === '/caixa') file = '/caixa.html';
-    if (file === '/admin') file = '/admin.html';
-    if (file === '/login') file = '/login.html';
+    if (!hasSpa) {
+      if (file.startsWith('/mesa/')) file = '/mesa.html';
+      if (file.startsWith('/pedido/')) file = '/pedido.html';
+      if (file === '/cozinha') file = '/cozinha.html';
+      if (file === '/garcom' || /^\/garcom\/[0-9a-f-]{36}$/i.test(file)) file = '/garcom.html';
+      if (file === '/caixa') file = '/caixa.html';
+      if (file === '/admin') file = '/admin.html';
+      if (file === '/login') file = '/login.html';
+    }
     const publicRoot = path.resolve(ROOT, 'public');
     const fp = path.resolve(publicRoot, '.' + (file.startsWith('/') ? file : '/' + file));
     if (!fp.startsWith(publicRoot + path.sep) && fp !== publicRoot) {
