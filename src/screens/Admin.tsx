@@ -277,12 +277,11 @@ function Cardapio() {
                 >
                   <Pencil className="size-3.5" />
                 </button>
-                <button
+                                <button
                   type="button"
-                  title={nProd > 0 ? "Remova os produtos antes" : "Excluir"}
-                  disabled={nProd > 0}
+                  title={nProd > 0 ? `Excluir categoria e ${nProd} produto(s)` : "Excluir categoria"}
                   onClick={() => removeCategoria(c.id)}
-                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 disabled:opacity-30 cursor-pointer"
+                  className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -292,7 +291,7 @@ function Cardapio() {
         </ul>
       </section>
 
-      {/* —— Produtos —— */}
+      {/* —— Produtos agrupados por categoria —— */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-stone-400">{produtos.length} produtos · {produtos.filter((p) => p.ativo).length} ativos</p>
@@ -301,42 +300,102 @@ function Cardapio() {
           </Btn>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {produtos.map((p) => (
-            <motion.article
-              key={p.id}
-              layout
-              className={cn("glass rounded-3xl overflow-hidden transition-opacity", !p.ativo && "opacity-55")}
-            >
-              <div className="flex gap-3.5 p-3.5">
-                <img src={p.foto} alt="" className="size-20 rounded-2xl object-cover shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-white text-sm leading-tight truncate">{p.nome}</p>
-                    <span className="font-mono text-xs font-bold text-amber-300 shrink-0">{BRL(p.preco)}</span>
+        <div className="space-y-6">
+          {catsOrdenadas.map((c) => {
+            const lista = produtos.filter((p) => p.categoria === c.nome);
+            return (
+              <section key={c.id} className="glass rounded-3xl p-4 sm:p-5">
+                <header className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <h3 className="font-display text-2xl text-white leading-none truncate">{c.nome}</h3>
+                    <Badge tone="zinc">{lista.length} item{lista.length === 1 ? "" : "s"}</Badge>
                   </div>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <Badge tone="zinc">{p.categoria}</Badge>
-                    <Badge tone={p.tipo === "escolher" ? "sky" : p.tipo === "personalizavel" ? "violet" : "zinc"}>
-                      {p.tipo === "escolher" ? "escolher" : p.tipo === "personalizavel" ? "personalizável" : "simples"}
-                    </Badge>
-                    {p.estoque !== null && <Badge tone={p.estoque <= 8 ? "rose" : "zinc"}>est. {p.estoque}</Badge>}
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setNovoAberto(true);
+                    }}
+                  >
+                    <Plus className="size-3.5" /> Nesta categoria
+                  </Btn>
+                </header>
+                {lista.length === 0 ? (
+                  <p className="text-xs text-stone-500 py-4 text-center border border-dashed border-white/10 rounded-2xl">
+                    Nenhum produto nesta categoria
+                  </p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {lista.map((p) => (
+                      <motion.article
+                        key={p.id}
+                        layout
+                        className={cn("rounded-2xl bg-black/30 border border-white/[0.07] overflow-hidden transition-opacity", !p.ativo && "opacity-55")}
+                      >
+                        <div className="flex gap-3.5 p-3.5">
+                          <img src={p.foto} alt="" className="size-20 rounded-2xl object-cover shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-semibold text-white text-sm leading-tight truncate">{p.nome}</p>
+                              <span className="font-mono text-xs font-bold text-amber-300 shrink-0">{BRL(p.preco)}</span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <Badge tone={p.tipo === "escolher" ? "sky" : p.tipo === "personalizavel" ? "violet" : "zinc"}>
+                                {p.tipo === "escolher" ? "escolher" : p.tipo === "personalizavel" ? "personalizável" : "simples"}
+                              </Badge>
+                              {p.estoque !== null && <Badge tone={p.estoque <= 8 ? "rose" : "zinc"}>est. {p.estoque}</Badge>}
+                            </div>
+                            <div className="mt-2.5 flex items-center gap-1.5">
+                              <button onClick={() => toggle(p.id)} title={p.ativo ? "Desativar" : "Ativar"} className={cn("btn-press grid place-items-center size-8 rounded-lg border cursor-pointer transition-colors", p.ativo ? "bg-lime-400/10 border-lime-400/30 text-lime-300" : "bg-white/[0.05] border-white/10 text-stone-500")}>
+                                {p.ativo ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+                              </button>
+                              <button onClick={() => setEditando(p)} title="Editar" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer">
+                                <Pencil className="size-3.5" />
+                              </button>
+                              <button onClick={() => remover(p.id)} title="Excluir" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer">
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.article>
+                    ))}
                   </div>
-                  <div className="mt-2.5 flex items-center gap-1.5">
-                    <button onClick={() => toggle(p.id)} title={p.ativo ? "Desativar" : "Ativar"} className={cn("btn-press grid place-items-center size-8 rounded-lg border cursor-pointer transition-colors", p.ativo ? "bg-lime-400/10 border-lime-400/30 text-lime-300" : "bg-white/[0.05] border-white/10 text-stone-500")}>
-                      {p.ativo ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
-                    </button>
-                    <button onClick={() => setEditando(p)} title="Editar" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 hover:text-amber-300 cursor-pointer">
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button onClick={() => remover(p.id)} title="Excluir" className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer">
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
+                )}
+              </section>
+            );
+          })}
+          {/* produtos órfãos (categoria sumiu / nome divergente) */}
+          {(() => {
+            const nomes = new Set(catsOrdenadas.map((c) => c.nome));
+            const orfaos = produtos.filter((p) => !nomes.has(p.categoria));
+            if (!orfaos.length) return null;
+            return (
+              <section className="glass rounded-3xl p-4 sm:p-5 border border-rose-400/20">
+                <header className="flex items-center gap-2 mb-3">
+                  <h3 className="font-display text-2xl text-rose-200 leading-none">Sem categoria</h3>
+                  <Badge tone="rose">{orfaos.length}</Badge>
+                </header>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {orfaos.map((p) => (
+                    <motion.article key={p.id} layout className={cn("rounded-2xl bg-black/30 border border-white/[0.07] overflow-hidden", !p.ativo && "opacity-55")}>
+                      <div className="flex gap-3.5 p-3.5">
+                        <img src={p.foto} alt="" className="size-20 rounded-2xl object-cover shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white text-sm truncate">{p.nome}</p>
+                          <p className="text-[11px] text-stone-500 mt-0.5">categoria: {p.categoria || "—"}</p>
+                          <div className="mt-2.5 flex items-center gap-1.5">
+                            <button onClick={() => setEditando(p)} className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 cursor-pointer"><Pencil className="size-3.5" /></button>
+                            <button onClick={() => remover(p.id)} className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer"><Trash2 className="size-3.5" /></button>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.article>
+                  ))}
                 </div>
-              </div>
-            </motion.article>
-          ))}
+              </section>
+            );
+          })()}
         </div>
       </div>
 

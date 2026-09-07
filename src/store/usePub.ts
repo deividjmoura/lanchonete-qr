@@ -544,12 +544,24 @@ export const usePub = create<PubState>((set, get) => ({
     const st = get();
     const cat = st.categorias.find((c) => c.id === id);
     if (!cat) return;
-    if (st.produtos.some((p) => p.categoria === cat.nome)) {
-      alert("Remova ou mova os produtos desta categoria antes.");
-      return;
-    }
-    /* backend ainda não expõe DELETE de categoria — evita falso positivo local */
-    alert("Excluir categoria vazia ainda não está disponível na API. Renomeie ou reordene.");
+    const nProd = st.produtos.filter((p) => p.categoria === cat.nome).length;
+    const msg =
+      nProd > 0
+        ? `Excluir a categoria "${cat.nome}" e os ${nProd} produto(s) nela?\n\nIsso remove os itens do cardápio. Produtos que já aparecem em pedidos antigos não podem ser apagados — nesse caso a exclusão será bloqueada.`
+        : `Excluir a categoria vazia "${cat.nome}"?`;
+    if (!confirm(msg)) return;
+    void (async () => {
+      try {
+        const out = await api.removerCategoria(id);
+        await get().hydrateCardapio();
+        const n = out?.produtosRemovidos ?? nProd;
+        if (n > 0) alert(`Categoria "${cat.nome}" e ${n} produto(s) excluídos.`);
+      } catch (e: any) {
+        set({ lastError: e.message || "Erro ao excluir categoria" });
+        alert(e.message || "Erro ao excluir categoria");
+        void get().hydrateCardapio();
+      }
+    })();
   },
 
   moverCategoria: (id, delta) => {

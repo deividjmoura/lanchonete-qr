@@ -85,6 +85,8 @@ export const api = {
     apiSend<{ id: number; nome: string; ordem: number }>("/api/admin/categorias", "POST", body),
   atualizarCategoria: (id: number, body: { nome?: string; ordem?: number }) =>
     apiSend(`/api/admin/categorias/${id}`, "PATCH", body),
+  removerCategoria: (id: number) =>
+    apiSend<{ ok: boolean; nome?: string; produtosRemovidos?: number }>(`/api/admin/categorias/${id}`, "DELETE"),
 
   criarProduto: (body: unknown) => apiSend<any>("/api/admin/produtos", "POST", body),
   atualizarProduto: (id: number, body: unknown) =>

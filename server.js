@@ -22,6 +22,7 @@ const {
   getCardapioAdmin,
   criarCategoria,
   atualizarCategoria,
+  removerCategoria,
   reordenarCategorias,
   criarProduto,
   atualizarProduto,
@@ -550,6 +551,16 @@ const server = http.createServer(async (req, res) => {
         throw e;
       }
     }
+    
+    if ((m = p.match(/^\/api\/admin\/categorias\/(\d+)$/)) && req.method === 'DELETE') {
+      try {
+        return json(res, 200, await removerCategoria(Number(m[1])));
+      } catch (e) {
+        if (e instanceof ErroAdmin) return json(res, e.status, { error: e.message });
+        throw e;
+      }
+    }
+
     if (p === '/api/admin/categorias/ordem' && req.method === 'PUT') {
       try {
         const b = await body(req);

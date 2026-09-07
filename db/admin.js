@@ -379,12 +379,87 @@ async function reordenarProdutos(categoriaId, ids) {
   }
 }
 
+
+/** Exclui categoria e todos os produtos dela (cascata).
+ *  Bloqueia se algum produto já aparece em pedidos (histórico). */
+async function removerCategoria(id) {
+  const catId = Number(id);
+  if (!catId) throw new ErroAdmin(400, 'ID inválido');
+
+  const { rows: cats } = await pool.query(
+    'SELECT id, nome FROM categorias WHERE id = $1',
+    [catId]
+  );
+  if (!cats[0]) throw new ErroAdmin(404, 'Categoria não encontrada');
+  const cat = cats[0];
+
+  const { rows: prods } = await pool.query(
+    'SELECT id, nome FROM produtos WHERE categoria_id = $1 ORDER BY nome',
+    [catId]
+  );
+
+  // Produtos usados em pedidos não podem sumir (FK / histórico)
+  const locked = [];
+  for (const p of prods) {
+    const { rows: used } = await pool.query(
+      'SELECT 1 FROM itens_pedido WHERE produto_id = $1 LIMIT 1',
+      [p.id]
+    );
+    if (used[0]) {
+      locked.push(p.nome);
+      continue;
+    }
+    const { rows: usedAdd } = await pool.query(
+      `SELECT 1 FROM itens_pedido_adicionais ia
+       JOIN adicionais a ON a.id = ia.adicional_id
+       WHERE a.produto_id = $1 LIMIT 1`,
+      [p.id]
+    );
+    if (usedAdd[0]) locked.push(p.nome);
+  }
+
+  if (locked.length) {
+    const amostra = locked.slice(0, 5).join(', ');
+    const mais = locked.length > 5 ? ` e mais ${locked.length - 5}` : '';
+    throw new ErroAdmin(
+      409,
+      `Não dá para excluir a categoria "${cat.nome}": ${locked.length} produto(s) já aparecem em pedidos antigos (${amostra}${mais}). Pause esses itens ou mova-os para outra categoria.`
+    );
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const p of prods) {
+      await client.query('DELETE FROM produtos_ingredientes_removiveis WHERE produto_id = $1', [p.id]);
+      await client.query('DELETE FROM adicionais WHERE produto_id = $1', [p.id]);
+      await client.query('DELETE FROM produtos WHERE id = $1', [p.id]);
+    }
+    const { rowCount } = await client.query('DELETE FROM categorias WHERE id = $1', [catId]);
+    if (!rowCount) throw new ErroAdmin(404, 'Categoria não encontrada');
+    await client.query('COMMIT');
+    return {
+      ok: true,
+      id: catId,
+      nome: cat.nome,
+      produtosRemovidos: prods.length,
+      produtos: prods.map((p) => p.nome),
+    };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   ErroAdmin,
   listMesas,
   getCardapioAdmin,
   criarCategoria,
   atualizarCategoria,
+  removerCategoria,
   reordenarCategorias,
   criarProduto,
   atualizarProduto,
