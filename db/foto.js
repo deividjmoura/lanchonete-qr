@@ -1,6 +1,6 @@
 /**
  * Otimização de fotos de cardápio.
- * Redimensiona (máx 480px) → WebP leve e grava o resultado como data-URL
+ * Redimensiona (máx 960px) → WebP leve e grava o resultado como data-URL
  * em foto_url (Postgres). Assim a imagem sobrevive a redeploy / disco efêmero.
  *
  * URLs https:// externas continuam válidas (não baixamos de novo no cardápio).
@@ -12,11 +12,11 @@ const crypto = require('crypto');
 const sharp = require('sharp');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'public', 'uploads');
-const MAX_EDGE = Number(process.env.FOTO_MAX_EDGE || 400);
-const WEBP_QUALITY = Number(process.env.FOTO_WEBP_QUALITY || 68);
+const MAX_EDGE = Number(process.env.FOTO_MAX_EDGE || 960);
+const WEBP_QUALITY = Number(process.env.FOTO_WEBP_QUALITY || 82);
 const MAX_INPUT_BYTES = Number(process.env.FOTO_MAX_INPUT_BYTES || 6 * 1024 * 1024);
 /** Tamanho máximo do WebP otimizado antes de virar data-URL (~280 KB). */
-const MAX_OUTPUT_BYTES = Number(process.env.FOTO_MAX_OUTPUT_BYTES || 160 * 1024);
+const MAX_OUTPUT_BYTES = Number(process.env.FOTO_MAX_OUTPUT_BYTES || 320 * 1024);
 const FETCH_TIMEOUT_MS = 12_000;
 /** true = também grava cópia em public/uploads (só útil em dev local). */
 const ALSO_WRITE_DISK = process.env.FOTO_ALSO_DISK === '1';

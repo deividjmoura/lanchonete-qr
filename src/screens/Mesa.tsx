@@ -83,6 +83,7 @@ export default function Mesa({ token }: { token: string }) {
   const [busca, setBusca] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [produtoModal, setProdutoModal] = useState<Produto | null>(null);
+  const [fotoExpandida, setFotoExpandida] = useState<{ src: string; nome: string } | null>(null);
   const [sheet, setSheet] = useState<"cart" | "conta" | null>(null);
   const [nome, setNome] = useState(() => sessionStorage.getItem(`pub-nome-${token}`) || "");
   const [enviado, setEnviado] = useState(false);
@@ -489,7 +490,7 @@ export default function Mesa({ token }: { token: string }) {
             </div>
 
             {/* grid de produtos */}
-            <motion.div layout className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-3.5 pb-28 lg:pb-10 w-full min-w-0">
+            <motion.div layout className="grid grid-cols-2 gap-2.5 sm:gap-3.5 pb-28 lg:pb-10 w-full min-w-0">
               <AnimatePresence mode="popLayout">
                 {lista.map((p) => {
                   const esgotado = p.estoque !== null && p.estoque <= 0;
@@ -506,23 +507,50 @@ export default function Mesa({ token }: { token: string }) {
                         esgotado && "opacity-60 grayscale-[0.6]"
                       )}
                     >
-                      <div className="relative h-44 overflow-hidden">
-                        <img src={fotoSrc(p.foto) || FOTO_PLACEHOLDER} alt={p.nome} loading="lazy" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER; }} />
-                        <div className="absolute inset-0 bg-gradient-to-t from-coal-950/90 via-transparent to-transparent" />
-                        <div className="absolute top-3 left-3 flex gap-1.5">
-                          {p.vendidos > 90 && <Badge tone="amber"><Sparkles className="size-3" /> hit da casa</Badge>}
-                          {p.estoque !== null && p.estoque > 0 && p.estoque <= 8 && <Badge tone="rose" pulse>últimos {p.estoque}</Badge>}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFotoExpandida({
+                            src: fotoSrc(p.foto) || FOTO_PLACEHOLDER,
+                            nome: p.nome,
+                          })
+                        }
+                        className="relative block w-full aspect-[4/3] sm:aspect-[5/4] overflow-hidden cursor-zoom-in text-left"
+                        aria-label={`Ver foto de ${p.nome}`}
+                      >
+                        <img
+                          src={fotoSrc(p.foto) || FOTO_PLACEHOLDER}
+                          alt={p.nome}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER;
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-coal-950/90 via-transparent to-transparent pointer-events-none" />
+                        <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[90%] pointer-events-none">
+                          {p.vendidos > 90 && (
+                            <Badge tone="amber">
+                              <Sparkles className="size-3" /> hit
+                            </Badge>
+                          )}
+                          {p.estoque !== null && p.estoque > 0 && p.estoque <= 8 && (
+                            <Badge tone="rose" pulse>
+                              {p.estoque} un
+                            </Badge>
+                          )}
                           {esgotado && <Badge tone="zinc">esgotado</Badge>}
                         </div>
-                        <p className="absolute bottom-3 left-4 font-mono text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                        <p className="absolute bottom-2 left-2.5 right-2 font-mono text-sm sm:text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] pointer-events-none">
                           {BRL(p.preco)}
                         </p>
-                      </div>
+                      </button>
 
-                      <div className="p-4">
-                        <h3 className="font-semibold text-white leading-tight">{p.nome}</h3>
-                        <p className="mt-1 text-xs text-stone-400 leading-relaxed line-clamp-2 min-h-8">{p.descricao}</p>
-                        <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="p-2.5 sm:p-4">
+                        <h3 className="font-semibold text-white leading-tight text-sm sm:text-base line-clamp-2">{p.nome}</h3>
+                        <p className="mt-1 text-[11px] sm:text-xs text-stone-400 leading-relaxed line-clamp-2 min-h-[2rem]">{p.descricao}</p>
+                        <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-1.5">
                           <span className="text-[10px] uppercase tracking-wider font-bold text-stone-500">
                             {p.tipo === "escolher" ? "escolha 1 opção" : p.tipo === "personalizavel" ? `${p.adicionais.length} adicionais` : "do jeito da casa"}
                           </span>
@@ -602,6 +630,47 @@ export default function Mesa({ token }: { token: string }) {
       <Modal open={sheet === "conta"} onClose={() => setSheet(null)}>
         <div className="p-5 sm:p-6 min-h-[55dvh]">{painelConta}</div>
       </Modal>
+
+      {/* foto expandida */}
+      <AnimatePresence>
+        {fotoExpandida && (
+          <motion.div
+            key="foto-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+            onClick={() => setFotoExpandida(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              className="relative max-h-[min(88dvh,900px)] max-w-[min(96vw,720px)] w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={fotoExpandida.src}
+                alt={fotoExpandida.nome}
+                className="max-h-[min(82dvh,860px)] w-full object-contain rounded-2xl shadow-2xl bg-coal-900"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = FOTO_PLACEHOLDER;
+                }}
+              />
+              <p className="mt-3 text-center text-sm font-semibold text-white">{fotoExpandida.nome}</p>
+              <button
+                type="button"
+                onClick={() => setFotoExpandida(null)}
+                className="btn-press absolute -top-1 -right-1 sm:top-2 sm:right-2 grid place-items-center size-10 rounded-full bg-black/70 border border-white/20 text-white cursor-pointer"
+                aria-label="Fechar"
+              >
+                <X className="size-5" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* -------- modal produto -------- */}
       <ProdutoModal

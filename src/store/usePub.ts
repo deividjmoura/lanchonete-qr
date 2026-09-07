@@ -69,6 +69,8 @@ interface PubState {
   removerProduto: (id: number) => void;
   toggleProduto: (id: number) => void;
   ajustarEstoque: (id: number, delta: number) => void;
+  setEstoque: (id: number, valor: number) => void;
+  ativarControleEstoque: (id: number, valor: number) => void;
   addCategoria: (nome: string) => void;
   renameCategoria: (id: number, nome: string) => void;
   removeCategoria: (id: number) => void;
@@ -595,7 +597,10 @@ export const usePub = create<PubState>((set, get) => ({
   ajustarEstoque: (id, delta) => {
     const p = get().produtos.find((x) => x.id === id);
     if (!p || p.estoque == null) return;
-    const next = Math.max(0, p.estoque + delta);
+    get().setEstoque(id, Math.max(0, p.estoque + delta));
+  },
+  setEstoque: (id, valor) => {
+    const next = Math.max(0, Math.floor(Number(valor) || 0));
     set({
       produtos: get().produtos.map((x) => (x.id === id ? { ...x, estoque: next } : x)),
     });
@@ -606,6 +611,21 @@ export const usePub = create<PubState>((set, get) => ({
       } catch (e: any) {
         set({ lastError: e.message || "Erro ao ajustar estoque" });
         alert(e.message || "Erro ao ajustar estoque");
+        void get().hydrateCardapio();
+      }
+    })();
+  },
+  ativarControleEstoque: (id, valor) => {
+    const next = Math.max(0, Math.floor(Number(valor) || 0));
+    set({
+      produtos: get().produtos.map((x) => (x.id === id ? { ...x, estoque: next } : x)),
+    });
+    void (async () => {
+      try {
+        await api.atualizarProduto(id, { controlaEstoque: true, estoque: next });
+        await get().hydrateCardapio();
+      } catch (e: any) {
+        alert(e.message || "Erro ao ativar estoque");
         void get().hydrateCardapio();
       }
     })();

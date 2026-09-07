@@ -23,6 +23,7 @@ const ABAS = [
   { id: "garcons", label: "Garçons", icon: Users },
   { id: "estoque", label: "Estoque", icon: Boxes },
   { id: "relatorio", label: "Relatório", icon: FileText },
+  { id: "funcoes", label: "Funções", icon: LayoutGrid },
 ] as const;
 
 type AbaId = (typeof ABAS)[number]["id"];
@@ -85,6 +86,7 @@ export default function Admin() {
           {aba === "garcons" && <Garcons />}
           {aba === "estoque" && <Estoque />}
           {aba === "relatorio" && <Relatorio />}
+          {aba === "funcoes" && <Funcoes />}
         </motion.div>
       </AnimatePresence>
     </OpsShell>
@@ -513,13 +515,13 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
     const img = document.createElement("img");
     const url = URL.createObjectURL(f);
     img.onload = () => {
-      const max = 480;
-      const esc = Math.min(1, max / img.width);
+      const max = 960;
+      const esc = Math.min(1, max / Math.max(img.width, img.height));
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(img.width * esc);
       canvas.height = Math.round(img.height * esc);
       canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      setFoto(canvas.toDataURL("image/webp", 0.82));
+      setFoto(canvas.toDataURL("image/webp", 0.88));
       URL.revokeObjectURL(url);
     };
     img.src = url;
@@ -588,7 +590,7 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
                 onClick={() => fileRef.current?.click()}
                 className="btn-press absolute inset-x-2.5 bottom-2.5 h-9 rounded-xl bg-black/55 backdrop-blur border border-white/12 text-[11px] font-bold text-white inline-flex items-center justify-center gap-1.5 cursor-pointer hover:bg-black/75"
               >
-                <Camera className="size-3.5" /> Enviar foto (WebP ~480px)
+                <Camera className="size-3.5" /> Enviar foto (WebP ~960px)
               </button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && arquivo(e.target.files[0])} />
             </div>
@@ -596,7 +598,7 @@ function ProdutoForm({ produto, novo, onClose }: { produto?: Produto | null; nov
               <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-stone-500" />
               <input value={foto.startsWith("data:") ? "" : foto} onChange={(e) => setFoto(e.target.value)} placeholder="…ou cole um link https://" className="w-full h-10 rounded-xl bg-black/40 border border-white/12 pl-8.5 pr-3 text-[11px] text-white placeholder:text-stone-600 focus:outline-none focus:border-amber-400/50" />
             </div>
-            {foto.startsWith("data:") && <p className="mt-1.5 text-[10px] text-lime-300 font-mono">webp otimizado · fica salvo no banco</p>}
+            {foto.startsWith("data:") && <p className="mt-1.5 text-[10px] text-lime-300 font-mono">webp HQ · ~960px · salvo no banco</p>}
           </div>
 
           {/* campos */}
@@ -965,161 +967,424 @@ function Mesas() {
 /* ================= ESTOQUE ================= */
 function Estoque() {
   const produtos = usePub((s) => s.produtos);
-  const ajustar = usePub((s) => s.ajustarEstoque);
+  const setEstoque = usePub((s) => s.setEstoque);
+  const ativar = usePub((s) => s.ativarControleEstoque);
+  const hydrateCardapio = usePub((s) => s.hydrateCardapio);
   const controlados = produtos.filter((p) => p.estoque !== null);
+  const semControle = produtos.filter((p) => p.estoque === null && p.ativo);
   const baixos = controlados.filter((p) => (p.estoque ?? 0) <= 8);
 
+  useEffect(() => {
+    void hydrateCardapio();
+  }, [hydrateCardapio]);
+
+  const pedirQtd = (titulo: string, atual?: number) => {
+    const raw = window.prompt(titulo, atual != null ? String(atual) : "10");
+    if (raw == null) return null;
+    const n = Math.floor(Number(String(raw).replace(",", ".")));
+    if (!Number.isFinite(n) || n < 0) {
+      alert("Quantidade inválida");
+      return null;
+    }
+    return n;
+  };
+
+  const entrada = (id: number, atual: number) => {
+    const n = pedirQtd(`Quantas unidades ENTRARAM no estoque?\n(atual: ${atual})`, 10);
+    if (n == null) return;
+    setEstoque(id, atual + n);
+  };
+
+  const definir = (id: number, atual: number) => {
+    const n = pedirQtd(`Definir estoque absoluto (unidades):`, atual);
+    if (n == null) return;
+    setEstoque(id, n);
+  };
+
+  const ativarProduto = (id: number) => {
+    const n = pedirQtd("Ativar controle de estoque. Quantas unidades tem agora?", 20);
+    if (n == null) return;
+    ativar(id, n);
+  };
+
   return (
-    <div>
+    <div className="space-y-6">
       {baixos.length > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-rose-400/30 bg-rose-400/[0.07] p-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-rose-400/30 bg-rose-400/[0.07] p-4">
           <CircleAlert className="size-5 text-rose-300 shrink-0" />
           <p className="text-sm text-rose-200">
-            <b>{baixos.length} {baixos.length === 1 ? "item" : "itens"} acabando:</b>{" "}
+            <b>
+              {baixos.length} {baixos.length === 1 ? "item" : "itens"} acabando:
+            </b>{" "}
             {baixos.map((p) => `${p.nome} (${p.estoque})`).join(" · ")}
           </p>
         </div>
       )}
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        {controlados.map((p) => {
-          const pct = Math.min(100, ((p.estoque ?? 0) / 50) * 100);
-          return (
-            <div key={p.id} className="glass rounded-2xl p-4 flex items-center gap-4">
-              <img src={p.foto} alt="" className="size-14 rounded-xl object-cover" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-white truncate">{p.nome}</p>
-                  <span className={cn("font-mono text-sm font-bold", (p.estoque ?? 0) <= 8 ? "text-rose-300" : "text-white")}>{p.estoque} un.</span>
+
+      <section>
+        <h3 className="font-display text-2xl text-white mb-3">Com controle</h3>
+        {controlados.length === 0 ? (
+          <p className="text-sm text-stone-500 py-6 text-center">Nenhum item controlado ainda. Ative abaixo ou no cadastro do produto.</p>
+        ) : (
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {controlados.map((p) => {
+              const q = p.estoque ?? 0;
+              const pct = Math.min(100, (q / Math.max(20, q)) * 100);
+              return (
+                <div key={p.id} className="glass rounded-2xl p-4 flex items-center gap-3">
+                  <img src={p.foto} alt="" className="size-14 rounded-xl object-cover shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-white truncate">{p.nome}</p>
+                      <span className={cn("font-mono text-sm font-bold", q <= 8 ? "text-rose-300" : "text-white")}>
+                        {q} un.
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          q <= 8 ? "bg-rose-500" : "bg-gradient-to-r from-amber-500 to-lime-400"
+                        )}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => entrada(p.id, q)}
+                        className="btn-press h-8 px-2.5 rounded-lg bg-lime-400/10 border border-lime-400/25 text-lime-300 text-[11px] font-bold cursor-pointer"
+                      >
+                        + entrada
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => definir(p.id, q)}
+                        className="btn-press h-8 px-2.5 rounded-lg bg-white/[0.05] border border-white/10 text-stone-300 text-[11px] font-bold cursor-pointer"
+                      >
+                        definir
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEstoque(p.id, Math.max(0, q - 1))}
+                        className="btn-press h-8 px-2.5 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 text-[11px] font-bold cursor-pointer"
+                      >
+                        −1
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-2 h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
-                  <div className={cn("h-full rounded-full transition-all duration-500", pct <= 16 ? "bg-rose-500" : "bg-gradient-to-r from-amber-500 to-lime-400")} style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <button onClick={() => ajustar(p.id, 5)} className="btn-press grid place-items-center size-8 rounded-lg bg-lime-400/10 border border-lime-400/25 text-lime-300 cursor-pointer text-lg font-bold">+</button>
-                <button onClick={() => ajustar(p.id, -1)} className="btn-press grid place-items-center size-8 rounded-lg bg-white/[0.05] border border-white/10 text-stone-400 hover:text-rose-300 cursor-pointer text-lg font-bold">−</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="mt-4 text-[11px] text-stone-500">Itens sem controle (chopp, suco, tábua) não aparecem aqui. A baixa é automática a cada pedido.</p>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {semControle.length > 0 && (
+        <section>
+          <h3 className="font-display text-2xl text-white mb-1">Sem controle</h3>
+          <p className="text-[11px] text-stone-500 mb-3">Ative o estoque e informe a quantidade colocada.</p>
+          <ul className="space-y-2">
+            {semControle.slice(0, 40).map((p) => (
+              <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+                <img src={p.foto} alt="" className="size-10 rounded-lg object-cover" />
+                <p className="flex-1 text-sm text-white truncate">{p.nome}</p>
+                <button
+                  type="button"
+                  onClick={() => ativarProduto(p.id)}
+                  className="btn-press h-9 px-3 rounded-xl border border-amber-400/35 bg-amber-400/10 text-amber-200 text-[11px] font-bold cursor-pointer"
+                >
+                  Ativar + qtd
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <p className="text-[11px] text-stone-500 text-center">
+        Cada pedido na mesa dá baixa automática. Cardápio e mesa atualizam o saldo após o pedido / refresh.
+      </p>
     </div>
   );
 }
 
 /* ================= RELATÓRIO ================= */
 function Relatorio() {
-  const sessoes = usePub((s) => s.sessoes);
-  const pedidos = usePub((s) => s.pedidos);
-  const fechadas = sessoes.filter((s) => s.status === "fechada");
+  const [from, setFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const porForma: Record<FormaPagamento, number> = { pix: 0, dinheiro: 0, credito: 0, debito: 0 };
-  fechadas.forEach((s) => s.pagamentos.forEach((p) => (porForma[p.forma] += p.valor)));
-  const maxForma = Math.max(1, ...Object.values(porForma));
+  const buscar = async () => {
+    setLoading(true);
+    setErro(null);
+    try {
+      const out = await api.adminRelatorio(from, to);
+      setData(out);
+    } catch (e: any) {
+      setErro(e.message || "Falha ao carregar relatório");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void buscar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resumo = data?.resumo || data?.totais || {};
+  const linhas = data?.sessoes || data?.linhas || data?.itens || [];
+  const faturamento = Number(resumo.faturamento ?? resumo.valorCobrado ?? resumo.total ?? 0);
+  const contas = Number(resumo.contasFechadas ?? resumo.qtd ?? (Array.isArray(linhas) ? linhas.length : 0));
 
   const baixarCSV = () => {
-    const linhas = [
-      "sessao,mesa,abertura,fechamento,total_recebido,formas",
-      ...fechadas.map((s) =>
-        [
-          s.id,
-          s.mesaNome.replace(" ", "_"),
-          new Date(s.abertaEm).toISOString(),
-          new Date(s.fechadaEm ?? Date.now()).toISOString(),
-          pagoSessao(s).toFixed(2),
-          s.pagamentos.map((p) => `${p.forma}:${p.valor.toFixed(2)}`).join("|"),
-        ].join(",")
-      ),
-    ];
-    const blob = new Blob([linhas.join("\n")], { type: "text/csv" });
+    if (!Array.isArray(linhas) || !linhas.length) {
+      alert("Nada para exportar neste período");
+      return;
+    }
+    const header = Object.keys(linhas[0]).join(",");
+    const body = linhas
+      .map((row: any) =>
+        Object.values(row)
+          .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+    const blob = new Blob([[header, body].join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `relatorio-major-pub-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `relatorio-${from}_${to}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {/* sessões fechadas */}
-      <div className="glass-deep noise rounded-3xl p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-3xl text-white">Sessões fechadas</h3>
-          <Btn size="sm" variant="outline" onClick={baixarCSV}>
-            <Download className="size-3.5" /> CSV
-          </Btn>
+    <div className="space-y-5">
+      <div className="glass rounded-3xl p-4 sm:p-5 flex flex-wrap items-end gap-3">
+        <label className="text-xs text-stone-400">
+          De
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="mt-1 block h-11 rounded-xl bg-black/40 border border-white/12 px-3 text-sm text-white"
+          />
+        </label>
+        <label className="text-xs text-stone-400">
+          Até
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="mt-1 block h-11 rounded-xl bg-black/40 border border-white/12 px-3 text-sm text-white"
+          />
+        </label>
+        <Btn size="sm" onClick={() => void buscar()} disabled={loading}>
+          {loading ? "Carregando…" : "Buscar"}
+        </Btn>
+        <Btn size="sm" variant="outline" onClick={baixarCSV} disabled={!linhas?.length}>
+          <Download className="size-3.5" /> CSV
+        </Btn>
+      </div>
+
+      {erro && (
+        <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{erro}</p>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="glass rounded-2xl p-4">
+          <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">faturamento</p>
+          <p className="font-mono text-xl text-lime-300 font-bold mt-1">{BRL(faturamento)}</p>
         </div>
-        {fechadas.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-xs text-stone-500">
-            nenhuma conta fechada hoje — feche uma no caixa e volte aqui
+        <div className="glass rounded-2xl p-4">
+          <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">contas</p>
+          <p className="font-mono text-xl text-white font-bold mt-1">{contas}</p>
+        </div>
+        <div className="glass rounded-2xl p-4 col-span-2 sm:col-span-1">
+          <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">período</p>
+          <p className="text-sm text-amber-200 mt-1 font-semibold">
+            {from} → {to}
           </p>
-        )}
-        <div className="space-y-2.5">
-          {fechadas.map((s) => {
-            const qtdItens = pedidos.filter((p) => p.sessaoId === s.id).reduce((a, p) => a + p.itens.reduce((x, i) => x + i.qtd, 0), 0);
-            return (
-              <div key={s.id} className="flex items-center gap-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.07] p-3.5">
-                <span className="grid place-items-center size-11 rounded-xl bg-lime-400/10 border border-lime-400/25 font-display text-2xl text-lime-300 pt-0.5">
-                  {s.mesaNome.replace("Mesa ", "")}
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-white">Comanda #{s.id} · {qtdItens} itens</p>
-                  <p className="text-[11px] text-stone-500 font-mono tabular">
-                    {hora(s.abertaEm)} → {s.fechadaEm ? hora(s.fechadaEm) : "—"} ·{" "}
-                    {s.pagamentos.map((p) => FORMAS.find((f) => f.id === p.forma)?.label).join(" + ")}
-                  </p>
-                </div>
-                <p className="font-mono text-base font-bold text-white">{BRL(pagoSessao(s))}</p>
-              </div>
-            );
-          })}
         </div>
       </div>
 
-      {/* por forma de pagamento */}
-      <div className="glass-deep noise rounded-3xl p-5 sm:p-6">
-        <h3 className="font-display text-3xl text-white mb-4">Recebido por forma</h3>
-        <div className="space-y-3.5">
-          {FORMAS.map((f) => (
-            <div key={f.id}>
-              <div className="flex items-center justify-between text-sm mb-1.5">
-                <span className="font-semibold text-stone-300 flex items-center gap-2">
-                  <Wallet className="size-3.5 text-amber-400" /> {f.label}
-                </span>
-                <span className="font-mono text-white">{BRL(porForma[f.id])}</span>
-              </div>
-              <div className="h-2 rounded-full bg-white/[0.07] overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(porForma[f.id] / maxForma) * 100}%` }}
-                  transition={{ type: "spring", stiffness: 120, damping: 18 }}
-                  className={cn("h-full rounded-full", f.id === "pix" ? "bg-gradient-to-r from-lime-400 to-emerald-500" : "bg-gradient-to-r from-amber-500 to-orange-500")}
-                />
-              </div>
+      <div className="glass-deep rounded-3xl p-4 sm:p-5 overflow-x-auto">
+        <h3 className="font-display text-2xl text-white mb-3">Detalhe</h3>
+        {!linhas?.length ? (
+          <p className="text-sm text-stone-500 py-8 text-center">Sem vendas fechadas neste intervalo.</p>
+        ) : (
+          <table className="w-full text-left text-xs sm:text-sm">
+            <thead className="text-[10px] uppercase tracking-wider text-stone-500 border-b border-white/10">
+              <tr>
+                {Object.keys(linhas[0])
+                  .slice(0, 6)
+                  .map((k) => (
+                    <th key={k} className="py-2 pr-3 font-bold">
+                      {k}
+                    </th>
+                  ))}
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.slice(0, 100).map((row: any, i: number) => (
+                <tr key={i} className="border-b border-white/[0.05] text-stone-300">
+                  {Object.values(row)
+                    .slice(0, 6)
+                    .map((v, j) => (
+                      <td key={j} className="py-2 pr-3 font-mono text-[11px] sm:text-xs">
+                        {String(v ?? "—")}
+                      </td>
+                    ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ================= FUNÇÕES (paridade main) ================= */
+function Funcoes() {
+  const [histFrom, setHistFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [histTo, setHistTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [hist, setHist] = useState<any[]>([]);
+  const [histMsg, setHistMsg] = useState<string | null>(null);
+  const [purgeBefore, setPurgeBefore] = useState("");
+  const [purgeMsg, setPurgeMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const buscarHist = async () => {
+    setBusy(true);
+    setHistMsg(null);
+    try {
+      const rows = await api.adminPedidos(histFrom, histTo);
+      setHist(Array.isArray(rows) ? rows : []);
+      setHistMsg(`${Array.isArray(rows) ? rows.length : 0} pedido(s)`);
+    } catch (e: any) {
+      setHist([]);
+      setHistMsg(e.message || "Erro ao buscar histórico");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const previewPurge = async () => {
+    if (!purgeBefore) {
+      alert("Informe a data");
+      return;
+    }
+    setBusy(true);
+    try {
+      const out = await api.purgeHistorico({ before: purgeBefore, dryRun: true, confirm: false });
+      setPurgeMsg(
+        `Prévia: ${out.sessoes ?? out.count ?? out.wouldDelete ?? "?"} sessão(ões) fechadas antes de ${purgeBefore} seriam apagadas.`
+      );
+    } catch (e: any) {
+      setPurgeMsg(e.message || "Erro na prévia");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const executarPurge = async () => {
+    if (!purgeBefore) {
+      alert("Informe a data");
+      return;
+    }
+    if (
+      !confirm(
+        `Apagar DEFINITIVAMENTE contas fechadas antes de ${purgeBefore}? Não dá para desfazer.`
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const out = await api.purgeHistorico({ before: purgeBefore, dryRun: false, confirm: true });
+      setPurgeMsg(`Removido: ${JSON.stringify(out)}`);
+    } catch (e: any) {
+      setPurgeMsg(e.message || "Erro ao purgar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5 max-w-3xl">
+      <section className="glass rounded-3xl p-5">
+        <h3 className="font-display text-2xl text-white mb-1">Histórico de pedidos</h3>
+        <p className="text-[11px] text-stone-500 mb-4">Consulta por período (Neon desta branch).</p>
+        <div className="flex flex-wrap gap-3 items-end">
+          <label className="text-xs text-stone-400">
+            De
+            <input
+              type="date"
+              value={histFrom}
+              onChange={(e) => setHistFrom(e.target.value)}
+              className="mt-1 block h-11 rounded-xl bg-black/40 border border-white/12 px-3 text-sm text-white"
+            />
+          </label>
+          <label className="text-xs text-stone-400">
+            Até
+            <input
+              type="date"
+              value={histTo}
+              onChange={(e) => setHistTo(e.target.value)}
+              className="mt-1 block h-11 rounded-xl bg-black/40 border border-white/12 px-3 text-sm text-white"
+            />
+          </label>
+          <Btn size="sm" disabled={busy} onClick={() => void buscarHist()}>
+            Buscar
+          </Btn>
+        </div>
+        {histMsg && <p className="mt-3 text-xs text-stone-400">{histMsg}</p>}
+        <div className="mt-4 max-h-64 overflow-y-auto space-y-1.5">
+          {hist.slice(0, 50).map((p: any) => (
+            <div key={p.id || JSON.stringify(p)} className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2 text-[11px] text-stone-300 font-mono">
+              #{p.id} · {p.status} · mesa {p.mesa ?? p.mesa_numero ?? "—"} · {p.cliente_nome || p.clienteNome || ""}
             </div>
           ))}
         </div>
-        <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-stone-400">
-            <LayoutGrid className="size-4 text-amber-400" /> resumo do dia
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-3 font-mono text-sm">
-            <div>
-              <p className="text-[10px] font-sans uppercase tracking-widest text-stone-500">recebido</p>
-              <p className="text-lime-300 text-lg font-bold">{BRL(fechadas.reduce((a, s) => a + pagoSessao(s), 0))}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-sans uppercase tracking-widest text-stone-500">comandas fechadas</p>
-              <p className="text-white text-lg font-bold">{fechadas.length}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      </section>
 
-      <p className="lg:col-span-2 text-[11px] text-stone-500 text-center flex items-center justify-center gap-2">
-        <LayoutGrid className="size-3.5" /> Purga automática após o fechamento do dia — igual ao agendamento do servidor.
-      </p>
+      <section className="glass rounded-3xl p-5 border border-rose-400/20">
+        <h3 className="font-display text-2xl text-white mb-1">Limpar histórico</h3>
+        <p className="text-[11px] text-stone-500 mb-4">
+          Apaga permanentemente contas <b className="text-stone-300">fechadas</b> com fechamento <b className="text-stone-300">antes</b> da data.
+          Não mexe em mesas abertas. Não dá para desfazer.
+        </p>
+        <div className="flex flex-wrap gap-3 items-end">
+          <label className="text-xs text-stone-400">
+            Antes de
+            <input
+              type="date"
+              value={purgeBefore}
+              onChange={(e) => setPurgeBefore(e.target.value)}
+              className="mt-1 block h-11 rounded-xl bg-black/40 border border-white/12 px-3 text-sm text-white"
+            />
+          </label>
+          <Btn size="sm" variant="outline" disabled={busy} onClick={() => void previewPurge()}>
+            Ver quantos
+          </Btn>
+          <Btn size="sm" variant="danger" disabled={busy} onClick={() => void executarPurge()}>
+            Apagar
+          </Btn>
+        </div>
+        {purgeMsg && <p className="mt-3 text-xs text-amber-200/90">{purgeMsg}</p>}
+      </section>
     </div>
   );
 }

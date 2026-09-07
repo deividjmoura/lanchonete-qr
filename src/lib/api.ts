@@ -108,6 +108,26 @@ export const api = {
   setGarcomAtivo: (id: number, ativo: boolean) =>
     apiSend(`/api/admin/garcons/${id}`, "PATCH", { ativo }),
   removerGarcom: (id: number) => apiSend(`/api/admin/garcons/${id}`, "DELETE"),
+
+  adminDashboard: (params?: { from?: string; to?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    const s = q.toString();
+    return apiGet<any>(`/api/admin/dashboard${s ? `?${s}` : ""}`);
+  },
+  adminRelatorio: (from: string, to: string) =>
+    apiGet<any>(`/api/admin/relatorio?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  adminPedidos: (from?: string, to?: string, ativos?: boolean) => {
+    const q = new URLSearchParams();
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    if (ativos) q.set("ativos", "1");
+    const s = q.toString();
+    return apiGet<any[]>(`/api/admin/pedidos${s ? `?${s}` : ""}`);
+  },
+  purgeHistorico: (body: { before: string; confirm?: boolean; dryRun?: boolean }) =>
+    apiSend<any>("/api/admin/historico/purge", "POST", body),
 };
 
 /** SSE — invalida/recarrega quando o servidor emite update. */

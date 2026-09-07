@@ -8,8 +8,8 @@ function normalizeFotoUrl(raw) {
   if (!s) return null;
   // data-URL (foto otimizada no Postgres — sobrevive a redeploy)
   if (/^data:image\/(webp|jpeg|jpg|png|gif);base64,/i.test(s)) {
-    if (s.length > 400000) {
-      throw new ErroAdmin(413, 'Foto em base64 muito grande (máx ~300 KB otimizado)');
+    if (s.length > 550000) {
+      throw new ErroAdmin(413, 'Foto em base64 muito grande (máx ~400 KB otimizado)');
     }
     return s;
   }
