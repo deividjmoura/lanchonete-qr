@@ -33,10 +33,24 @@ async function removerGarcom(id) {
 async function criarGarcom(body) {
   const nome = String(body.nome || '').trim().slice(0, 80);
   if (!nome) throw new ErroGarcom(400, 'Informe o nome do garçom');
+
+  // produção já tem multi-tenant: estabelecimento_id é obrigatório
+  let estabelecimentoId = Number(body.estabelecimento_id);
+  if (!Number.isFinite(estabelecimentoId) || estabelecimentoId < 1) {
+    const r = await pool.query(
+      `SELECT id FROM estabelecimentos ORDER BY id ASC LIMIT 1`
+    );
+    if (!r.rows[0]) {
+      throw new ErroGarcom(500, 'Nenhum estabelecimento cadastrado');
+    }
+    estabelecimentoId = r.rows[0].id;
+  }
+
   const { rows } = await pool.query(
-    `INSERT INTO garcons (nome) VALUES ($1)
-     RETURNING id, nome, token, ativo, criado_em`,
-    [nome]
+    `INSERT INTO garcons (nome, estabelecimento_id)
+     VALUES ($1, $2)
+     RETURNING id, nome, token, ativo, criado_em, estabelecimento_id`,
+    [nome, estabelecimentoId]
   );
   return rows[0];
 }
