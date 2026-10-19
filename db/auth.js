@@ -102,6 +102,12 @@ async function garantirStaffSeed() {
   if (n > 0) return { created: false, count: n };
 
   const senhaPadrao = process.env.STAFF_SEED_PASSWORD || process.env.ADMIN_PASSWORD || 'troque-esta-senha';
+  // Nunca provisionar contas comerciais com credenciais triviais.
+  // Em desenvolvimento, mantém compatibilidade com os testes locais.
+  if (process.env.NODE_ENV === 'production' &&
+      (!senhaPadrao || senhaPadrao === 'troque-esta-senha' || senhaPadrao.length < 12)) {
+    throw new Error('Configure STAFF_SEED_PASSWORD com pelo menos 12 caracteres antes de criar contas em produção');
+  }
   const hash = await hashSenha(senhaPadrao);
   const users = [
     { nome: 'Administrador', login: 'admin', papel: 'admin' },
